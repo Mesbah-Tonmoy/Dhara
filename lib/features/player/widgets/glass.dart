@@ -59,6 +59,66 @@ class PanelHeading extends StatelessWidget {
   }
 }
 
+/// Small pill button for cards; [primary] ones carry the accent gradient.
+class DharaPillButton extends StatelessWidget {
+  const DharaPillButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.primary = false,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+  final IconData? icon;
+  final bool primary;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = this.icon;
+    return Material(
+      type: MaterialType.transparency,
+      child: Ink(
+        height: 30,
+        decoration: ShapeDecoration(
+          shape: StadiumBorder(
+            side: primary
+                ? BorderSide.none
+                : const BorderSide(color: DharaColors.strokeStrong),
+          ),
+          color: primary ? null : DharaColors.surface2,
+          gradient: primary ? DharaColors.accentGradient : null,
+        ),
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 13),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 16, color: Colors.white),
+                  const SizedBox(width: 4),
+                ],
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 const chipTextStyle = TextStyle(fontSize: 11.5, height: 1.2);
 
 /// Pill-shaped choice. [selected] chips get the accent gradient.

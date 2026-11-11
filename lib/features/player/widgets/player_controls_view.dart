@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dhara/core/format/duration_format.dart';
 import 'package:dhara/features/player/track_options.dart';
+import 'package:dhara/features/player/widgets/glass.dart';
 import 'package:dhara/features/player/widgets/seek_bar.dart';
 import 'package:dhara/features/player/widgets/seek_step_panel.dart';
 import 'package:dhara/features/player/widgets/track_panels.dart';
@@ -53,6 +54,12 @@ class PlayerControlsView extends StatefulWidget {
     required this.onSpeedChanged,
     required this.fullscreen,
     required this.onToggleFullscreen,
+    required this.hasNext,
+    required this.onPlayNext,
+    required this.upNext,
+    required this.onCancelNext,
+    required this.resumedFrom,
+    required this.onStartOver,
     this.notice,
     this.onControlsShownChanged,
     this.hideDelay = const Duration(seconds: 3),
@@ -110,6 +117,18 @@ class PlayerControlsView extends StatefulWidget {
 
   final bool fullscreen;
   final VoidCallback onToggleFullscreen;
+
+  /// Whether another video follows this one in the queue.
+  final bool hasNext;
+  final VoidCallback onPlayNext;
+
+  /// The running "up next" countdown, or `null` while it is not showing.
+  final UpNext? upNext;
+  final VoidCallback onCancelNext;
+
+  /// Where playback resumed from; shown briefly with a "Start over" button.
+  final Duration? resumedFrom;
+  final VoidCallback onStartOver;
 
   /// Flashed on screen whenever a new instance is passed in.
   final PlayerNotice? notice;
@@ -294,6 +313,8 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
       if (firstPress) _cycleSubtitles();
     } else if (key == LogicalKeyboardKey.keyF) {
       if (firstPress) widget.onToggleFullscreen();
+    } else if (key == LogicalKeyboardKey.keyN && widget.hasNext) {
+      if (firstPress) widget.onPlayNext();
     } else if (key == LogicalKeyboardKey.arrowLeft) {
       _skipBack();
     } else if (key == LogicalKeyboardKey.arrowRight) {
@@ -496,6 +517,16 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                             forward: true,
                             onPressed: _skipForward,
                           ),
+                          if (widget.hasNext) ...[
+                            const SizedBox(width: 4),
+                            _ControlButton(
+                              key: const Key('next-button'),
+                              tooltip: 'Next (N)',
+                              icon: Icons.skip_next_rounded,
+                              iconSize: 28,
+                              onPressed: widget.onPlayNext,
+                            ),
+                          ],
                           const SizedBox(width: 4),
                           _VolumeControl(
                             volume: widget.volume,
@@ -564,6 +595,31 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                 ),
               ),
             ),
+            // "Resumed from ..." pill, bottom left. Like the up-next card it
+            // stays visible even when the control bars are hidden.
+            if (widget.resumedFrom case final resumedFrom?)
+              Positioned(
+                left: 32,
+                bottom: 112,
+                child: _ResumePill(
+                  resumedFrom: resumedFrom,
+                  onStartOver: widget.onStartOver,
+                ),
+              ),
+            // Up-next countdown, bottom right; it moves to the left while a
+            // panel is open so both stay usable.
+            if (widget.upNext case final upNext?)
+              Positioned(
+                left: _panel == null ? null : 32,
+                right: _panel == null ? 32 : null,
+                bottom:
+                    widget.resumedFrom != null && _panel != null ? 172 : 112,
+                child: _UpNextCard(
+                  upNext: upNext,
+                  onPlayNow: widget.onPlayNext,
+                  onCancel: widget.onCancelNext,
+                ),
+              ),
             // The open panel, anchored above the right end of the controls.
             Positioned(
               right: 32,
@@ -661,6 +717,125 @@ class PlayerNotice {
   const PlayerNotice(this.text);
 
   final String text;
+}
+
+/// The "up next" countdown: what plays next and in how many seconds.
+class UpNext {
+  const UpNext({required this.title, required this.secondsLeft});
+
+  /// Server-controlled text; rendered as plain text only.
+  final String title;
+  final int secondsLeft;
+}
+
+class _UpNextCard extends StatelessWidget {
+  const _UpNextCard({
+    required this.upNext,
+    required this.onPlayNow,
+    required this.onCancel,
+  });
+
+  final UpNext upNext;
+  final VoidCallback onPlayNow;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      key: const Key('up-next-card'),
+      width: 340,
+      child: GlassPanel(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'UP NEXT IN ${upNext.secondsLeft} S',
+              style: const TextStyle(
+                fontSize: 11.5,
+                letterSpacing: 1.4,
+                fontWeight: FontWeight.w700,
+                color: DharaColors.accent2,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              upNext.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 15,
+                height: 1.25,
+                fontWeight: FontWeight.w700,
+                color: DharaColors.text,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                DharaPillButton(
+                  key: const Key('up-next-play-now'),
+                  label: 'Play now',
+                  icon: Icons.play_arrow_rounded,
+                  primary: true,
+                  onPressed: onPlayNow,
+                ),
+                const SizedBox(width: 6),
+                DharaPillButton(
+                  key: const Key('up-next-cancel'),
+                  label: 'Cancel',
+                  onPressed: onCancel,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ResumePill extends StatelessWidget {
+  const _ResumePill({required this.resumedFrom, required this.onStartOver});
+
+  final Duration resumedFrom;
+  final VoidCallback onStartOver;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPanel(
+      key: const Key('resume-pill'),
+      padding: const EdgeInsets.fromLTRB(16, 9, 10, 9),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text.rich(
+            TextSpan(
+              text: 'Resumed from ',
+              style: const TextStyle(fontSize: 13, color: DharaColors.text),
+              children: [
+                TextSpan(
+                  text: formatDuration(resumedFrom),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          DharaPillButton(
+            key: const Key('start-over-button'),
+            label: 'Start over',
+            onPressed: onStartOver,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Glass pill for short on-screen messages such as "+ 30 s".

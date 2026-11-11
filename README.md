@@ -15,8 +15,9 @@ A Bangla + English README is written in Phase 8.
 |---|---|
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
-| 2. Player | In progress: hardened player with its own controls, skip steps, saved settings, keyboard shortcuts, audio/subtitle tracks, external subtitles, playback speed and fullscreen (7 of 8 increments) |
-| 3–9 | Not started |
+| 2. Player | All 8 increments built; waiting for the manual streaming test on real BDIX links |
+| 3. Sources and server discovery | Next |
+| 4–9 | Not started |
 
 ## Prerequisites (Windows)
 
@@ -65,7 +66,19 @@ Known gaps, tracked for later phases:
 | M | Mute / unmute |
 | S | Next subtitle track (Off → first → ... → Off) |
 | F | Fullscreen on / off (also: double-click the picture) |
+| N | Next video in the queue |
 | Esc | Close the open panel, then leave fullscreen, then leave the player |
+
+## Resume and "up next"
+
+- The position of each video is saved every few seconds and when you leave;
+  opening it again resumes there ("Start over" jumps back to the beginning).
+  Positions in the first moments or the last 5% are not kept.
+- Paste several URLs (one per line) to play them in order. In the last 15
+  seconds a countdown offers "Play now" / "Cancel"; otherwise the next video
+  starts when the current one ends.
+- Positions are kept for the 200 most recently watched videos in the settings
+  file for now; they move to the library database in Phase 4.
 
 ## Subtitles and audio tracks
 

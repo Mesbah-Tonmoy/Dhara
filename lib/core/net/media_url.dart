@@ -21,6 +21,32 @@ Uri? parseMediaUrl(String input) {
   return uri;
 }
 
+/// Result of [parseMediaUrls]: the URLs in order, or the 1-based number of
+/// the first line that is not a valid media URL.
+class MediaUrlList {
+  const MediaUrlList.ok(this.urls) : invalidLine = null;
+  const MediaUrlList.invalid(int this.invalidLine) : urls = const [];
+
+  final List<Uri> urls;
+  final int? invalidLine;
+
+  bool get isValid => invalidLine == null && urls.isNotEmpty;
+}
+
+/// Parses pasted text with one URL per line (blank lines are ignored). Every
+/// line must pass [parseMediaUrl]; one bad line rejects the whole input.
+MediaUrlList parseMediaUrls(String input) {
+  final urls = <Uri>[];
+  final lines = input.split(RegExp(r'\r\n|\r|\n'));
+  for (final (index, line) in lines.indexed) {
+    if (line.trim().isEmpty) continue;
+    final url = parseMediaUrl(line);
+    if (url == null) return MediaUrlList.invalid(index + 1);
+    urls.add(url);
+  }
+  return MediaUrlList.ok(urls);
+}
+
 /// A display title for [url]: the decoded file name, or the host when the
 /// path has none. The result is server-controlled text, so only ever show it
 /// through a plain `Text` widget.

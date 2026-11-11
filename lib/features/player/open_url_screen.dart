@@ -3,9 +3,10 @@ import 'dart:async';
 import 'package:dhara/core/net/media_url.dart';
 import 'package:dhara/features/player/player_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-/// Temporary Phase 2 entry point: paste a video URL and play it.
-/// Replaced by the real Home screen in Phase 6.
+/// Temporary Phase 2 entry point: paste one or more video URLs and play them
+/// in order. Replaced by the real Home screen in Phase 6.
 class OpenUrlScreen extends StatefulWidget {
   const OpenUrlScreen({super.key});
 
@@ -24,17 +25,35 @@ class _OpenUrlScreenState extends State<OpenUrlScreen> {
   }
 
   void _play() {
-    final url = parseMediaUrl(_urlController.text);
-    if (url == null) {
-      setState(() => _error = 'Enter a full http:// or https:// video URL.');
+    final parsed = parseMediaUrls(_urlController.text);
+    if (!parsed.isValid) {
+      final line = parsed.invalidLine;
+      setState(() {
+        _error = line == null || !_urlController.text.trim().contains('\n')
+            ? 'Enter a full http:// or https:// video URL.'
+            : 'Line $line is not a full http:// or https:// video URL.';
+      });
       return;
     }
     setState(() => _error = null);
     unawaited(
       Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => PlayerScreen(url: url)),
+        MaterialPageRoute<void>(
+          builder: (_) => PlayerScreen(urls: parsed.urls),
+        ),
       ),
     );
+  }
+
+  /// Enter plays; Shift+Enter starts a new line for another URL.
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    final isEnter = event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.numpadEnter;
+    if (!isEnter || HardwareKeyboard.instance.isShiftPressed) {
+      return KeyEventResult.ignored;
+    }
+    if (event is KeyDownEvent) _play();
+    return KeyEventResult.handled;
   }
 
   @override
@@ -63,19 +82,24 @@ class _OpenUrlScreenState extends State<OpenUrlScreen> {
                   style: theme.textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 32),
-                TextField(
-                  key: const Key('url-field'),
-                  controller: _urlController,
-                  autofocus: true,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  keyboardType: TextInputType.url,
-                  textInputAction: TextInputAction.go,
-                  onSubmitted: (_) => _play(),
-                  decoration: InputDecoration(
-                    border: const OutlineInputBorder(),
-                    hintText: 'http://server/path/video.mkv',
-                    errorText: _error,
+                Focus(
+                  onKeyEvent: _onKey,
+                  child: TextField(
+                    key: const Key('url-field'),
+                    controller: _urlController,
+                    autofocus: true,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    keyboardType: TextInputType.multiline,
+                    minLines: 1,
+                    maxLines: 6,
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      hintText: 'http://server/path/video.mkv',
+                      helperText: 'Several URLs, one per line (Shift+Enter), '
+                          'play one after the other.',
+                      errorText: _error,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),

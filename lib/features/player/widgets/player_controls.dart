@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dhara/core/settings/settings_controller.dart';
+import 'package:dhara/features/player/playback_progress.dart';
 import 'package:dhara/features/player/seek_math.dart';
 import 'package:dhara/features/player/subtitle_file.dart';
 import 'package:dhara/features/player/track_options.dart';
@@ -16,18 +17,40 @@ class PlayerControls extends StatefulWidget {
     super.key,
     required this.player,
     required this.settings,
+    required this.mediaUrl,
     required this.title,
     required this.onBack,
     required this.fullscreen,
     required this.onToggleFullscreen,
+    required this.nextTitle,
+    required this.autoNext,
+    required this.onPlayNext,
+    required this.onCancelAutoNext,
+    required this.resumedFrom,
+    required this.onStartOver,
   });
 
   final Player player;
   final SettingsController settings;
+
+  /// The video being played; a change means a new video was opened.
+  final Uri mediaUrl;
   final String title;
   final VoidCallback onBack;
   final bool fullscreen;
   final VoidCallback onToggleFullscreen;
+
+  /// Title of the next video in the queue, or `null` at the end of it.
+  final String? nextTitle;
+
+  /// Whether the next video starts by itself when this one ends.
+  final bool autoNext;
+  final VoidCallback onPlayNext;
+  final VoidCallback onCancelAutoNext;
+
+  /// Set for a few seconds after a video resumed from a saved position.
+  final Duration? resumedFrom;
+  final VoidCallback onStartOver;
 
   @override
   State<PlayerControls> createState() => _PlayerControlsState();
@@ -88,6 +111,16 @@ class _PlayerControlsState extends State<PlayerControls> {
     ]);
     _applyVolume();
     unawaited(_setUpTracks());
+  }
+
+  @override
+  void didUpdateWidget(PlayerControls oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.mediaUrl != widget.mediaUrl) {
+      // A subtitle delay belongs to one video; the next starts in sync.
+      _subtitleDelay = 0;
+      unawaited(_native?.setProperty('sub-delay', '0'));
+    }
   }
 
   @override
@@ -258,6 +291,10 @@ class _PlayerControlsState extends State<PlayerControls> {
   @override
   Widget build(BuildContext context) {
     final settings = widget.settings;
+    final nextTitle = widget.nextTitle;
+    final secondsToNext = nextTitle != null && widget.autoNext
+        ? upNextSecondsLeft(_position, _duration)
+        : null;
     return ListenableBuilder(
       listenable: settings,
       builder: (context, _) => PlayerControlsView(
@@ -297,6 +334,14 @@ class _PlayerControlsState extends State<PlayerControls> {
         onSpeedChanged: _setSpeed,
         fullscreen: widget.fullscreen,
         onToggleFullscreen: widget.onToggleFullscreen,
+        hasNext: nextTitle != null,
+        onPlayNext: widget.onPlayNext,
+        upNext: secondsToNext == null
+            ? null
+            : UpNext(title: nextTitle!, secondsLeft: secondsToNext),
+        onCancelNext: widget.onCancelAutoNext,
+        resumedFrom: widget.resumedFrom,
+        onStartOver: widget.onStartOver,
         notice: _notice,
         onControlsShownChanged: _setControlsShown,
       ),

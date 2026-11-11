@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dhara/core/net/media_url.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/core/window/fullscreen.dart';
+import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/player/secure_player.dart';
 import 'package:dhara/features/player/widgets/player_controls.dart';
 import 'package:dhara/theme/tokens.dart';
@@ -10,47 +11,88 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
-/// Plays a single, already validated `http`/`https` URL with the app's own
-/// controls drawn over the video.
+/// Plays a queue of already validated `http`/`https` URLs, one after the
+/// other, with the app's own controls drawn over the video.
+///
+/// Each video resumes where it was left, and when one ends the next starts
+/// after a countdown the user can cancel.
 class PlayerScreen extends StatefulWidget {
-  const PlayerScreen({super.key, required this.url});
+  const PlayerScreen({super.key, required this.urls, this.initialIndex = 0})
+      : assert(urls.length > 0),
+        assert(initialIndex >= 0 && initialIndex < urls.length);
 
   /// Must come from `parseMediaUrl`, never from raw input.
-  final Uri url;
+  final List<Uri> urls;
+  final int initialIndex;
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
 }
 
 class _PlayerScreenState extends State<PlayerScreen> {
+  /// How often the position is written while playing.
+  static const _saveInterval = Duration(seconds: 5);
+
+  /// How long to wait for a file to open before giving up on resuming.
+  static const _loadTimeout = Duration(seconds: 15);
+
+  /// How long the "Resumed from ..." pill stays up.
+  static const _resumeNoticeDuration = Duration(seconds: 7);
+
   late final Player _player = createPlayer();
   late final VideoController _video = VideoController(_player);
-  StreamSubscription<String>? _errorSub;
+  late final ResumeStore _resume = ResumeStoreScope.of(context);
+  final _subscriptions = <StreamSubscription<Object?>>[];
   late final Future<void> _started;
+
+  late int _index = widget.initialIndex;
   String? _error;
   bool _fullscreen = false;
 
-  void _toggleFullscreen() {
-    setState(() => _fullscreen = !_fullscreen);
-    unawaited(setWindowFullscreen(_fullscreen));
-  }
+  // Resume and "up next" state of the current video.
+  Duration? _resumedFrom;
+  Timer? _resumeNoticeTimer;
+  bool _autoNextCancelled = false;
+
+  // Positions are only saved once the current video has reported its
+  // duration; until then the player may still hold the previous one's.
+  bool _progressReady = false;
+  Duration _lastSavedPosition = Duration.zero;
+
+  Uri get _url => widget.urls[_index];
+
+  Uri? get _nextUrl =>
+      _index + 1 < widget.urls.length ? widget.urls[_index + 1] : null;
 
   @override
   void initState() {
     super.initState();
-    _errorSub = _player.stream.error.listen((message) {
-      if (mounted) setState(() => _error = message);
-    });
+    final stream = _player.stream;
+    _subscriptions.addAll([
+      stream.error.listen((message) {
+        if (mounted) setState(() => _error = message);
+      }),
+      stream.duration.listen((duration) {
+        if (duration > Duration.zero) _progressReady = true;
+      }),
+      stream.position.listen(_onPosition),
+      stream.playing.listen((playing) {
+        if (!playing) _saveProgress();
+      }),
+      stream.completed.listen((completed) {
+        if (completed) _onCompleted();
+      }),
+    ]);
     _started = _start();
   }
 
-  /// Hardens the player first; the URL is only opened once every security
+  /// Hardens the player first; a URL is only opened once every security
   /// option has been verified. Never throws.
   Future<void> _start() async {
     try {
       await hardenPlayer(_player);
       if (!mounted) return;
-      await _player.open(Media(widget.url.toString()));
+      await _openCurrent();
     } on PlayerHardeningError {
       if (mounted) {
         setState(() {
@@ -60,9 +102,85 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  /// Opens the video at [_index], resuming from the saved position if any.
+  Future<void> _openCurrent() async {
+    final index = _index;
+    final resumeFrom = _resume.positionFor(_url);
+    _progressReady = false;
+    _lastSavedPosition = resumeFrom ?? Duration.zero;
+    _resumeNoticeTimer?.cancel();
+    setState(() {
+      _error = null;
+      _autoNextCancelled = false;
+      _resumedFrom = resumeFrom;
+    });
+    final media = Media(_url.toString());
+    if (resumeFrom == null) {
+      await _player.open(media);
+      return;
+    }
+
+    _resumeNoticeTimer = Timer(_resumeNoticeDuration, () {
+      if (mounted) setState(() => _resumedFrom = null);
+    });
+    // Load paused, jump to the saved position once the file is open, then
+    // play. (Seeking a loaded file is the path every manual seek takes.)
+    final loaded = _player.stream.duration
+        .firstWhere((duration) => duration > Duration.zero)
+        .timeout(_loadTimeout, onTimeout: () => Duration.zero);
+    await _player.open(media, play: false);
+    await loaded;
+    // The user may have left or moved on while the file was loading.
+    if (!mounted || _index != index) return;
+    await _player.seek(resumeFrom);
+    await _player.play();
+  }
+
+  void _onPosition(Duration position) {
+    if ((position - _lastSavedPosition).abs() >= _saveInterval) {
+      _saveProgress();
+    }
+  }
+
+  void _saveProgress() {
+    if (!_progressReady) return;
+    final state = _player.state;
+    _lastSavedPosition = state.position;
+    _resume.save(_url, position: state.position, duration: state.duration);
+  }
+
+  void _onCompleted() {
+    if (!_progressReady) return;
+    // Watched to the end: next time it starts from the beginning.
+    _resume.clear(_url);
+    if (!_autoNextCancelled) _playNext();
+  }
+
+  void _playNext() {
+    if (_nextUrl == null || !mounted) return;
+    _saveProgress();
+    _index++;
+    unawaited(_openCurrent());
+  }
+
+  void _startOver() {
+    _resumeNoticeTimer?.cancel();
+    setState(() => _resumedFrom = null);
+    unawaited(_player.seek(Duration.zero));
+  }
+
+  void _toggleFullscreen() {
+    setState(() => _fullscreen = !_fullscreen);
+    unawaited(setWindowFullscreen(_fullscreen));
+  }
+
   @override
   void dispose() {
-    unawaited(_errorSub?.cancel());
+    _saveProgress();
+    _resumeNoticeTimer?.cancel();
+    for (final subscription in _subscriptions) {
+      unawaited(subscription.cancel());
+    }
     // Fullscreen belongs to the player; the rest of the app is windowed.
     if (_fullscreen) unawaited(setWindowFullscreen(false));
     // Dispose only after start-up has settled, so libmpv is never torn down
@@ -74,6 +192,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   Widget build(BuildContext context) {
     final error = _error;
+    final nextUrl = _nextUrl;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -93,10 +212,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
           PlayerControls(
             player: _player,
             settings: SettingsScope.read(context),
-            title: mediaTitleFromUrl(widget.url),
+            mediaUrl: _url,
+            title: mediaTitleFromUrl(_url),
             onBack: () => Navigator.of(context).maybePop(),
             fullscreen: _fullscreen,
             onToggleFullscreen: _toggleFullscreen,
+            nextTitle: nextUrl == null ? null : mediaTitleFromUrl(nextUrl),
+            autoNext: !_autoNextCancelled,
+            onPlayNext: _playNext,
+            onCancelAutoNext: () => setState(() => _autoNextCancelled = true),
+            resumedFrom: _resumedFrom,
+            onStartOver: _startOver,
           ),
           if (error != null)
             Positioned(

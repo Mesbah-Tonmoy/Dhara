@@ -25,6 +25,9 @@ class _Calls {
   final subtitleDelays = <double>[];
   final speeds = <double>[];
   int toggleFullscreen = 0;
+  int playNext = 0;
+  int cancelNext = 0;
+  int startOver = 0;
 }
 
 const _audio = [
@@ -56,6 +59,9 @@ Future<_Calls> _pump(
   PlayerNotice? notice,
   double speed = 1,
   bool fullscreen = false,
+  bool hasNext = false,
+  UpNext? upNext,
+  Duration? resumedFrom,
   _Calls? calls,
 }) async {
   final recorded = calls ?? _Calls();
@@ -99,6 +105,12 @@ Future<_Calls> _pump(
           onSpeedChanged: recorded.speeds.add,
           fullscreen: fullscreen,
           onToggleFullscreen: () => recorded.toggleFullscreen++,
+          hasNext: hasNext,
+          onPlayNext: () => recorded.playNext++,
+          upNext: upNext,
+          onCancelNext: () => recorded.cancelNext++,
+          resumedFrom: resumedFrom,
+          onStartOver: () => recorded.startOver++,
           notice: notice,
         ),
       ),
@@ -420,6 +432,12 @@ void main() {
                 onSpeedChanged: (_) {},
                 fullscreen: false,
                 onToggleFullscreen: () {},
+                hasNext: false,
+                onPlayNext: () {},
+                upNext: null,
+                onCancelNext: () {},
+                resumedFrom: null,
+                onStartOver: () {},
                 onControlsShownChanged: shown.add,
               ),
             ),
@@ -630,6 +648,92 @@ void main() {
       await _pump(tester, calls: calls);
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       expect(calls.back, 1);
+    });
+  });
+
+  group('next video', () {
+    testWidgets('no next button or N shortcut at the end of the queue',
+        (tester) async {
+      final calls = await _pump(tester);
+
+      expect(find.byKey(const Key('next-button')), findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+      expect(calls.playNext, 0);
+    });
+
+    testWidgets('next button and N play the next video', (tester) async {
+      final calls = await _pump(tester, hasNext: true);
+
+      await tester.tap(find.byKey(const Key('next-button')));
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+
+      expect(calls.playNext, 2);
+    });
+
+    testWidgets('up-next card shows the countdown and the title',
+        (tester) async {
+      await _pump(tester, hasNext: true);
+      expect(find.byKey(const Key('up-next-card')), findsNothing);
+
+      await _pump(
+        tester,
+        hasNext: true,
+        upNext: const UpNext(title: 'Show S01E02 <b>.mkv', secondsLeft: 12),
+      );
+
+      expect(find.text('UP NEXT IN 12 S'), findsOneWidget);
+      expect(find.text('Show S01E02 <b>.mkv'), findsOneWidget);
+    });
+
+    testWidgets('Play now and Cancel are reported', (tester) async {
+      final calls = await _pump(
+        tester,
+        hasNext: true,
+        upNext: const UpNext(title: 'Next.mkv', secondsLeft: 9),
+      );
+
+      await tester.tap(find.byKey(const Key('up-next-play-now')));
+      await tester.tap(find.byKey(const Key('up-next-cancel')));
+
+      expect(calls.playNext, 1);
+      expect(calls.cancelNext, 1);
+      expect(calls.togglePlay, 0);
+    });
+
+    testWidgets('the card stays visible while the controls are hidden',
+        (tester) async {
+      await _pump(
+        tester,
+        playing: true,
+        hasNext: true,
+        upNext: const UpNext(title: 'Next.mkv', secondsLeft: 9),
+      );
+      await tester.pump(const Duration(seconds: 4));
+
+      expect(_hidden(tester), isTrue);
+      expect(find.byKey(const Key('up-next-card')), findsOneWidget);
+    });
+  });
+
+  group('resume', () {
+    testWidgets('shows where playback resumed from, with Start over',
+        (tester) async {
+      final calls = await _pump(tester);
+      expect(find.byKey(const Key('resume-pill')), findsNothing);
+
+      await _pump(
+        tester,
+        resumedFrom: const Duration(minutes: 42, seconds: 7),
+        calls: calls,
+      );
+      expect(
+        find.text('Resumed from 42:07', findRichText: true),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('start-over-button')));
+      expect(calls.startOver, 1);
+      expect(calls.togglePlay, 0);
     });
   });
 

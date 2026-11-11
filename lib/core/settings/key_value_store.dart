@@ -9,9 +9,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 abstract interface class KeyValueStore {
   int? getInt(String key);
   double? getDouble(String key);
+  String? getString(String key);
 
   Future<void> setInt(String key, int value);
   Future<void> setDouble(String key, double value);
+  Future<void> setString(String key, String value);
 }
 
 /// In-memory store for tests and as a fallback when the settings file cannot
@@ -32,6 +34,15 @@ class MemoryKeyValueStore implements KeyValueStore {
     final value = values[key];
     return value is num ? value.toDouble() : null;
   }
+
+  @override
+  String? getString(String key) {
+    final value = values[key];
+    return value is String ? value : null;
+  }
+
+  @override
+  Future<void> setString(String key, String value) async => values[key] = value;
 
   @override
   Future<void> setInt(String key, int value) async => values[key] = value;
@@ -62,6 +73,16 @@ class SharedPrefsStore implements KeyValueStore {
     final value = _prefs.get(key);
     return value is num ? value.toDouble() : null;
   }
+
+  @override
+  String? getString(String key) {
+    final value = _prefs.get(key);
+    return value is String ? value : null;
+  }
+
+  @override
+  Future<void> setString(String key, String value) =>
+      _prefs.setString(key, value);
 
   @override
   Future<void> setInt(String key, int value) => _prefs.setInt(key, value);

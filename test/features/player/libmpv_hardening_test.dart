@@ -84,6 +84,28 @@ void main() {
     });
 
     test(
+      'resuming: load paused, seek, then play continues from there',
+      () async {
+        await hardenPlayer(player);
+        final loaded =
+            player.stream.duration.firstWhere((d) => d > Duration.zero);
+        await player.open(Media(_sampleVideo.path), play: false);
+        await loaded;
+        await player.seek(const Duration(seconds: 5));
+        await player.play();
+
+        // Playback must actually move on from the resume point.
+        final position = await player.stream.position.firstWhere(
+          (p) => p >= const Duration(seconds: 6),
+        );
+        expect(position.inSeconds, inInclusiveRange(6, 8));
+        expect(player.state.playing, isTrue);
+      },
+      skip: _sampleVideo.existsSync() ? false : 'no sample video on this PC',
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
+
+    test(
       'a hardened player still loads an external subtitle file',
       () async {
         final dir = Directory.systemTemp.createTempSync('dhara_libmpv_');

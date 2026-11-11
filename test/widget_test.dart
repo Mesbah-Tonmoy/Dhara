@@ -1,10 +1,17 @@
 import 'package:dhara/app.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
+import 'package:dhara/features/player/resume_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-Widget _app() => DharaApp(settings: SettingsController(MemoryKeyValueStore()));
+Widget _app() {
+  final store = MemoryKeyValueStore();
+  return DharaApp(
+    settings: SettingsController(store),
+    resumeStore: ResumeStore(store),
+  );
+}
 
 void main() {
   testWidgets('app boots on the open-URL screen', (tester) async {
@@ -28,6 +35,24 @@ void main() {
 
     expect(
       find.text('Enter a full http:// or https:// video URL.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('url-field')), findsOneWidget);
+  });
+
+  testWidgets('names the bad line when several URLs are pasted',
+      (tester) async {
+    await tester.pumpWidget(_app());
+
+    await tester.enterText(
+      find.byKey(const Key('url-field')),
+      'http://h.example/e01.mkv\nsmb://h.example/e02.mkv',
+    );
+    await tester.tap(find.byKey(const Key('play-button')));
+    await tester.pump();
+
+    expect(
+      find.text('Line 2 is not a full http:// or https:// video URL.'),
       findsOneWidget,
     );
     expect(find.byKey(const Key('url-field')), findsOneWidget);

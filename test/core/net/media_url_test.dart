@@ -33,6 +33,49 @@ void main() {
     });
   });
 
+  group('parseMediaUrls', () {
+    test('reads one URL per line, in order', () {
+      final result = parseMediaUrls(
+        'http://h.example/e01.mkv\r\nhttp://h.example/e02.mkv\nhttp://h.example/e03.mkv',
+      );
+
+      expect(result.isValid, isTrue);
+      expect(result.urls.map((u) => u.pathSegments.last), [
+        'e01.mkv',
+        'e02.mkv',
+        'e03.mkv',
+      ]);
+    });
+
+    test('ignores blank lines and surrounding spaces', () {
+      final result = parseMediaUrls(
+        '\n  http://h.example/a.mkv  \n\n   \nhttp://h.example/b.mkv\n',
+      );
+
+      expect(result.urls, hasLength(2));
+    });
+
+    test('a single URL is a list of one', () {
+      expect(parseMediaUrls('http://h.example/a.mkv').urls, hasLength(1));
+    });
+
+    test('one bad line rejects everything and is reported by number', () {
+      final result = parseMediaUrls(
+        'http://h.example/a.mkv\n\nfile:///C:/secret.txt\nhttp://h.example/b.mkv',
+      );
+
+      expect(result.isValid, isFalse);
+      expect(result.invalidLine, 3);
+      expect(result.urls, isEmpty);
+    });
+
+    test('empty input is not valid', () {
+      expect(parseMediaUrls('').isValid, isFalse);
+      expect(parseMediaUrls(' \n \n').isValid, isFalse);
+      expect(parseMediaUrls('').invalidLine, isNull);
+    });
+  });
+
   group('mediaTitleFromUrl', () {
     String title(String url) => mediaTitleFromUrl(parseMediaUrl(url)!);
 
