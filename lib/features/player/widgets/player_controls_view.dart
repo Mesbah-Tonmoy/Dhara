@@ -459,6 +459,7 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
+                            fontFamily: DharaFonts.display,
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
                             height: 1.2,
@@ -1003,7 +1004,10 @@ class _SpeedButton extends StatelessWidget {
           minimumSize: const Size(44, 36),
           padding: const EdgeInsets.symmetric(horizontal: 12),
           shape: const StadiumBorder(),
+          // A button's textStyle replaces the theme's, so the family must
+          // be named here.
           textStyle: const TextStyle(
+            fontFamily: DharaFonts.ui,
             fontSize: 13,
             fontWeight: FontWeight.w700,
             fontFeatures: [FontFeature.tabularFigures()],

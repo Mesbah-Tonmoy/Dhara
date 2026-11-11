@@ -39,6 +39,15 @@ abstract final class DharaColors {
   static const bad = Color(0xFFFF5D6C);
 }
 
+/// Font families bundled in `assets/fonts` (declared in `pubspec.yaml`).
+abstract final class DharaFonts {
+  /// Body and interface text.
+  static const ui = 'Inter';
+
+  /// Titles and headings.
+  static const display = 'Plus Jakarta Sans';
+}
+
 abstract final class DharaShadows {
   static const pop = [
     BoxShadow(color: Color(0x99000000), offset: Offset(0, 24), blurRadius: 64),

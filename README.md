@@ -15,7 +15,7 @@ A Bangla + English README is written in Phase 8.
 |---|---|
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
-| 2. Player | All 8 increments built; waiting for the manual streaming test on real BDIX links |
+| 2. Player | Done and tested on real BDIX links. Not yet tried: HEVC / 4K files and `https://` links (none found so far) |
 | 3. Sources and server discovery | Next |
 | 4–9 | Not started |
 
@@ -90,6 +90,15 @@ Known gaps, tracked for later phases:
   file up to 20 MB. The file is checked (type, regular file, size) and is only
   ever handed to the player as a subtitle.
 
+## Fonts
+
+Inter (interface) and Plus Jakarta Sans (titles) are bundled in
+`assets/fonts` as variable fonts and declared in `pubspec.yaml`; nothing is
+fetched at runtime. Sources, licences (OFL 1.1) and checksums are in
+[assets/fonts/README.md](assets/fonts/README.md). In code use
+`DharaFonts.ui` / `DharaFonts.display`; a button `textStyle` replaces the
+theme's, so name the family there explicitly.
+
 ## Settings
 
 User settings (skip steps, volume, subtitle size) are saved by `shared_preferences` in
@@ -102,5 +111,6 @@ load, so a broken file falls back to defaults. No secrets are stored there.
 lib/                 app code
 test/                automated tests (run anywhere)
 design/prototype/    Phase 1 clickable HTML prototype (no network calls)
+assets/fonts/        bundled Inter and Plus Jakarta Sans
 assets/sources/      starter BDIX source list (Phase 3)
 ```

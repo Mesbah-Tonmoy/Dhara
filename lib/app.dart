@@ -1,6 +1,7 @@
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/player/open_url_screen.dart';
 import 'package:dhara/features/player/resume_store.dart';
+import 'package:dhara/theme/theme.dart';
 import 'package:flutter/material.dart';
 
 /// Root widget. Creates no native player, so it is safe to pump in tests.
@@ -23,14 +24,7 @@ class DharaApp extends StatelessWidget {
         child: MaterialApp(
           title: 'Dhara',
           debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            brightness: Brightness.dark,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF8B6CFF),
-              brightness: Brightness.dark,
-            ),
-            scaffoldBackgroundColor: const Color(0xFF06070C),
-          ),
+          theme: buildDharaTheme(),
           home: const OpenUrlScreen(),
         ),
       ),
