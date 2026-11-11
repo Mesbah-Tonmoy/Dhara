@@ -5,6 +5,53 @@ import 'package:dhara/features/player/widgets/glass.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:flutter/material.dart';
 
+/// Playback speeds offered in the speed panel.
+const playbackSpeeds = <double>[0.5, 0.75, 1, 1.25, 1.5, 2];
+
+/// `1×`, `0.75×`, `1.5×`: the speed without needless zeros.
+String formatSpeed(double speed) {
+  final text = speed.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
+  return '$text×';
+}
+
+/// Panel for choosing the playback speed.
+class SpeedPanel extends StatelessWidget {
+  const SpeedPanel({super.key, required this.speed, required this.onSelected});
+
+  final double speed;
+  final ValueChanged<double> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPanel(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _Heading('Playback speed'),
+          _TrackList(
+            keyPrefix: 'speed-option',
+            options: [
+              for (final value in playbackSpeeds)
+                TrackOption(
+                  id: '$value',
+                  label: value == 1 ? 'Normal' : formatSpeed(value),
+                ),
+            ],
+            // Matches by value, so 1 and 1.0 are the same choice.
+            selectedId: '${playbackSpeeds.firstWhere(
+              (value) => (value - speed).abs() < 0.001,
+              orElse: () => -1,
+            )}',
+            onSelected: (id) => onSelected(double.parse(id)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Panel listing the audio tracks of the current file.
 class AudioPanel extends StatelessWidget {
   const AudioPanel({
@@ -264,7 +311,7 @@ class _TrackList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 230),
+      constraints: const BoxConstraints(maxHeight: 240),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

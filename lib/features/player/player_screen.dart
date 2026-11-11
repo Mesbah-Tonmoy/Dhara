@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dhara/core/net/media_url.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
+import 'package:dhara/core/window/fullscreen.dart';
 import 'package:dhara/features/player/secure_player.dart';
 import 'package:dhara/features/player/widgets/player_controls.dart';
 import 'package:dhara/theme/tokens.dart';
@@ -27,6 +28,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
   StreamSubscription<String>? _errorSub;
   late final Future<void> _started;
   String? _error;
+  bool _fullscreen = false;
+
+  void _toggleFullscreen() {
+    setState(() => _fullscreen = !_fullscreen);
+    unawaited(setWindowFullscreen(_fullscreen));
+  }
 
   @override
   void initState() {
@@ -56,6 +63,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void dispose() {
     unawaited(_errorSub?.cancel());
+    // Fullscreen belongs to the player; the rest of the app is windowed.
+    if (_fullscreen) unawaited(setWindowFullscreen(false));
     // Dispose only after start-up has settled, so libmpv is never torn down
     // while options are still being applied.
     unawaited(_started.whenComplete(_player.dispose));
@@ -86,6 +95,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             settings: SettingsScope.read(context),
             title: mediaTitleFromUrl(widget.url),
             onBack: () => Navigator.of(context).maybePop(),
+            fullscreen: _fullscreen,
+            onToggleFullscreen: _toggleFullscreen,
           ),
           if (error != null)
             Positioned(

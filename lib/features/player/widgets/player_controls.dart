@@ -18,12 +18,16 @@ class PlayerControls extends StatefulWidget {
     required this.settings,
     required this.title,
     required this.onBack,
+    required this.fullscreen,
+    required this.onToggleFullscreen,
   });
 
   final Player player;
   final SettingsController settings;
   final String title;
   final VoidCallback onBack;
+  final bool fullscreen;
+  final VoidCallback onToggleFullscreen;
 
   @override
   State<PlayerControls> createState() => _PlayerControlsState();
@@ -44,6 +48,7 @@ class _PlayerControlsState extends State<PlayerControls> {
   late Duration _duration = widget.player.state.duration;
   late Duration _buffered = widget.player.state.buffer;
   late Tracks _tracks = widget.player.state.tracks;
+  late double _speed = widget.player.state.rate;
 
   // The chosen level is kept here so muting does not lose it. It starts at
   // the saved level; mute itself is deliberately not remembered, so a new
@@ -74,6 +79,7 @@ class _PlayerControlsState extends State<PlayerControls> {
       stream.position.listen((v) => setState(() => _position = v)),
       stream.duration.listen((v) => setState(() => _duration = v)),
       stream.buffer.listen((v) => setState(() => _buffered = v)),
+      stream.rate.listen((v) => setState(() => _speed = v)),
       stream.tracks.listen((v) {
         setState(() => _tracks = v);
         unawaited(_refreshSelection());
@@ -118,6 +124,11 @@ class _PlayerControlsState extends State<PlayerControls> {
       _muted = false;
     });
     _applyVolume();
+  }
+
+  void _setSpeed(double speed) {
+    setState(() => _speed = speed);
+    unawaited(widget.player.setRate(speed));
   }
 
   void _toggleMute() {
@@ -282,6 +293,10 @@ class _PlayerControlsState extends State<PlayerControls> {
         onSubtitleScaleChanged: _setSubtitleScale,
         subtitleDelay: _subtitleDelay,
         onSubtitleDelayChanged: _setSubtitleDelay,
+        speed: _speed,
+        onSpeedChanged: _setSpeed,
+        fullscreen: widget.fullscreen,
+        onToggleFullscreen: widget.onToggleFullscreen,
         notice: _notice,
         onControlsShownChanged: _setControlsShown,
       ),

@@ -15,7 +15,7 @@ A Bangla + English README is written in Phase 8.
 |---|---|
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
-| 2. Player | In progress: hardened player with its own controls, skip steps, saved settings, keyboard shortcuts, audio/subtitle tracks and external subtitles (6 of 8 increments) |
+| 2. Player | In progress: hardened player with its own controls, skip steps, saved settings, keyboard shortcuts, audio/subtitle tracks, external subtitles, playback speed and fullscreen (7 of 8 increments) |
 | 3–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -64,9 +64,8 @@ Known gaps, tracked for later phases:
 | ↑ / ↓ | Volume up / down by 5% |
 | M | Mute / unmute |
 | S | Next subtitle track (Off → first → ... → Off) |
-| Esc | Close the open panel, or leave the player |
-
-`F` (fullscreen) arrives with that feature.
+| F | Fullscreen on / off (also: double-click the picture) |
+| Esc | Close the open panel, then leave fullscreen, then leave the player |
 
 ## Subtitles and audio tracks
 

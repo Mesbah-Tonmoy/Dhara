@@ -49,6 +49,10 @@ class PlayerControlsView extends StatefulWidget {
     required this.onSubtitleScaleChanged,
     required this.subtitleDelay,
     required this.onSubtitleDelayChanged,
+    required this.speed,
+    required this.onSpeedChanged,
+    required this.fullscreen,
+    required this.onToggleFullscreen,
     this.notice,
     this.onControlsShownChanged,
     this.hideDelay = const Duration(seconds: 3),
@@ -100,6 +104,13 @@ class PlayerControlsView extends StatefulWidget {
   final double subtitleDelay;
   final ValueChanged<double> onSubtitleDelayChanged;
 
+  /// Playback rate (1 = normal).
+  final double speed;
+  final ValueChanged<double> onSpeedChanged;
+
+  final bool fullscreen;
+  final VoidCallback onToggleFullscreen;
+
   /// Flashed on screen whenever a new instance is passed in.
   final PlayerNotice? notice;
 
@@ -121,8 +132,11 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
   /// keys pressed while a button has focus still reach [_onKey].
   final _keyFocus = FocusNode(debugLabel: 'player shortcuts');
 
+  static const _doubleClickWindow = Duration(milliseconds: 300);
+
   Timer? _hideTimer;
   Timer? _osdTimer;
+  Timer? _doubleClickTimer;
   bool _awake = true;
   bool _pointerOnControls = false;
   _Panel? _panel;
@@ -183,6 +197,7 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
   void dispose() {
     _hideTimer?.cancel();
     _osdTimer?.cancel();
+    _doubleClickTimer?.cancel();
     _keyFocus.dispose();
     super.dispose();
   }
@@ -223,12 +238,15 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
     _showOsd(silent ? 'Sound on' : 'Muted');
   }
 
-  /// Esc backs out one level: text field, then panel, then the player.
+  /// Esc backs out one level: text field, then panel, then fullscreen, then
+  /// the player.
   void _escape() {
     if (_isEditingText) {
       _keyFocus.requestFocus();
     } else if (_panel != null) {
       setState(() => _panel = null);
+    } else if (widget.fullscreen) {
+      widget.onToggleFullscreen();
     } else {
       widget.onBack();
     }
@@ -274,6 +292,8 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
       if (firstPress) _toggleMute();
     } else if (key == LogicalKeyboardKey.keyS) {
       if (firstPress) _cycleSubtitles();
+    } else if (key == LogicalKeyboardKey.keyF) {
+      if (firstPress) widget.onToggleFullscreen();
     } else if (key == LogicalKeyboardKey.arrowLeft) {
       _skipBack();
     } else if (key == LogicalKeyboardKey.arrowRight) {
@@ -318,8 +338,16 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
     _keyFocus.requestFocus();
     if (_panel != null) {
       setState(() => _panel = null);
+      return;
+    }
+    // Play/pause reacts at once. A second click right after it is a
+    // double-click: undo the pause and toggle fullscreen instead.
+    widget.onTogglePlay();
+    if (_doubleClickTimer?.isActive ?? false) {
+      _doubleClickTimer!.cancel();
+      widget.onToggleFullscreen();
     } else {
-      widget.onTogglePlay();
+      _doubleClickTimer = Timer(_doubleClickWindow, () {});
     }
   }
 
@@ -477,11 +505,23 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                             onToggleMute: widget.onToggleMute,
                           ),
                           const SizedBox(width: 10),
-                          _TimeLabel(
-                            position: widget.position,
-                            duration: widget.duration,
+                          // Takes the space between the two button groups;
+                          // the time fades out first if the window is narrow.
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: _TimeLabel(
+                                position: widget.position,
+                                duration: widget.duration,
+                              ),
+                            ),
                           ),
-                          const Spacer(),
+                          _SpeedButton(
+                            speed: widget.speed,
+                            selected: _panel == _Panel.speed,
+                            onPressed: () => _togglePanel(_Panel.speed),
+                          ),
+                          const SizedBox(width: 4),
                           _ControlButton(
                             key: const Key('audio-button'),
                             tooltip: 'Audio track',
@@ -504,6 +544,18 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                             icon: Icons.tune_rounded,
                             selected: _panel == _Panel.seekStep,
                             onPressed: () => _togglePanel(_Panel.seekStep),
+                          ),
+                          const SizedBox(width: 4),
+                          _ControlButton(
+                            key: const Key('fullscreen-button'),
+                            tooltip: widget.fullscreen
+                                ? 'Exit fullscreen (F)'
+                                : 'Fullscreen (F)',
+                            icon: widget.fullscreen
+                                ? Icons.fullscreen_exit_rounded
+                                : Icons.fullscreen_rounded,
+                            iconSize: 28,
+                            onPressed: widget.onToggleFullscreen,
                           ),
                         ],
                       ),
@@ -550,6 +602,15 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
     switch (_panel) {
       case null:
         return const SizedBox.shrink();
+      case _Panel.speed:
+        return ConstrainedBox(
+          key: const Key('speed-panel'),
+          constraints: const BoxConstraints(maxWidth: 240),
+          child: SpeedPanel(
+            speed: widget.speed,
+            onSelected: widget.onSpeedChanged,
+          ),
+        );
       case _Panel.audio:
         return ConstrainedBox(
           key: const Key('audio-panel'),
@@ -591,7 +652,7 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
 }
 
 /// The pop-up panels of the player; at most one is open.
-enum _Panel { audio, subtitles, seekStep }
+enum _Panel { speed, audio, subtitles, seekStep }
 
 /// A short message for the player to flash on screen, e.g. the result of
 /// loading a subtitle file. A new instance is shown even if the text is the
@@ -737,6 +798,43 @@ class _ControlButton extends StatelessWidget {
         hoverColor: const Color(0x24FFFFFF),
         fixedSize: const Size.square(44),
         padding: EdgeInsets.zero,
+      ),
+    );
+  }
+}
+
+/// Pill button showing the playback speed, e.g. "1.5×"; opens the speed panel.
+class _SpeedButton extends StatelessWidget {
+  const _SpeedButton({
+    required this.speed,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final double speed;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Playback speed',
+      child: TextButton(
+        key: const Key('speed-button'),
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          foregroundColor: DharaColors.text,
+          backgroundColor: selected ? const Color(0x4D8B6CFF) : null,
+          minimumSize: const Size(44, 36),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          shape: const StadiumBorder(),
+          textStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            fontFeatures: [FontFeature.tabularFigures()],
+          ),
+        ),
+        child: Text(formatSpeed(speed)),
       ),
     );
   }
@@ -900,6 +998,9 @@ class _TimeLabel extends StatelessWidget {
     );
     return Text.rich(
       key: const Key('time-label'),
+      maxLines: 1,
+      softWrap: false,
+      overflow: TextOverflow.fade,
       TextSpan(
         style: base,
         children: [

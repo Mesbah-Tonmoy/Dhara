@@ -150,6 +150,39 @@ void main() {
     });
   });
 
+  group('SpeedPanel', () {
+    testWidgets('lists the speeds, marks the current one, reports a choice',
+        (tester) async {
+      final chosen = <double>[];
+      await _pump(tester, SpeedPanel(speed: 1.5, onSelected: chosen.add));
+
+      for (final label in ['0.5×', '0.75×', 'Normal', '1.25×', '1.5×', '2×']) {
+        expect(find.text(label), findsOneWidget);
+      }
+      expect(_selected(tester, 'speed-option-1.5'), isTrue);
+      expect(_selected(tester, 'speed-option-1.0'), isFalse);
+
+      await tester.tap(find.text('2×'));
+      await tester.tap(find.text('Normal'));
+      expect(chosen, [2.0, 1.0]);
+    });
+
+    testWidgets('marks Normal for a speed of 1', (tester) async {
+      await _pump(tester, SpeedPanel(speed: 1, onSelected: (_) {}));
+
+      expect(_selected(tester, 'speed-option-1.0'), isTrue);
+    });
+  });
+
+  test('formatSpeed drops needless zeros', () {
+    expect(formatSpeed(1), '1×');
+    expect(formatSpeed(0.5), '0.5×');
+    expect(formatSpeed(0.75), '0.75×');
+    expect(formatSpeed(1.25), '1.25×');
+    expect(formatSpeed(2), '2×');
+    expect(formatSpeed(10), '10×');
+  });
+
   test('formatSubtitleDelay', () {
     expect(formatSubtitleDelay(0), '0.0 s');
     expect(formatSubtitleDelay(-0.04), '0.0 s');

@@ -23,6 +23,8 @@ class _Calls {
   final subtitleIds = <String>[];
   final subtitleScales = <int>[];
   final subtitleDelays = <double>[];
+  final speeds = <double>[];
+  int toggleFullscreen = 0;
 }
 
 const _audio = [
@@ -52,6 +54,8 @@ Future<_Calls> _pump(
   List<TrackOption> subtitleOptions = _subtitles,
   String selectedSubtitleId = 'no',
   PlayerNotice? notice,
+  double speed = 1,
+  bool fullscreen = false,
   _Calls? calls,
 }) async {
   final recorded = calls ?? _Calls();
@@ -91,6 +95,10 @@ Future<_Calls> _pump(
           onSubtitleScaleChanged: recorded.subtitleScales.add,
           subtitleDelay: 0,
           onSubtitleDelayChanged: recorded.subtitleDelays.add,
+          speed: speed,
+          onSpeedChanged: recorded.speeds.add,
+          fullscreen: fullscreen,
+          onToggleFullscreen: () => recorded.toggleFullscreen++,
           notice: notice,
         ),
       ),
@@ -408,6 +416,10 @@ void main() {
                 onSubtitleScaleChanged: (_) {},
                 subtitleDelay: 0,
                 onSubtitleDelayChanged: (_) {},
+                speed: 1,
+                onSpeedChanged: (_) {},
+                fullscreen: false,
+                onToggleFullscreen: () {},
                 onControlsShownChanged: shown.add,
               ),
             ),
@@ -517,6 +529,107 @@ void main() {
         tester.widget<AnimatedOpacity>(find.byKey(const Key('osd'))).opacity,
         1,
       );
+    });
+  });
+
+  group('speed', () {
+    testWidgets('button shows the current speed', (tester) async {
+      await _pump(tester);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('speed-button')),
+          matching: find.text('1×'),
+        ),
+        findsOneWidget,
+      );
+
+      await _pump(tester, speed: 1.5);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('speed-button')),
+          matching: find.text('1.5×'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('panel lists the speeds and reports a choice', (tester) async {
+      final calls = await _pump(tester);
+
+      await tester.tap(find.byKey(const Key('speed-button')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('speed-panel')), findsOneWidget);
+      expect(find.text('Normal'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('speed-option-1.25')));
+      await tester.tap(find.byKey(const Key('speed-option-0.5')));
+
+      expect(calls.speeds, [1.25, 0.5]);
+    });
+  });
+
+  group('fullscreen', () {
+    testWidgets('button reflects the state and reports presses',
+        (tester) async {
+      final calls = await _pump(tester);
+      expect(_iconOf(tester, 'fullscreen-button'), Icons.fullscreen_rounded);
+
+      await tester.tap(find.byKey(const Key('fullscreen-button')));
+      expect(calls.toggleFullscreen, 1);
+
+      await _pump(tester, fullscreen: true, calls: calls);
+      expect(
+        _iconOf(tester, 'fullscreen-button'),
+        Icons.fullscreen_exit_rounded,
+      );
+    });
+
+    testWidgets('F toggles fullscreen, once per press', (tester) async {
+      final calls = await _pump(tester);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyF);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.keyF);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyF);
+
+      expect(calls.toggleFullscreen, 1);
+    });
+
+    testWidgets('a double-click toggles fullscreen and leaves play as it was',
+        (tester) async {
+      final calls = await _pump(tester);
+      const point = Offset(300, 250);
+
+      await tester.tapAt(point);
+      await tester.pump(const Duration(milliseconds: 120));
+      await tester.tapAt(point);
+
+      expect(calls.toggleFullscreen, 1);
+      expect(calls.togglePlay, 2, reason: 'paused, then resumed');
+    });
+
+    testWidgets('two slow clicks are two play/pause toggles', (tester) async {
+      final calls = await _pump(tester);
+      const point = Offset(300, 250);
+
+      await tester.tapAt(point);
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tapAt(point);
+
+      expect(calls.toggleFullscreen, 0);
+      expect(calls.togglePlay, 2);
+    });
+
+    testWidgets('Esc leaves fullscreen before leaving the player',
+        (tester) async {
+      final calls = await _pump(tester, fullscreen: true);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      expect(calls.toggleFullscreen, 1);
+      expect(calls.back, 0);
+
+      await _pump(tester, calls: calls);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      expect(calls.back, 1);
     });
   });
 
