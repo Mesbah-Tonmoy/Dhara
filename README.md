@@ -15,7 +15,7 @@ A Bangla + English README is written in Phase 8.
 |---|---|
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
-| 2. Player | In progress: a pasted `http(s)://` URL plays (1 of 8 increments) |
+| 2. Player | In progress: a pasted `http(s)://` URL plays in a hardened player (2 of 8 increments) |
 | 3–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -36,6 +36,24 @@ flutter analyze
 flutter test
 flutter run -d windows
 ```
+
+## Player hardening
+
+Every player is created in `lib/features/player/secure_player.dart`. Before a
+URL is opened, the app sets the restricted mpv options (`ytdl=no`,
+`load-scripts=no`, `load-unsafe-playlists=no`, no auto-loaded external files,
+FFmpeg `protocol_whitelist=http,https,tcp,tls,crypto`), reads each one back
+from libmpv and refuses to play if any value is not what it expects.
+
+`flutter test` also runs these checks against the real `libmpv-2.dll` once a
+Windows build exists (`test/features/player/libmpv_hardening_test.dart`).
+
+Known gaps, tracked for later phases:
+
+- The bundled libmpv is mpv 0.36 / FFmpeg 6.0 from 2023-09-24, the last
+  release of the now-archived `media-kit/libmpv-win32-video-build`.
+- FFmpeg follows HTTP redirects itself, so the "same host or configured
+  source only" redirect rule is not enforced for playback yet.
 
 ## Layout
 

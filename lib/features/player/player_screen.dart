@@ -23,6 +23,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   late final Player _player = createPlayer();
   late final VideoController _video = VideoController(_player);
   StreamSubscription<String>? _errorSub;
+  late final Future<void> _started;
   String? _error;
 
   @override
@@ -31,13 +32,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _errorSub = _player.stream.error.listen((message) {
       if (mounted) setState(() => _error = message);
     });
-    unawaited(_player.open(Media(widget.url.toString())));
+    _started = _start();
+  }
+
+  /// Hardens the player first; the URL is only opened once every security
+  /// option has been verified. Never throws.
+  Future<void> _start() async {
+    try {
+      await hardenPlayer(_player);
+      if (!mounted) return;
+      await _player.open(Media(widget.url.toString()));
+    } on PlayerHardeningError {
+      if (mounted) {
+        setState(() {
+          _error = 'Player security check failed, so playback was blocked.';
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
     unawaited(_errorSub?.cancel());
-    unawaited(_player.dispose());
+    // Dispose only after start-up has settled, so libmpv is never torn down
+    // while options are still being applied.
+    unawaited(_started.whenComplete(_player.dispose));
     super.dispose();
   }
 
