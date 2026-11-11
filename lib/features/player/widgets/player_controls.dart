@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/player/seek_math.dart';
+import 'package:dhara/features/player/subtitle_file.dart';
+import 'package:dhara/features/player/track_options.dart';
 import 'package:dhara/features/player/widgets/player_controls_view.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/widgets.dart';
 import 'package:media_kit/media_kit.dart';
 
@@ -27,6 +30,12 @@ class PlayerControls extends StatefulWidget {
 }
 
 class _PlayerControlsState extends State<PlayerControls> {
+  /// Furthest the subtitles can be shifted either way, in seconds.
+  static const _maxSubtitleDelay = 60.0;
+
+  /// mpv `sub-pos` (percent of the picture height) that clears the bar.
+  static const _subtitlePositionAboveControls = '84';
+
   final _subscriptions = <StreamSubscription<Object?>>[];
 
   late bool _playing = widget.player.state.playing;
@@ -34,12 +43,26 @@ class _PlayerControlsState extends State<PlayerControls> {
   late Duration _position = widget.player.state.position;
   late Duration _duration = widget.player.state.duration;
   late Duration _buffered = widget.player.state.buffer;
+  late Tracks _tracks = widget.player.state.tracks;
 
   // The chosen level is kept here so muting does not lose it. It starts at
   // the saved level; mute itself is deliberately not remembered, so a new
   // video never starts silent.
   late double _volume = widget.settings.volume;
   bool _muted = false;
+
+  // What libmpv is actually playing (mpv track ids, or "no").
+  String _audioId = offId;
+  String _subtitleId = offId;
+
+  // Per-video; a new video starts in sync again.
+  double _subtitleDelay = 0;
+  PlayerNotice? _notice;
+
+  NativePlayer? get _native {
+    final platform = widget.player.platform;
+    return platform is NativePlayer ? platform : null;
+  }
 
   @override
   void initState() {
@@ -51,8 +74,14 @@ class _PlayerControlsState extends State<PlayerControls> {
       stream.position.listen((v) => setState(() => _position = v)),
       stream.duration.listen((v) => setState(() => _duration = v)),
       stream.buffer.listen((v) => setState(() => _buffered = v)),
+      stream.tracks.listen((v) {
+        setState(() => _tracks = v);
+        unawaited(_refreshSelection());
+      }),
+      stream.track.listen((_) => unawaited(_refreshSelection())),
     ]);
     _applyVolume();
+    unawaited(_setUpTracks());
   }
 
   @override
@@ -62,6 +91,8 @@ class _PlayerControlsState extends State<PlayerControls> {
     }
     super.dispose();
   }
+
+  // ---- volume and seeking -------------------------------------------------
 
   void _applyVolume() {
     unawaited(widget.player.setVolume(_muted ? 0 : _volume));
@@ -100,6 +131,119 @@ class _PlayerControlsState extends State<PlayerControls> {
     _applyVolume();
   }
 
+  // ---- audio and subtitle tracks ------------------------------------------
+
+  /// Applies the saved subtitle size and starts following which tracks
+  /// libmpv has selected (it may pick a default track on its own).
+  Future<void> _setUpTracks() async {
+    final native = _native;
+    if (native == null) return;
+    // `scale` lets the size setting apply to styled (ASS) subtitles too.
+    await native.setProperty('sub-ass-override', 'scale');
+    if (!mounted) return;
+    await _applySubtitleScale();
+    if (!mounted) return;
+    await native.observeProperty('aid', (_) => _refreshSelection());
+    if (!mounted) return;
+    await native.observeProperty('sid', (_) => _refreshSelection());
+    await _refreshSelection();
+  }
+
+  Future<void> _refreshSelection() async {
+    final native = _native;
+    if (native == null || !mounted) return;
+    final audioId = await native.getProperty('aid');
+    final subtitleId = await native.getProperty('sid');
+    if (!mounted) return;
+    setState(() {
+      _audioId = _normaliseTrackId(audioId);
+      _subtitleId = _normaliseTrackId(subtitleId);
+    });
+  }
+
+  /// libmpv reports "no", "auto" or a number; anything that is not a real
+  /// track counts as "off".
+  static String _normaliseTrackId(String id) {
+    return int.tryParse(id) == null ? offId : id;
+  }
+
+  void _selectAudio(String id) {
+    setState(() => _audioId = id);
+    unawaited(widget.player.setAudioTrack(AudioTrack(id, null, null)));
+  }
+
+  void _selectSubtitle(String id) {
+    setState(() => _subtitleId = id);
+    unawaited(
+      widget.player.setSubtitleTrack(
+        id == offId ? SubtitleTrack.no() : SubtitleTrack(id, null, null),
+      ),
+    );
+  }
+
+  /// Lets the user pick a subtitle file and loads it. The file is validated
+  /// first and only ever handed to the player as a subtitle.
+  Future<void> _loadSubtitleFile() async {
+    final XFile? picked;
+    try {
+      picked = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'Subtitles', extensions: subtitleFileExtensions),
+        ],
+      );
+    } on Exception {
+      _notify('Could not open the file picker');
+      return;
+    }
+    if (picked == null || !mounted) return;
+
+    try {
+      final file = await checkSubtitleFile(picked.path);
+      if (!mounted) return;
+      await widget.player.setSubtitleTrack(
+        SubtitleTrack.uri(file.path, title: file.name),
+      );
+      _notify('Subtitles: ${file.name}');
+    } on SubtitleFileError catch (error) {
+      _notify(error.message);
+    }
+  }
+
+  void _notify(String text) {
+    if (mounted) setState(() => _notice = PlayerNotice(text));
+  }
+
+  Future<void> _applySubtitleScale() async {
+    if (!mounted) return;
+    final scale = widget.settings.subtitleScalePercent / 100;
+    await _native?.setProperty('sub-scale', scale.toStringAsFixed(2));
+  }
+
+  void _setSubtitleScale(int percent) {
+    widget.settings.setSubtitleScalePercent(percent);
+    unawaited(_applySubtitleScale());
+  }
+
+  /// Lifts the subtitles above the control bar while it is showing; libmpv
+  /// draws them into the picture, so they would otherwise sit underneath.
+  void _setControlsShown(bool shown) {
+    if (!mounted) return;
+    unawaited(
+      _native?.setProperty(
+        'sub-pos',
+        shown ? _subtitlePositionAboveControls : '100',
+      ),
+    );
+  }
+
+  void _setSubtitleDelay(double seconds) {
+    // Whole tenths only, so repeated presses cannot drift.
+    final tenths = (seconds * 10).round();
+    final delay = (tenths / 10).clamp(-_maxSubtitleDelay, _maxSubtitleDelay);
+    setState(() => _subtitleDelay = delay);
+    unawaited(_native?.setProperty('sub-delay', delay.toStringAsFixed(1)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = widget.settings;
@@ -127,6 +271,19 @@ class _PlayerControlsState extends State<PlayerControls> {
         // Saved once per drag, not on every pixel of movement.
         onVolumeChangeEnd: settings.setVolume,
         onToggleMute: _toggleMute,
+        audioOptions: audioOptions(_tracks.audio),
+        selectedAudioId: _audioId,
+        onAudioSelected: _selectAudio,
+        subtitleOptions: subtitleOptions(_tracks.subtitle),
+        selectedSubtitleId: _subtitleId,
+        onSubtitleSelected: _selectSubtitle,
+        onLoadSubtitle: () => unawaited(_loadSubtitleFile()),
+        subtitleScalePercent: settings.subtitleScalePercent,
+        onSubtitleScaleChanged: _setSubtitleScale,
+        subtitleDelay: _subtitleDelay,
+        onSubtitleDelayChanged: _setSubtitleDelay,
+        notice: _notice,
+        onControlsShownChanged: _setControlsShown,
       ),
     );
   }

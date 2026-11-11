@@ -99,6 +99,10 @@ Player createPlayer() {
     configuration: const PlayerConfiguration(
       title: 'Dhara',
       protocolWhitelist: allowedPlayerProtocols,
+      // libmpv draws subtitles itself (libass). That keeps styled ASS
+      // subtitles (anime) and picture-based ones (PGS, VobSub) working;
+      // media_kit's Flutter text overlay can show neither.
+      libass: true,
     ),
   );
 }

@@ -78,6 +78,41 @@ void main() {
     expect(settings.volume, 100);
   });
 
+  group('subtitle size', () {
+    test('defaults to 100% and is saved', () {
+      final store = MemoryKeyValueStore();
+      final settings = SettingsController(store);
+      expect(settings.subtitleScalePercent, 100);
+
+      settings.setSubtitleScalePercent(150);
+
+      expect(SettingsController(store).subtitleScalePercent, 150);
+    });
+
+    test('stays within 50–200% in steps of 10', () {
+      final settings = SettingsController(MemoryKeyValueStore())
+        ..setSubtitleScalePercent(10);
+      expect(settings.subtitleScalePercent, 50);
+
+      settings.setSubtitleScalePercent(999);
+      expect(settings.subtitleScalePercent, 200);
+
+      settings.setSubtitleScalePercent(134);
+      expect(settings.subtitleScalePercent, 130);
+
+      settings.setSubtitleScalePercent(136);
+      expect(settings.subtitleScalePercent, 140);
+    });
+
+    test('ignores a stored value outside the range', () {
+      final settings = SettingsController(
+        MemoryKeyValueStore({'player.subtitleScalePercent': 5000}),
+      );
+
+      expect(settings.subtitleScalePercent, 100);
+    });
+  });
+
   test('notifies listeners only when a value really changes', () {
     final settings = SettingsController(MemoryKeyValueStore());
     var notifications = 0;

@@ -72,7 +72,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
         children: [
           // `controls: null` turns media_kit's stock controls off; ours sit
           // on top.
-          Video(controller: _video, controls: null),
+          Video(
+            controller: _video,
+            controls: null,
+            // Subtitles are drawn by libmpv (see createPlayer); the Flutter
+            // text overlay would show them a second time.
+            subtitleViewConfiguration: const SubtitleViewConfiguration(
+              visible: false,
+            ),
+          ),
           PlayerControls(
             player: _player,
             settings: SettingsScope.read(context),

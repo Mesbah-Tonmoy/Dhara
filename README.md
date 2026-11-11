@@ -15,7 +15,7 @@ A Bangla + English README is written in Phase 8.
 |---|---|
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
-| 2. Player | In progress: hardened player with its own controls, configurable skip steps, saved settings and keyboard shortcuts (5 of 8 increments) |
+| 2. Player | In progress: hardened player with its own controls, skip steps, saved settings, keyboard shortcuts, audio/subtitle tracks and external subtitles (6 of 8 increments) |
 | 3–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -63,13 +63,24 @@ Known gaps, tracked for later phases:
 | ← / → | Skip back / forward by the configured seek step (repeats while held) |
 | ↑ / ↓ | Volume up / down by 5% |
 | M | Mute / unmute |
+| S | Next subtitle track (Off → first → ... → Off) |
 | Esc | Close the open panel, or leave the player |
 
-`F` (fullscreen) and `S` (subtitles) arrive with those features.
+`F` (fullscreen) arrives with that feature.
+
+## Subtitles and audio tracks
+
+- Subtitles are drawn by libmpv itself (libass), so styled ASS subtitles and
+  picture-based ones (PGS, VobSub) work. They move up while the control bar
+  is showing.
+- Size (50–200%) is saved; delay (±0.1 s steps) applies to the current video.
+- "Load external subtitle…" accepts a local `.srt`, `.ass`, `.ssa` or `.vtt`
+  file up to 20 MB. The file is checked (type, regular file, size) and is only
+  ever handed to the player as a subtitle.
 
 ## Settings
 
-User settings (skip steps, volume) are saved by `shared_preferences` in
+User settings (skip steps, volume, subtitle size) are saved by `shared_preferences` in
 `%APPDATA%\com.dhara\dhara\shared_preferences.json`. Values are validated on
 load, so a broken file falls back to defaults. No secrets are stored there.
 

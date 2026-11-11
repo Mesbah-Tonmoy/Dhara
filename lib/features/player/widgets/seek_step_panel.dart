@@ -1,6 +1,5 @@
-import 'dart:ui';
-
 import 'package:dhara/core/settings/settings_controller.dart';
+import 'package:dhara/features/player/widgets/glass.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,62 +22,35 @@ class SeekStepPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(DharaRadii.lg),
-        boxShadow: DharaShadows.pop,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(DharaRadii.lg),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: DharaColors.glassStrong,
-              borderRadius: BorderRadius.circular(DharaRadii.lg),
-              border: Border.all(color: DharaColors.strokeStrong),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'SEEK STEP',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      letterSpacing: 1.6,
-                      color: DharaColors.text3,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _StepRow(
-                    id: 'back',
-                    label: 'Back',
-                    forward: false,
-                    seconds: backSeconds,
-                    onChanged: onBackChanged,
-                  ),
-                  const SizedBox(height: 11),
-                  _StepRow(
-                    id: 'forward',
-                    label: 'Forward',
-                    forward: true,
-                    seconds: forwardSeconds,
-                    onChanged: onForwardChanged,
-                  ),
-                  const SizedBox(height: 13),
-                  const Text(
-                    'Used by the skip buttons and the ← → keys. '
-                    'Saved automatically.',
-                    style: TextStyle(fontSize: 11.5, color: DharaColors.text3),
-                  ),
-                ],
-              ),
-            ),
+    return GlassPanel(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const PanelHeading('Seek step'),
+          const SizedBox(height: 12),
+          _StepRow(
+            id: 'back',
+            label: 'Back',
+            forward: false,
+            seconds: backSeconds,
+            onChanged: onBackChanged,
           ),
-        ),
+          const SizedBox(height: 11),
+          _StepRow(
+            id: 'forward',
+            label: 'Forward',
+            forward: true,
+            seconds: forwardSeconds,
+            onChanged: onForwardChanged,
+          ),
+          const SizedBox(height: 13),
+          const Text(
+            'Used by the skip buttons and the ← → keys. '
+            'Saved automatically.',
+            style: TextStyle(fontSize: 11.5, color: DharaColors.text3),
+          ),
+        ],
       ),
     );
   }
@@ -140,7 +112,7 @@ class _StepRow extends StatelessWidget {
             runSpacing: 6,
             children: [
               for (final preset in SettingsController.seekStepPresets)
-                _Chip(
+                DharaChip(
                   key: Key('step-$id-$preset'),
                   selected: seconds == preset,
                   onTap: () => onChanged(preset),
@@ -156,61 +128,6 @@ class _StepRow extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-const _chipTextStyle = TextStyle(fontSize: 11.5, height: 1.2);
-
-class _Chip extends StatelessWidget {
-  const _Chip({
-    super.key,
-    required this.selected,
-    required this.child,
-    this.onTap,
-  });
-
-  final bool selected;
-  final VoidCallback? onTap;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    const shape = StadiumBorder();
-    return Semantics(
-      selected: selected,
-      child: Material(
-        type: MaterialType.transparency,
-        child: Ink(
-          height: 28,
-          decoration: ShapeDecoration(
-            shape: StadiumBorder(
-              side: BorderSide(
-                color: selected ? DharaColors.accentStroke : DharaColors.stroke,
-              ),
-            ),
-            color: selected ? null : DharaColors.surface,
-            gradient: selected ? DharaColors.accentSoftGradient : null,
-          ),
-          child: InkWell(
-            customBorder: shape,
-            hoverColor: DharaColors.surface2,
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 11),
-              child: Center(
-                widthFactor: 1,
-                child: DefaultTextStyle.merge(
-                  style: _chipTextStyle.copyWith(
-                    color: selected ? Colors.white : DharaColors.text2,
-                  ),
-                  child: child,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -290,7 +207,7 @@ class _CustomStepChipState extends State<_CustomStepChip> {
   Widget build(BuildContext context) {
     final selected = _isCustom;
     final textColor = selected ? Colors.white : DharaColors.text2;
-    return _Chip(
+    return DharaChip(
       selected: selected,
       onTap: _focusNode.requestFocus,
       child: Row(
@@ -312,7 +229,7 @@ class _CustomStepChipState extends State<_CustomStepChip> {
                 ],
                 cursorColor: DharaColors.accent2,
                 cursorHeight: 14,
-                style: _chipTextStyle.copyWith(
+                style: chipTextStyle.copyWith(
                   color: DharaColors.text,
                   fontWeight: FontWeight.w600,
                 ),
@@ -320,7 +237,7 @@ class _CustomStepChipState extends State<_CustomStepChip> {
                   isCollapsed: true,
                   border: InputBorder.none,
                   hintText: '–',
-                  hintStyle: _chipTextStyle.copyWith(color: textColor),
+                  hintStyle: chipTextStyle.copyWith(color: textColor),
                 ),
                 onChanged: _onTyped,
                 // Enter hands the keyboard back to whatever had it before

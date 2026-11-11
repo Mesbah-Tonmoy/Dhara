@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:dhara/core/format/duration_format.dart';
+import 'package:dhara/features/player/track_options.dart';
 import 'package:dhara/features/player/widgets/seek_bar.dart';
 import 'package:dhara/features/player/widgets/seek_step_panel.dart';
+import 'package:dhara/features/player/widgets/track_panels.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -36,6 +38,19 @@ class PlayerControlsView extends StatefulWidget {
     required this.onVolumeChanged,
     required this.onVolumeChangeEnd,
     required this.onToggleMute,
+    required this.audioOptions,
+    required this.selectedAudioId,
+    required this.onAudioSelected,
+    required this.subtitleOptions,
+    required this.selectedSubtitleId,
+    required this.onSubtitleSelected,
+    required this.onLoadSubtitle,
+    required this.subtitleScalePercent,
+    required this.onSubtitleScaleChanged,
+    required this.subtitleDelay,
+    required this.onSubtitleDelayChanged,
+    this.notice,
+    this.onControlsShownChanged,
     this.hideDelay = const Duration(seconds: 3),
   });
 
@@ -67,6 +82,30 @@ class PlayerControlsView extends StatefulWidget {
   /// Fired once when a volume drag ends; the place to persist the level.
   final ValueChanged<double> onVolumeChangeEnd;
   final VoidCallback onToggleMute;
+
+  /// Audio tracks of the current file and the id of the active one.
+  final List<TrackOption> audioOptions;
+  final String selectedAudioId;
+  final ValueChanged<String> onAudioSelected;
+
+  /// "Off" plus the subtitle tracks, and the id of the active choice.
+  final List<TrackOption> subtitleOptions;
+  final String selectedSubtitleId;
+  final ValueChanged<String> onSubtitleSelected;
+
+  /// Asks for an external subtitle file to be picked and loaded.
+  final VoidCallback onLoadSubtitle;
+  final int subtitleScalePercent;
+  final ValueChanged<int> onSubtitleScaleChanged;
+  final double subtitleDelay;
+  final ValueChanged<double> onSubtitleDelayChanged;
+
+  /// Flashed on screen whenever a new instance is passed in.
+  final PlayerNotice? notice;
+
+  /// Reports when the control bars appear or disappear (first call: the
+  /// initial state), so subtitles can be kept clear of them.
+  final ValueChanged<bool>? onControlsShownChanged;
   final Duration hideDelay;
 
   @override
@@ -86,14 +125,26 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
   Timer? _osdTimer;
   bool _awake = true;
   bool _pointerOnControls = false;
-  bool _seekStepPanelOpen = false;
+  _Panel? _panel;
 
   // The text stays in place while the pill fades out.
   String _osd = '';
   bool _osdVisible = false;
 
   /// Paused players always show their controls, and so does an open panel.
-  bool get _shown => _awake || !widget.playing || _seekStepPanelOpen;
+  bool get _shown => _awake || !widget.playing || _panel != null;
+
+  // Last value passed to [PlayerControlsView.onControlsShownChanged].
+  bool? _reportedShown;
+
+  void _reportShown(bool shown) {
+    if (shown == _reportedShown) return;
+    _reportedShown = shown;
+    // Reported after the frame: listeners may call setState.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onControlsShownChanged?.call(shown);
+    });
+  }
 
   @override
   void initState() {
@@ -108,6 +159,24 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
       _awake = true;
       _scheduleHide();
     }
+    final notice = widget.notice;
+    if (notice != null && !identical(notice, oldWidget.notice)) {
+      // setState is not allowed while the parent is rebuilding us.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showOsd(notice.text);
+      });
+    }
+  }
+
+  /// `S`: step through Off → first subtitle track → ... → Off.
+  void _cycleSubtitles() {
+    final next = nextOption(widget.subtitleOptions, widget.selectedSubtitleId);
+    if (next == null) {
+      _showOsd('No subtitles');
+      return;
+    }
+    widget.onSubtitleSelected(next.id);
+    _showOsd('Subtitles: ${next.label}');
   }
 
   @override
@@ -158,8 +227,8 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
   void _escape() {
     if (_isEditingText) {
       _keyFocus.requestFocus();
-    } else if (_seekStepPanelOpen) {
-      setState(() => _seekStepPanelOpen = false);
+    } else if (_panel != null) {
+      setState(() => _panel = null);
     } else {
       widget.onBack();
     }
@@ -203,6 +272,8 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
       if (firstPress) widget.onTogglePlay();
     } else if (key == LogicalKeyboardKey.keyM) {
       if (firstPress) _toggleMute();
+    } else if (key == LogicalKeyboardKey.keyS) {
+      if (firstPress) _cycleSubtitles();
     } else if (key == LogicalKeyboardKey.arrowLeft) {
       _skipBack();
     } else if (key == LogicalKeyboardKey.arrowRight) {
@@ -223,7 +294,7 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
     if (!widget.playing) return;
     _hideTimer = Timer(widget.hideDelay, () {
       if (!mounted || !widget.playing) return;
-      if (_pointerOnControls || _seekStepPanelOpen) {
+      if (_pointerOnControls || _panel != null) {
         _scheduleHide();
         return;
       }
@@ -231,9 +302,11 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
     });
   }
 
-  void _toggleSeekStepPanel() {
+  /// Opens [panel], or closes it when it is already open. Only one panel is
+  /// open at a time.
+  void _togglePanel(_Panel panel) {
     _keyFocus.requestFocus();
-    setState(() => _seekStepPanelOpen = !_seekStepPanelOpen);
+    setState(() => _panel = _panel == panel ? null : panel);
     _onActivity();
   }
 
@@ -243,8 +316,8 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
   void _onPictureTap() {
     _onActivity();
     _keyFocus.requestFocus();
-    if (_seekStepPanelOpen) {
-      setState(() => _seekStepPanelOpen = false);
+    if (_panel != null) {
+      setState(() => _panel = null);
     } else {
       widget.onTogglePlay();
     }
@@ -263,6 +336,7 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
   @override
   Widget build(BuildContext context) {
     final shown = _shown;
+    _reportShown(shown);
     return Focus(
       focusNode: _keyFocus,
       autofocus: true,
@@ -409,11 +483,27 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                           ),
                           const Spacer(),
                           _ControlButton(
+                            key: const Key('audio-button'),
+                            tooltip: 'Audio track',
+                            icon: Icons.graphic_eq_rounded,
+                            selected: _panel == _Panel.audio,
+                            onPressed: () => _togglePanel(_Panel.audio),
+                          ),
+                          const SizedBox(width: 4),
+                          _ControlButton(
+                            key: const Key('subtitles-button'),
+                            tooltip: 'Subtitles (S switches track)',
+                            icon: Icons.closed_caption_rounded,
+                            selected: _panel == _Panel.subtitles,
+                            onPressed: () => _togglePanel(_Panel.subtitles),
+                          ),
+                          const SizedBox(width: 4),
+                          _ControlButton(
                             key: const Key('seek-step-button'),
                             tooltip: 'Seek step',
                             icon: Icons.tune_rounded,
-                            selected: _seekStepPanelOpen,
-                            onPressed: _toggleSeekStepPanel,
+                            selected: _panel == _Panel.seekStep,
+                            onPressed: () => _togglePanel(_Panel.seekStep),
                           ),
                         ],
                       ),
@@ -422,7 +512,7 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                 ),
               ),
             ),
-            // Seek-step panel, anchored above the right end of the controls.
+            // The open panel, anchored above the right end of the controls.
             Positioned(
               right: 32,
               bottom: 104,
@@ -432,6 +522,10 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                 child: AnimatedSwitcher(
                   duration: DharaMotion.base,
                   switchInCurve: DharaMotion.easeOut,
+                  layoutBuilder: (current, previous) => Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [...previous, if (current != null) current],
+                  ),
                   transitionBuilder: (child, animation) => FadeTransition(
                     opacity: animation,
                     child: SlideTransition(
@@ -442,18 +536,7 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                       child: child,
                     ),
                   ),
-                  child: !_seekStepPanelOpen
-                      ? const SizedBox.shrink()
-                      : ConstrainedBox(
-                          key: const Key('seek-step-panel'),
-                          constraints: const BoxConstraints(maxWidth: 520),
-                          child: SeekStepPanel(
-                            backSeconds: widget.seekBackSeconds,
-                            forwardSeconds: widget.seekForwardSeconds,
-                            onBackChanged: widget.onSeekBackChanged,
-                            onForwardChanged: widget.onSeekForwardChanged,
-                          ),
-                        ),
+                  child: _buildPanel(),
                 ),
               ),
             ),
@@ -462,6 +545,61 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
       ),
     );
   }
+
+  Widget _buildPanel() {
+    switch (_panel) {
+      case null:
+        return const SizedBox.shrink();
+      case _Panel.audio:
+        return ConstrainedBox(
+          key: const Key('audio-panel'),
+          constraints: const BoxConstraints(maxWidth: 340),
+          child: AudioPanel(
+            options: widget.audioOptions,
+            selectedId: widget.selectedAudioId,
+            onSelected: widget.onAudioSelected,
+          ),
+        );
+      case _Panel.subtitles:
+        return ConstrainedBox(
+          key: const Key('subtitles-panel'),
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: SubtitlePanel(
+            options: widget.subtitleOptions,
+            selectedId: widget.selectedSubtitleId,
+            onSelected: widget.onSubtitleSelected,
+            onLoadFile: widget.onLoadSubtitle,
+            scalePercent: widget.subtitleScalePercent,
+            onScaleChanged: widget.onSubtitleScaleChanged,
+            delaySeconds: widget.subtitleDelay,
+            onDelayChanged: widget.onSubtitleDelayChanged,
+          ),
+        );
+      case _Panel.seekStep:
+        return ConstrainedBox(
+          key: const Key('seek-step-panel'),
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: SeekStepPanel(
+            backSeconds: widget.seekBackSeconds,
+            forwardSeconds: widget.seekForwardSeconds,
+            onBackChanged: widget.onSeekBackChanged,
+            onForwardChanged: widget.onSeekForwardChanged,
+          ),
+        );
+    }
+  }
+}
+
+/// The pop-up panels of the player; at most one is open.
+enum _Panel { audio, subtitles, seekStep }
+
+/// A short message for the player to flash on screen, e.g. the result of
+/// loading a subtitle file. A new instance is shown even if the text is the
+/// same as the previous one.
+class PlayerNotice {
+  const PlayerNotice(this.text);
+
+  final String text;
 }
 
 /// Glass pill for short on-screen messages such as "+ 30 s".

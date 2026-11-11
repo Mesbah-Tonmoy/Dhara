@@ -8,6 +8,7 @@ environment:
 
 # Versions are pinned exactly (BRIEF section 7); pubspec.lock is committed.
 dependencies:
+  file_selector: 1.1.0
   flutter:
     sdk: flutter
   media_kit: 1.2.6

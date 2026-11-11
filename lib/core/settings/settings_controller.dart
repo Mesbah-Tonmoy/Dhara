@@ -18,7 +18,10 @@ class SettingsController extends ChangeNotifier {
           _store.getInt(_seekForwardKey),
           defaultSeekForwardSeconds,
         ),
-        _volume = _loadVolume(_store.getDouble(_volumeKey));
+        _volume = _loadVolume(_store.getDouble(_volumeKey)),
+        _subtitleScalePercent = _loadSubtitleScale(
+          _store.getInt(_subtitleScaleKey),
+        );
 
   /// One-tap choices for the skip step, in seconds.
   static const seekStepPresets = <int>[5, 10, 15, 30, 60, 90, 120];
@@ -28,14 +31,33 @@ class SettingsController extends ChangeNotifier {
   static const defaultSeekForwardSeconds = 30;
   static const defaultVolume = 100.0;
 
+  /// Subtitle size range, in percent of the normal size, in steps of 10.
+  static const minSubtitleScalePercent = 50;
+  static const maxSubtitleScalePercent = 200;
+  static const subtitleScaleStepPercent = 10;
+  static const defaultSubtitleScalePercent = 100;
+
   static const _seekBackKey = 'player.seekBackSeconds';
   static const _seekForwardKey = 'player.seekForwardSeconds';
   static const _volumeKey = 'player.volume';
+  static const _subtitleScaleKey = 'player.subtitleScalePercent';
 
   final KeyValueStore _store;
   int _seekBackSeconds;
   int _seekForwardSeconds;
   double _volume;
+  int _subtitleScalePercent;
+
+  /// Subtitle size, 50–200 percent.
+  int get subtitleScalePercent => _subtitleScalePercent;
+
+  void setSubtitleScalePercent(int percent) {
+    final value = _snapSubtitleScale(percent);
+    if (value == _subtitleScalePercent) return;
+    _subtitleScalePercent = value;
+    notifyListeners();
+    unawaited(_store.setInt(_subtitleScaleKey, value));
+  }
 
   /// How far the "skip back" button and the ← key jump.
   int get seekBackSeconds => _seekBackSeconds;
@@ -80,6 +102,25 @@ class SettingsController extends ChangeNotifier {
       return fallback;
     }
     return stored;
+  }
+
+  /// Clamps to the allowed range and rounds to the nearest step.
+  static int _snapSubtitleScale(int percent) {
+    final clamped = percent.clamp(
+      minSubtitleScalePercent,
+      maxSubtitleScalePercent,
+    );
+    return (clamped / subtitleScaleStepPercent).round() *
+        subtitleScaleStepPercent;
+  }
+
+  static int _loadSubtitleScale(int? stored) {
+    if (stored == null ||
+        stored < minSubtitleScalePercent ||
+        stored > maxSubtitleScalePercent) {
+      return defaultSubtitleScalePercent;
+    }
+    return _snapSubtitleScale(stored);
   }
 
   static double _loadVolume(double? stored) {

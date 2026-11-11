@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:dhara/features/player/track_options.dart';
 import 'package:dhara/features/player/widgets/player_controls_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,7 +18,23 @@ class _Calls {
   final volumeEnds = <double>[];
   final backSteps = <int>[];
   final forwardSteps = <int>[];
+  int loadSubtitle = 0;
+  final audioIds = <String>[];
+  final subtitleIds = <String>[];
+  final subtitleScales = <int>[];
+  final subtitleDelays = <double>[];
 }
+
+const _audio = [
+  TrackOption(id: '1', label: 'English · AC3 5.1'),
+  TrackOption(id: '2', label: 'Hindi · AAC Stereo'),
+];
+
+const _subtitles = [
+  TrackOption(id: 'no', label: 'Off'),
+  TrackOption(id: '1', label: 'English · SRT'),
+  TrackOption(id: '2', label: 'Bengali · ASS'),
+];
 
 Future<_Calls> _pump(
   WidgetTester tester, {
@@ -30,6 +47,11 @@ Future<_Calls> _pump(
   bool muted = false,
   int seekBackSeconds = 10,
   int seekForwardSeconds = 30,
+  List<TrackOption> audioOptions = _audio,
+  String selectedAudioId = '1',
+  List<TrackOption> subtitleOptions = _subtitles,
+  String selectedSubtitleId = 'no',
+  PlayerNotice? notice,
   _Calls? calls,
 }) async {
   final recorded = calls ?? _Calls();
@@ -58,6 +80,18 @@ Future<_Calls> _pump(
           onVolumeChanged: recorded.volumes.add,
           onVolumeChangeEnd: recorded.volumeEnds.add,
           onToggleMute: () => recorded.toggleMute++,
+          audioOptions: audioOptions,
+          selectedAudioId: selectedAudioId,
+          onAudioSelected: recorded.audioIds.add,
+          subtitleOptions: subtitleOptions,
+          selectedSubtitleId: selectedSubtitleId,
+          onSubtitleSelected: recorded.subtitleIds.add,
+          onLoadSubtitle: () => recorded.loadSubtitle++,
+          subtitleScalePercent: 100,
+          onSubtitleScaleChanged: recorded.subtitleScales.add,
+          subtitleDelay: 0,
+          onSubtitleDelayChanged: recorded.subtitleDelays.add,
+          notice: notice,
         ),
       ),
     ),
@@ -335,6 +369,65 @@ void main() {
       expect(_hidden(tester), isTrue);
     });
 
+    testWidgets('reports when the control bars appear and disappear',
+        (tester) async {
+      final shown = <bool>[];
+      Future<void> pump({required bool playing}) {
+        return tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: PlayerControlsView(
+                title: 't',
+                playing: playing,
+                buffering: false,
+                position: Duration.zero,
+                duration: const Duration(minutes: 1),
+                buffered: Duration.zero,
+                volume: 100,
+                muted: false,
+                seekBackSeconds: 10,
+                seekForwardSeconds: 30,
+                onBack: () {},
+                onTogglePlay: () {},
+                onSeek: (_) {},
+                onSkipBack: () {},
+                onSkipForward: () {},
+                onSeekBackChanged: (_) {},
+                onSeekForwardChanged: (_) {},
+                onVolumeChanged: (_) {},
+                onVolumeChangeEnd: (_) {},
+                onToggleMute: () {},
+                audioOptions: const [],
+                selectedAudioId: 'no',
+                onAudioSelected: (_) {},
+                subtitleOptions: _subtitles,
+                selectedSubtitleId: 'no',
+                onSubtitleSelected: (_) {},
+                onLoadSubtitle: () {},
+                subtitleScalePercent: 100,
+                onSubtitleScaleChanged: (_) {},
+                subtitleDelay: 0,
+                onSubtitleDelayChanged: (_) {},
+                onControlsShownChanged: shown.add,
+              ),
+            ),
+          ),
+        );
+      }
+
+      await pump(playing: true);
+      await tester.pump();
+      expect(shown, [true], reason: 'initial state');
+
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pump();
+      expect(shown, [true, false]);
+
+      await pump(playing: false);
+      await tester.pump();
+      expect(shown, [true, false, true]);
+    });
+
     testWidgets('pausing shows the controls again', (tester) async {
       final calls = await _pump(tester, playing: true);
       await tester.pump(const Duration(seconds: 4));
@@ -355,6 +448,75 @@ void main() {
 
       expect(calls.togglePlay, 1);
       expect(_hidden(tester), isFalse);
+    });
+  });
+
+  group('audio and subtitle panels', () {
+    Future<void> tapButton(WidgetTester tester, String key) async {
+      await tester.tap(find.byKey(Key(key)));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('audio panel lists the tracks and reports a choice',
+        (tester) async {
+      final calls = await _pump(tester);
+
+      await tapButton(tester, 'audio-button');
+      expect(find.byKey(const Key('audio-panel')), findsOneWidget);
+      expect(find.text('English · AC3 5.1'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('audio-option-2')));
+      expect(calls.audioIds, ['2']);
+    });
+
+    testWidgets('subtitle panel reports track, file, size and delay actions',
+        (tester) async {
+      final calls = await _pump(tester);
+
+      await tapButton(tester, 'subtitles-button');
+      expect(find.byKey(const Key('subtitles-panel')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('subtitle-option-2')));
+      await tester.tap(find.byKey(const Key('load-subtitle')));
+      await tester.tap(find.byKey(const Key('subtitle-delay-plus')));
+      await tester.tap(find.byKey(const Key('subtitle-delay-minus')));
+
+      expect(calls.subtitleIds, ['2']);
+      expect(calls.loadSubtitle, 1);
+      expect(calls.subtitleDelays, [closeTo(.1, 1e-9), closeTo(-.1, 1e-9)]);
+    });
+
+    testWidgets('only one panel is open at a time', (tester) async {
+      await _pump(tester);
+
+      await tapButton(tester, 'audio-button');
+      await tapButton(tester, 'subtitles-button');
+      expect(find.byKey(const Key('audio-panel')), findsNothing);
+      expect(find.byKey(const Key('subtitles-panel')), findsOneWidget);
+
+      await tapButton(tester, 'seek-step-button');
+      expect(find.byKey(const Key('subtitles-panel')), findsNothing);
+      expect(find.byKey(const Key('seek-step-panel')), findsOneWidget);
+
+      await tapButton(tester, 'seek-step-button');
+      expect(find.byKey(const Key('seek-step-panel')), findsNothing);
+    });
+
+    testWidgets('a new notice is flashed on screen', (tester) async {
+      final calls = await _pump(tester);
+
+      await _pump(
+        tester,
+        notice: const PlayerNotice('Subtitles: film.srt'),
+        calls: calls,
+      );
+      await tester.pump();
+
+      expect(find.text('Subtitles: film.srt'), findsOneWidget);
+      expect(
+        tester.widget<AnimatedOpacity>(find.byKey(const Key('osd'))).opacity,
+        1,
+      );
     });
   });
 
@@ -545,6 +707,35 @@ void main() {
 
       expect(calls.toggleMute, 0);
       expect(calls.skipForward, 0);
+    });
+
+    testWidgets('S steps through the subtitle tracks and back to Off',
+        (tester) async {
+      final calls = await _pump(tester);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+      await tester.pump();
+      expect(calls.subtitleIds, ['1']);
+      expect(find.text('Subtitles: English · SRT'), findsOneWidget);
+
+      await _pump(tester, selectedSubtitleId: '2', calls: calls);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+      await tester.pump();
+      expect(calls.subtitleIds, ['1', 'no']);
+      expect(find.text('Subtitles: Off'), findsOneWidget);
+    });
+
+    testWidgets('S says so when the video has no subtitles', (tester) async {
+      final calls = await _pump(
+        tester,
+        subtitleOptions: const [TrackOption(id: 'no', label: 'Off')],
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+      await tester.pump();
+
+      expect(calls.subtitleIds, isEmpty);
+      expect(find.text('No subtitles'), findsOneWidget);
     });
 
     testWidgets('a key press brings hidden controls back', (tester) async {
