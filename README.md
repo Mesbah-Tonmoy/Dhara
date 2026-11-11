@@ -13,9 +13,10 @@ A Bangla + English README is written in Phase 8.
 
 | Phase | State |
 |---|---|
-| 0. Setup | Scaffold written; waiting for Flutter + C++ build tools on the dev PC |
-| 1. Design prototype | All screens in the chosen "Aurora Glass" direction, waiting for approval: `design/prototype/index.html` |
-| 2–9 | Not started |
+| 0. Setup | Done: empty app window builds and opens on Windows |
+| 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
+| 2. Player | Next |
+| 3–9 | Not started |
 
 ## Prerequisites (Windows)
 
@@ -27,9 +28,9 @@ Run `flutter doctor` and fix anything it reports under "Windows toolchain".
 
 ## First-time setup
 
+The `windows/` runner is committed, so no `flutter create` is needed.
+
 ```powershell
-# Generates the windows/ runner next to the hand-written scaffold.
-flutter create --platforms=windows --project-name dhara --org com.dhara .
 flutter pub get
 flutter analyze
 flutter test
