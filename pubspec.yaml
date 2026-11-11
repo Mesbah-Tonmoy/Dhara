@@ -6,14 +6,18 @@ version: 0.1.0+1
 environment:
   sdk: ^3.5.0
 
+# Versions are pinned exactly (BRIEF section 7); pubspec.lock is committed.
 dependencies:
   flutter:
     sdk: flutter
+  media_kit: 1.2.6
+  media_kit_libs_windows_video: 1.0.11
+  media_kit_video: 2.0.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: 5.0.0
 
 flutter:
   uses-material-design: true
