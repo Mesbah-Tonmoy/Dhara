@@ -5,6 +5,7 @@ import 'package:dhara/features/player/widgets/seek_bar.dart';
 import 'package:dhara/features/player/widgets/seek_step_panel.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// The player's on-screen controls, drawn over the video.
 ///
@@ -73,10 +74,23 @@ class PlayerControlsView extends StatefulWidget {
 }
 
 class _PlayerControlsViewState extends State<PlayerControlsView> {
+  /// How much one press of ↑ / ↓ changes the volume.
+  static const _volumeKeyStep = 5.0;
+  static const _osdDuration = Duration(milliseconds: 900);
+
+  /// Receives the player's keyboard shortcuts. It wraps every control, so
+  /// keys pressed while a button has focus still reach [_onKey].
+  final _keyFocus = FocusNode(debugLabel: 'player shortcuts');
+
   Timer? _hideTimer;
+  Timer? _osdTimer;
   bool _awake = true;
   bool _pointerOnControls = false;
   bool _seekStepPanelOpen = false;
+
+  // The text stays in place while the pill fades out.
+  String _osd = '';
+  bool _osdVisible = false;
 
   /// Paused players always show their controls, and so does an open panel.
   bool get _shown => _awake || !widget.playing || _seekStepPanelOpen;
@@ -99,7 +113,109 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
   @override
   void dispose() {
     _hideTimer?.cancel();
+    _osdTimer?.cancel();
+    _keyFocus.dispose();
     super.dispose();
+  }
+
+  /// Briefly shows [message] near the top of the picture.
+  void _showOsd(String message) {
+    _osdTimer?.cancel();
+    setState(() {
+      _osd = message;
+      _osdVisible = true;
+    });
+    _osdTimer = Timer(_osdDuration, () {
+      if (mounted) setState(() => _osdVisible = false);
+    });
+  }
+
+  void _skipBack() {
+    widget.onSkipBack();
+    _showOsd('− ${widget.seekBackSeconds} s');
+  }
+
+  void _skipForward() {
+    widget.onSkipForward();
+    _showOsd('+ ${widget.seekForwardSeconds} s');
+  }
+
+  void _nudgeVolume(double delta) {
+    final from = widget.muted ? 0.0 : widget.volume;
+    final volume = (from + delta).clamp(0.0, 100.0);
+    widget.onVolumeChanged(volume);
+    widget.onVolumeChangeEnd(volume);
+    _showOsd('Volume ${volume.round()}%');
+  }
+
+  void _toggleMute() {
+    final silent = widget.muted || widget.volume <= 0;
+    widget.onToggleMute();
+    _showOsd(silent ? 'Sound on' : 'Muted');
+  }
+
+  /// Esc backs out one level: text field, then panel, then the player.
+  void _escape() {
+    if (_isEditingText) {
+      _keyFocus.requestFocus();
+    } else if (_seekStepPanelOpen) {
+      setState(() => _seekStepPanelOpen = false);
+    } else {
+      widget.onBack();
+    }
+  }
+
+  bool get _isEditingText {
+    final context = FocusManager.instance.primaryFocus?.context;
+    if (context == null) return false;
+    return context.widget is EditableText ||
+        context.findAncestorWidgetOfExactType<EditableText>() != null;
+  }
+
+  /// Keyboard shortcuts. Arrow keys repeat while held; the others act once
+  /// per press.
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is KeyUpEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    final firstPress = event is KeyDownEvent;
+
+    if (key == LogicalKeyboardKey.escape) {
+      if (firstPress) _escape();
+      return KeyEventResult.handled;
+    }
+    // While a number is being typed, every other key belongs to the field.
+    // ↑ / ↓ mean nothing in a one-line number field, so they are dropped
+    // rather than passed on to Flutter's multi-line caret handling.
+    if (_isEditingText) {
+      final vertical = key == LogicalKeyboardKey.arrowUp ||
+          key == LogicalKeyboardKey.arrowDown;
+      return vertical ? KeyEventResult.handled : KeyEventResult.ignored;
+    }
+    // Leave combinations such as Alt+F4 or Ctrl+M to the system.
+    final keyboard = HardwareKeyboard.instance;
+    if (keyboard.isControlPressed ||
+        keyboard.isAltPressed ||
+        keyboard.isMetaPressed) {
+      return KeyEventResult.ignored;
+    }
+
+    if (key == LogicalKeyboardKey.space) {
+      if (firstPress) widget.onTogglePlay();
+    } else if (key == LogicalKeyboardKey.keyM) {
+      if (firstPress) _toggleMute();
+    } else if (key == LogicalKeyboardKey.arrowLeft) {
+      _skipBack();
+    } else if (key == LogicalKeyboardKey.arrowRight) {
+      _skipForward();
+    } else if (key == LogicalKeyboardKey.arrowUp) {
+      _nudgeVolume(_volumeKeyStep);
+    } else if (key == LogicalKeyboardKey.arrowDown) {
+      _nudgeVolume(-_volumeKeyStep);
+    } else {
+      return KeyEventResult.ignored;
+    }
+    _onActivity();
+    return KeyEventResult.handled;
   }
 
   void _scheduleHide() {
@@ -116,14 +232,17 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
   }
 
   void _toggleSeekStepPanel() {
+    _keyFocus.requestFocus();
     setState(() => _seekStepPanelOpen = !_seekStepPanelOpen);
     _onActivity();
   }
 
   /// A click on the picture closes an open panel; otherwise it toggles
-  /// play/pause.
+  /// play/pause. Either way the shortcuts get the keyboard back (this also
+  /// ends typing in the panel's custom field).
   void _onPictureTap() {
     _onActivity();
+    _keyFocus.requestFocus();
     if (_seekStepPanelOpen) {
       setState(() => _seekStepPanelOpen = false);
     } else {
@@ -145,15 +264,12 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
   Widget build(BuildContext context) {
     final shown = _shown;
     return Focus(
-      canRequestFocus: false,
-      skipTraversal: true,
+      focusNode: _keyFocus,
+      autofocus: true,
       onFocusChange: (hasFocus) {
         if (hasFocus) _onActivity();
       },
-      onKeyEvent: (_, __) {
-        _onActivity();
-        return KeyEventResult.ignored;
-      },
+      onKeyEvent: _onKey,
       child: MouseRegion(
         cursor: shown ? MouseCursor.defer : SystemMouseCursors.none,
         onEnter: (_) => _onActivity(),
@@ -183,6 +299,18 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
               ),
             _Scrim(shown: shown, top: true),
             _Scrim(shown: shown, top: false),
+            // Short feedback for skips and volume changes.
+            Align(
+              alignment: const Alignment(0, -.56),
+              child: IgnorePointer(
+                child: AnimatedOpacity(
+                  key: const Key('osd'),
+                  duration: DharaMotion.base,
+                  opacity: _osdVisible ? 1 : 0,
+                  child: _OsdPill(text: _osd),
+                ),
+              ),
+            ),
             Align(
               alignment: Alignment.topCenter,
               child: _Reveal(
@@ -196,7 +324,7 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                     children: [
                       _ControlButton(
                         key: const Key('back-button'),
-                        tooltip: 'Back',
+                        tooltip: 'Back (Esc)',
                         icon: Icons.arrow_back_rounded,
                         onPressed: widget.onBack,
                       ),
@@ -243,7 +371,9 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                         children: [
                           _ControlButton(
                             key: const Key('play-pause-button'),
-                            tooltip: widget.playing ? 'Pause' : 'Play',
+                            tooltip: widget.playing
+                                ? 'Pause (Space)'
+                                : 'Play (Space)',
                             icon: widget.playing
                                 ? Icons.pause_rounded
                                 : Icons.play_arrow_rounded,
@@ -255,14 +385,14 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                             key: const Key('skip-back-button'),
                             seconds: widget.seekBackSeconds,
                             forward: false,
-                            onPressed: widget.onSkipBack,
+                            onPressed: _skipBack,
                           ),
                           const SizedBox(width: 4),
                           _SkipButton(
                             key: const Key('skip-forward-button'),
                             seconds: widget.seekForwardSeconds,
                             forward: true,
-                            onPressed: widget.onSkipForward,
+                            onPressed: _skipForward,
                           ),
                           const SizedBox(width: 4),
                           _VolumeControl(
@@ -328,6 +458,36 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Glass pill for short on-screen messages such as "+ 30 s".
+class _OsdPill extends StatelessWidget {
+  const _OsdPill({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xB30A0C16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: DharaColors.stroke),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w700,
+            color: DharaColors.text,
+            fontFeatures: [FontFeature.tabularFigures()],
+          ),
         ),
       ),
     );
@@ -460,7 +620,7 @@ class _SkipButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      tooltip: forward ? 'Forward $seconds s' : 'Back $seconds s',
+      tooltip: forward ? 'Forward $seconds s (→)' : 'Back $seconds s (←)',
       onPressed: onPressed,
       style: IconButton.styleFrom(
         foregroundColor: DharaColors.text,
@@ -494,7 +654,7 @@ class _SkipButton extends StatelessWidget {
   }
 }
 
-/// Mute button plus a volume slider that slides out on hover or focus.
+/// Mute button plus a volume slider that slides out on hover.
 class _VolumeControl extends StatefulWidget {
   const _VolumeControl({
     required this.volume,
@@ -518,12 +678,11 @@ class _VolumeControlState extends State<_VolumeControl> {
   static const _sliderWidth = 104.0;
 
   bool _hovering = false;
-  bool _sliderFocused = false;
 
   @override
   Widget build(BuildContext context) {
     final silent = widget.muted || widget.volume <= 0;
-    final expanded = _hovering || _sliderFocused;
+    final expanded = _hovering;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
@@ -533,7 +692,7 @@ class _VolumeControlState extends State<_VolumeControl> {
         children: [
           _ControlButton(
             key: const Key('mute-button'),
-            tooltip: silent ? 'Unmute' : 'Mute',
+            tooltip: silent ? 'Unmute (M)' : 'Mute (M)',
             icon: silent
                 ? Icons.volume_off_rounded
                 : widget.volume < 50
@@ -551,11 +710,9 @@ class _VolumeControlState extends State<_VolumeControl> {
                 alignment: Alignment.centerLeft,
                 minWidth: _sliderWidth,
                 maxWidth: _sliderWidth,
-                child: Focus(
-                  canRequestFocus: false,
-                  skipTraversal: true,
-                  onFocusChange: (focused) =>
-                      setState(() => _sliderFocused = focused),
+                // Mouse-only: the slider never takes keyboard focus, so the
+                // arrow keys keep their player meaning (↑ / ↓ set the volume).
+                child: ExcludeFocus(
                   child: SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 3,

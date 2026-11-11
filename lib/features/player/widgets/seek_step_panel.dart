@@ -70,7 +70,8 @@ class SeekStepPanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 13),
                   const Text(
-                    'Used by the skip buttons. Saved automatically.',
+                    'Used by the skip buttons and the ← → keys. '
+                    'Saved automatically.',
                     style: TextStyle(fontSize: 11.5, color: DharaColors.text3),
                   ),
                 ],
@@ -322,7 +323,11 @@ class _CustomStepChipState extends State<_CustomStepChip> {
                   hintStyle: _chipTextStyle.copyWith(color: textColor),
                 ),
                 onChanged: _onTyped,
-                onSubmitted: (_) => _focusNode.unfocus(),
+                // Enter hands the keyboard back to whatever had it before
+                // (the player's shortcuts) instead of leaving nothing focused.
+                onEditingComplete: () => _focusNode.unfocus(
+                  disposition: UnfocusDisposition.previouslyFocusedChild,
+                ),
               ),
             ),
           ),

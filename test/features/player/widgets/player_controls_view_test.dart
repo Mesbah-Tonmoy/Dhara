@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:dhara/features/player/widgets/player_controls_view.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Records what the controls reported.
@@ -353,6 +354,207 @@ void main() {
       await tester.pump();
 
       expect(calls.togglePlay, 1);
+      expect(_hidden(tester), isFalse);
+    });
+  });
+
+  group('keyboard shortcuts', () {
+    double osdOpacity(WidgetTester tester) {
+      return tester
+          .widget<AnimatedOpacity>(find.byKey(const Key('osd')))
+          .opacity;
+    }
+
+    testWidgets('Space toggles play/pause, once per press', (tester) async {
+      final calls = await _pump(tester);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.space);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.space);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.space);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.space);
+
+      expect(calls.togglePlay, 1);
+    });
+
+    testWidgets('← and → skip, and repeat while held', (tester) async {
+      final calls = await _pump(tester);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      expect(calls.skipBack, 1);
+      expect(calls.skipForward, 0);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowRight);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowRight);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowRight);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowRight);
+      expect(calls.skipForward, 3);
+      expect(calls.skipBack, 1);
+    });
+
+    testWidgets('skips show the step on screen for a moment', (tester) async {
+      await _pump(tester, seekBackSeconds: 15, seekForwardSeconds: 90);
+      expect(osdOpacity(tester), 0);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump();
+      expect(find.text('+ 90 s'), findsOneWidget);
+      expect(osdOpacity(tester), 1);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pump();
+      expect(find.text('− 15 s'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 1));
+      expect(osdOpacity(tester), 0);
+    });
+
+    testWidgets('↑ and ↓ change the volume in steps of 5 and save it',
+        (tester) async {
+      final calls = await _pump(tester, volume: 80);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+      expect(calls.volumes, [85]);
+      expect(calls.volumeEnds, [85]);
+      expect(find.text('Volume 85%'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      expect(calls.volumes, [85, 75]);
+    });
+
+    testWidgets('volume keys stay within 0–100', (tester) async {
+      final calls = await _pump(tester, volume: 98);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      expect(calls.volumes.last, 100);
+
+      await _pump(tester, volume: 3, calls: calls);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      expect(calls.volumes.last, 0);
+    });
+
+    testWidgets('↑ while muted starts again from silence', (tester) async {
+      final calls = await _pump(tester, volume: 80, muted: true);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+
+      expect(calls.volumes, [5]);
+    });
+
+    testWidgets('M toggles mute', (tester) async {
+      final calls = await _pump(tester);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
+      await tester.pump();
+
+      expect(calls.toggleMute, 1);
+      expect(find.text('Muted'), findsOneWidget);
+    });
+
+    testWidgets('Esc leaves the player', (tester) async {
+      final calls = await _pump(tester);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+
+      expect(calls.back, 1);
+    });
+
+    testWidgets('Esc closes an open panel first', (tester) async {
+      final calls = await _pump(tester);
+      await tester.tap(find.byKey(const Key('seek-step-button')));
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('seek-step-panel')), findsNothing);
+      expect(calls.back, 0);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      expect(calls.back, 1);
+    });
+
+    testWidgets('keys belong to the custom-step field while typing in it',
+        (tester) async {
+      final calls = await _pump(tester);
+      await tester.tap(find.byKey(const Key('seek-step-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const Key('step-back-custom')),
+          matching: find.byType(TextField),
+        ),
+      );
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      expect(calls.togglePlay, 0);
+      expect(calls.toggleMute, 0);
+      expect(calls.volumes, isEmpty);
+
+      // First Esc leaves the field, and the shortcuts work again.
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      expect(find.byKey(const Key('seek-step-panel')), findsOneWidget);
+      expect(calls.back, 0);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      expect(calls.togglePlay, 1);
+    });
+
+    testWidgets('Enter in the custom-step field returns to the shortcuts',
+        (tester) async {
+      final calls = await _pump(tester);
+      await tester.tap(find.byKey(const Key('seek-step-button')));
+      await tester.pumpAndSettle();
+      final field = find.descendant(
+        of: find.byKey(const Key('step-forward-custom')),
+        matching: find.byType(TextField),
+      );
+      await tester.tap(field);
+      await tester.pump();
+      await tester.enterText(field, '45');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      expect(calls.forwardSteps, [45]);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      expect(calls.togglePlay, 1);
+    });
+
+    testWidgets('Space still means play/pause after clicking another button',
+        (tester) async {
+      final calls = await _pump(tester);
+
+      await tester.tap(find.byKey(const Key('mute-button')));
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+
+      expect(calls.toggleMute, 1);
+      expect(calls.togglePlay, 1);
+    });
+
+    testWidgets('Ctrl/Alt combinations are left alone', (tester) async {
+      final calls = await _pump(tester);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+
+      expect(calls.toggleMute, 0);
+      expect(calls.skipForward, 0);
+    });
+
+    testWidgets('a key press brings hidden controls back', (tester) async {
+      await _pump(tester, playing: true);
+      await tester.pump(const Duration(seconds: 4));
+      expect(_hidden(tester), isTrue);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump();
+
       expect(_hidden(tester), isFalse);
     });
   });

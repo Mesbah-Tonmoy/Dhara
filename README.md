@@ -15,7 +15,7 @@ A Bangla + English README is written in Phase 8.
 |---|---|
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
-| 2. Player | In progress: hardened player with its own controls, configurable skip steps and saved settings (4 of 8 increments) |
+| 2. Player | In progress: hardened player with its own controls, configurable skip steps, saved settings and keyboard shortcuts (5 of 8 increments) |
 | 3–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -54,6 +54,18 @@ Known gaps, tracked for later phases:
   release of the now-archived `media-kit/libmpv-win32-video-build`.
 - FFmpeg follows HTTP redirects itself, so the "same host or configured
   source only" redirect rule is not enforced for playback yet.
+
+## Player keyboard shortcuts
+
+| Key | Action |
+|---|---|
+| Space | Play / pause |
+| ← / → | Skip back / forward by the configured seek step (repeats while held) |
+| ↑ / ↓ | Volume up / down by 5% |
+| M | Mute / unmute |
+| Esc | Close the open panel, or leave the player |
+
+`F` (fullscreen) and `S` (subtitles) arrive with those features.
 
 ## Settings
 
