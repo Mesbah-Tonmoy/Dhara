@@ -15,7 +15,7 @@ A Bangla + English README is written in Phase 8.
 |---|---|
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
-| 2. Player | In progress: hardened player with its own play/pause, seek bar and volume controls (3 of 8 increments) |
+| 2. Player | In progress: hardened player with its own controls, configurable skip steps and saved settings (4 of 8 increments) |
 | 3–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -54,6 +54,12 @@ Known gaps, tracked for later phases:
   release of the now-archived `media-kit/libmpv-win32-video-build`.
 - FFmpeg follows HTTP redirects itself, so the "same host or configured
   source only" redirect rule is not enforced for playback yet.
+
+## Settings
+
+User settings (skip steps, volume) are saved by `shared_preferences` in
+`%APPDATA%\com.dhara\dhara\shared_preferences.json`. Values are validated on
+load, so a broken file falls back to defaults. No secrets are stored there.
 
 ## Layout
 

@@ -21,9 +21,28 @@ abstract final class DharaColors {
     colors: [accent, accent2],
   );
 
+  static const accentSoftGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0x6B8B6CFF), Color(0x382AD4F0)],
+  );
+
+  /// Border of a selected chip or toggled control.
+  static const accentStroke = Color(0xB38B6CFF);
+
+  static const surface = Color(0x0FFFFFFF);
+  static const surface2 = Color(0x1CFFFFFF);
+  static const glassStrong = Color(0xD60D0F18);
+
   static const stroke = Color(0x1AFFFFFF);
   static const strokeStrong = Color(0x3DFFFFFF);
   static const bad = Color(0xFFFF5D6C);
+}
+
+abstract final class DharaShadows {
+  static const pop = [
+    BoxShadow(color: Color(0x99000000), offset: Offset(0, 24), blurRadius: 64),
+  ];
 }
 
 abstract final class DharaMotion {

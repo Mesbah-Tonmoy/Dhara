@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dhara/core/format/duration_format.dart';
 import 'package:dhara/features/player/widgets/seek_bar.dart';
+import 'package:dhara/features/player/widgets/seek_step_panel.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:flutter/material.dart';
 
@@ -22,10 +23,17 @@ class PlayerControlsView extends StatefulWidget {
     required this.buffered,
     required this.volume,
     required this.muted,
+    required this.seekBackSeconds,
+    required this.seekForwardSeconds,
     required this.onBack,
     required this.onTogglePlay,
     required this.onSeek,
+    required this.onSkipBack,
+    required this.onSkipForward,
+    required this.onSeekBackChanged,
+    required this.onSeekForwardChanged,
     required this.onVolumeChanged,
+    required this.onVolumeChangeEnd,
     required this.onToggleMute,
     this.hideDelay = const Duration(seconds: 3),
   });
@@ -42,10 +50,21 @@ class PlayerControlsView extends StatefulWidget {
   final double volume;
   final bool muted;
 
+  /// Step sizes shown on the skip buttons and in the seek-step panel.
+  final int seekBackSeconds;
+  final int seekForwardSeconds;
+
   final VoidCallback onBack;
   final VoidCallback onTogglePlay;
   final ValueChanged<Duration> onSeek;
+  final VoidCallback onSkipBack;
+  final VoidCallback onSkipForward;
+  final ValueChanged<int> onSeekBackChanged;
+  final ValueChanged<int> onSeekForwardChanged;
   final ValueChanged<double> onVolumeChanged;
+
+  /// Fired once when a volume drag ends; the place to persist the level.
+  final ValueChanged<double> onVolumeChangeEnd;
   final VoidCallback onToggleMute;
   final Duration hideDelay;
 
@@ -57,9 +76,10 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
   Timer? _hideTimer;
   bool _awake = true;
   bool _pointerOnControls = false;
+  bool _seekStepPanelOpen = false;
 
-  /// Paused players always show their controls.
-  bool get _shown => _awake || !widget.playing;
+  /// Paused players always show their controls, and so does an open panel.
+  bool get _shown => _awake || !widget.playing || _seekStepPanelOpen;
 
   @override
   void initState() {
@@ -87,12 +107,28 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
     if (!widget.playing) return;
     _hideTimer = Timer(widget.hideDelay, () {
       if (!mounted || !widget.playing) return;
-      if (_pointerOnControls) {
+      if (_pointerOnControls || _seekStepPanelOpen) {
         _scheduleHide();
         return;
       }
       setState(() => _awake = false);
     });
+  }
+
+  void _toggleSeekStepPanel() {
+    setState(() => _seekStepPanelOpen = !_seekStepPanelOpen);
+    _onActivity();
+  }
+
+  /// A click on the picture closes an open panel; otherwise it toggles
+  /// play/pause.
+  void _onPictureTap() {
+    _onActivity();
+    if (_seekStepPanelOpen) {
+      setState(() => _seekStepPanelOpen = false);
+    } else {
+      widget.onTogglePlay();
+    }
   }
 
   void _onActivity() {
@@ -129,10 +165,7 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
             GestureDetector(
               key: const Key('video-hit-area'),
               behavior: HitTestBehavior.opaque,
-              onTap: () {
-                _onActivity();
-                widget.onTogglePlay();
-              },
+              onTap: _onPictureTap,
             ),
             if (widget.buffering)
               const IgnorePointer(
@@ -218,10 +251,25 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                             onPressed: widget.onTogglePlay,
                           ),
                           const SizedBox(width: 4),
+                          _SkipButton(
+                            key: const Key('skip-back-button'),
+                            seconds: widget.seekBackSeconds,
+                            forward: false,
+                            onPressed: widget.onSkipBack,
+                          ),
+                          const SizedBox(width: 4),
+                          _SkipButton(
+                            key: const Key('skip-forward-button'),
+                            seconds: widget.seekForwardSeconds,
+                            forward: true,
+                            onPressed: widget.onSkipForward,
+                          ),
+                          const SizedBox(width: 4),
                           _VolumeControl(
                             volume: widget.volume,
                             muted: widget.muted,
                             onChanged: widget.onVolumeChanged,
+                            onChangeEnd: widget.onVolumeChangeEnd,
                             onToggleMute: widget.onToggleMute,
                           ),
                           const SizedBox(width: 10),
@@ -229,10 +277,53 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                             position: widget.position,
                             duration: widget.duration,
                           ),
+                          const Spacer(),
+                          _ControlButton(
+                            key: const Key('seek-step-button'),
+                            tooltip: 'Seek step',
+                            icon: Icons.tune_rounded,
+                            selected: _seekStepPanelOpen,
+                            onPressed: _toggleSeekStepPanel,
+                          ),
                         ],
                       ),
                     ],
                   ),
+                ),
+              ),
+            ),
+            // Seek-step panel, anchored above the right end of the controls.
+            Positioned(
+              right: 32,
+              bottom: 104,
+              left: 32,
+              child: Align(
+                alignment: Alignment.bottomRight,
+                child: AnimatedSwitcher(
+                  duration: DharaMotion.base,
+                  switchInCurve: DharaMotion.easeOut,
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween(
+                        begin: const Offset(0, .06),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  ),
+                  child: !_seekStepPanelOpen
+                      ? const SizedBox.shrink()
+                      : ConstrainedBox(
+                          key: const Key('seek-step-panel'),
+                          constraints: const BoxConstraints(maxWidth: 520),
+                          child: SeekStepPanel(
+                            backSeconds: widget.seekBackSeconds,
+                            forwardSeconds: widget.seekForwardSeconds,
+                            onBackChanged: widget.onSeekBackChanged,
+                            onForwardChanged: widget.onSeekForwardChanged,
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -323,6 +414,7 @@ class _ControlButton extends StatelessWidget {
     required this.icon,
     required this.onPressed,
     this.iconSize = 24,
+    this.selected = false,
   });
 
   final String tooltip;
@@ -330,18 +422,73 @@ class _ControlButton extends StatelessWidget {
   final VoidCallback onPressed;
   final double iconSize;
 
+  /// Highlights the button while the panel it opens is showing.
+  final bool selected;
+
   @override
   Widget build(BuildContext context) {
     return IconButton(
       tooltip: tooltip,
       onPressed: onPressed,
       iconSize: iconSize,
+      isSelected: selected,
       icon: Icon(icon),
+      style: IconButton.styleFrom(
+        foregroundColor: DharaColors.text,
+        backgroundColor: selected ? const Color(0x4D8B6CFF) : null,
+        hoverColor: const Color(0x24FFFFFF),
+        fixedSize: const Size.square(44),
+        padding: EdgeInsets.zero,
+      ),
+    );
+  }
+}
+
+/// Skip button: a circular arrow with the step size in its centre.
+class _SkipButton extends StatelessWidget {
+  const _SkipButton({
+    super.key,
+    required this.seconds,
+    required this.forward,
+    required this.onPressed,
+  });
+
+  final int seconds;
+  final bool forward;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: forward ? 'Forward $seconds s' : 'Back $seconds s',
+      onPressed: onPressed,
       style: IconButton.styleFrom(
         foregroundColor: DharaColors.text,
         hoverColor: const Color(0x24FFFFFF),
         fixedSize: const Size.square(44),
         padding: EdgeInsets.zero,
+      ),
+      icon: Stack(
+        alignment: Alignment.center,
+        children: [
+          Transform.flip(
+            flipX: forward,
+            child: const Icon(Icons.replay_rounded, size: 32),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Text(
+              '$seconds',
+              style: TextStyle(
+                fontSize: seconds >= 100 ? 7.5 : 9,
+                fontWeight: FontWeight.w800,
+                height: 1,
+                color: DharaColors.text,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -353,12 +500,14 @@ class _VolumeControl extends StatefulWidget {
     required this.volume,
     required this.muted,
     required this.onChanged,
+    required this.onChangeEnd,
     required this.onToggleMute,
   });
 
   final double volume;
   final bool muted;
   final ValueChanged<double> onChanged;
+  final ValueChanged<double> onChangeEnd;
   final VoidCallback onToggleMute;
 
   @override
@@ -428,6 +577,7 @@ class _VolumeControlState extends State<_VolumeControl> {
                       semanticFormatterCallback: (value) =>
                           'Volume ${value.round()}%',
                       onChanged: widget.onChanged,
+                      onChangeEnd: widget.onChangeEnd,
                     ),
                   ),
                 ),

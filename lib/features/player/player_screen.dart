@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dhara/core/net/media_url.dart';
+import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/player/secure_player.dart';
 import 'package:dhara/features/player/widgets/player_controls.dart';
 import 'package:dhara/theme/tokens.dart';
@@ -74,6 +75,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           Video(controller: _video, controls: null),
           PlayerControls(
             player: _player,
+            settings: SettingsScope.read(context),
             title: mediaTitleFromUrl(widget.url),
             onBack: () => Navigator.of(context).maybePop(),
           ),

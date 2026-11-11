@@ -9,8 +9,13 @@ class _Calls {
   int back = 0;
   int togglePlay = 0;
   int toggleMute = 0;
+  int skipBack = 0;
+  int skipForward = 0;
   final seeks = <Duration>[];
   final volumes = <double>[];
+  final volumeEnds = <double>[];
+  final backSteps = <int>[];
+  final forwardSteps = <int>[];
 }
 
 Future<_Calls> _pump(
@@ -22,6 +27,8 @@ Future<_Calls> _pump(
   Duration duration = const Duration(hours: 1),
   double volume = 80,
   bool muted = false,
+  int seekBackSeconds = 10,
+  int seekForwardSeconds = 30,
   _Calls? calls,
 }) async {
   final recorded = calls ?? _Calls();
@@ -38,10 +45,17 @@ Future<_Calls> _pump(
           buffered: position,
           volume: volume,
           muted: muted,
+          seekBackSeconds: seekBackSeconds,
+          seekForwardSeconds: seekForwardSeconds,
           onBack: () => recorded.back++,
           onTogglePlay: () => recorded.togglePlay++,
           onSeek: recorded.seeks.add,
+          onSkipBack: () => recorded.skipBack++,
+          onSkipForward: () => recorded.skipForward++,
+          onSeekBackChanged: recorded.backSteps.add,
+          onSeekForwardChanged: recorded.forwardSteps.add,
           onVolumeChanged: recorded.volumes.add,
+          onVolumeChangeEnd: recorded.volumeEnds.add,
           onToggleMute: () => recorded.toggleMute++,
         ),
       ),
@@ -167,6 +181,99 @@ void main() {
 
     expect(calls.volumes, hasLength(1));
     expect(calls.volumes.single, closeTo(50, 10));
+    expect(calls.volumeEnds, calls.volumes, reason: 'reported once at the end');
+  });
+
+  group('skip buttons', () {
+    testWidgets('show the configured steps and report presses', (tester) async {
+      final calls = await _pump(
+        tester,
+        seekBackSeconds: 15,
+        seekForwardSeconds: 120,
+      );
+
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('skip-back-button')),
+          matching: find.text('15'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('skip-forward-button')),
+          matching: find.text('120'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('skip-back-button')));
+      await tester.tap(find.byKey(const Key('skip-forward-button')));
+      await tester.tap(find.byKey(const Key('skip-forward-button')));
+
+      expect(calls.skipBack, 1);
+      expect(calls.skipForward, 2);
+      expect(calls.togglePlay, 0);
+    });
+  });
+
+  group('seek-step panel', () {
+    Future<void> open(WidgetTester tester) async {
+      await tester.tap(find.byKey(const Key('seek-step-button')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('opens from its button and reports new steps', (tester) async {
+      final calls = await _pump(tester);
+      expect(find.byKey(const Key('seek-step-panel')), findsNothing);
+
+      await open(tester);
+      expect(find.byKey(const Key('seek-step-panel')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('step-back-5')));
+      await tester.tap(find.byKey(const Key('step-forward-90')));
+
+      expect(calls.backSteps, [5]);
+      expect(calls.forwardSteps, [90]);
+    });
+
+    testWidgets('the button closes it again', (tester) async {
+      await _pump(tester);
+      await open(tester);
+
+      await tester.tap(find.byKey(const Key('seek-step-button')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('seek-step-panel')), findsNothing);
+    });
+
+    testWidgets('a click on the picture closes it without toggling play',
+        (tester) async {
+      final calls = await _pump(tester);
+      await open(tester);
+
+      await tester.tapAt(const Offset(200, 200));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('seek-step-panel')), findsNothing);
+      expect(calls.togglePlay, 0);
+
+      await tester.tapAt(const Offset(200, 200));
+      expect(calls.togglePlay, 1);
+    });
+
+    testWidgets('keeps the controls visible while open', (tester) async {
+      final calls = await _pump(tester);
+      await open(tester);
+      await _pump(tester, playing: true, calls: calls);
+
+      await tester.pump(const Duration(seconds: 10));
+      expect(_hidden(tester), isFalse);
+
+      await tester.tap(find.byKey(const Key('seek-step-button')));
+      await tester.pump(const Duration(seconds: 4));
+      expect(_hidden(tester), isTrue);
+    });
   });
 
   testWidgets('shows a spinner while buffering', (tester) async {
