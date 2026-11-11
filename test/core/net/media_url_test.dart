@@ -33,6 +33,40 @@ void main() {
     });
   });
 
+  group('mediaTitleFromUrl', () {
+    String title(String url) => mediaTitleFromUrl(parseMediaUrl(url)!);
+
+    test('uses the decoded file name', () {
+      expect(
+        title('http://h.example/Movies/My%20Film%20(2021)%20%5B1080p%5D.mkv'),
+        'My Film (2021) [1080p].mkv',
+      );
+      expect(title('http://h.example/a/b/c.mp4?token=1#x'), 'c.mp4');
+    });
+
+    test('decodes non-ASCII names', () {
+      expect(
+        title(
+            'http://h.example/%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE.mkv'),
+        'বাংলা.mkv',
+      );
+    });
+
+    test('ignores a trailing slash and falls back to the host', () {
+      expect(title('http://h.example/Movies/Film/'), 'Film');
+      expect(title('http://h.example/'), 'h.example');
+      expect(title('http://10.16.100.244'), '10.16.100.244');
+    });
+
+    test('keeps the raw text when escapes are not valid UTF-8', () {
+      expect(title('http://h.example/%FF%FE.mkv'), '%FF%FE.mkv');
+    });
+
+    test('never treats an encoded slash as a path separator', () {
+      expect(title('http://h.example/a%2F..%2Fb.mkv'), 'a/../b.mkv');
+    });
+  });
+
   group('parseMediaUrl rejects', () {
     const rejected = <String>[
       '',

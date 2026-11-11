@@ -15,7 +15,7 @@ A Bangla + English README is written in Phase 8.
 |---|---|
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
-| 2. Player | In progress: a pasted `http(s)://` URL plays in a hardened player (2 of 8 increments) |
+| 2. Player | In progress: hardened player with its own play/pause, seek bar and volume controls (3 of 8 increments) |
 | 3–9 | Not started |
 
 ## Prerequisites (Windows)

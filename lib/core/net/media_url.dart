@@ -20,3 +20,23 @@ Uri? parseMediaUrl(String input) {
   if (uri.host.isEmpty) return null;
   return uri;
 }
+
+/// A display title for [url]: the decoded file name, or the host when the
+/// path has none. The result is server-controlled text, so only ever show it
+/// through a plain `Text` widget.
+String mediaTitleFromUrl(Uri url) {
+  final rawSegments = url.path.split('/').where((s) => s.isNotEmpty).toList();
+  if (rawSegments.isEmpty) return url.host;
+
+  final raw = rawSegments.last;
+  try {
+    return Uri.decodeComponent(raw);
+  } on FormatException {
+    // Percent-escapes that are not valid UTF-8 (old servers, legacy
+    // encodings): fall back to the raw text instead of failing.
+    return raw;
+  } on ArgumentError {
+    // Malformed escape sequence.
+    return raw;
+  }
+}

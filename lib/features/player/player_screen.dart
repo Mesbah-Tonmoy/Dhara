@@ -1,14 +1,15 @@
 import 'dart:async';
 
+import 'package:dhara/core/net/media_url.dart';
 import 'package:dhara/features/player/secure_player.dart';
+import 'package:dhara/features/player/widgets/player_controls.dart';
+import 'package:dhara/theme/tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
-/// Plays a single, already validated `http`/`https` URL.
-///
-/// Uses media_kit's stock desktop controls for now; the custom controls from
-/// the approved prototype replace them in a later increment.
+/// Plays a single, already validated `http`/`https` URL with the app's own
+/// controls drawn over the video.
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({super.key, required this.url});
 
@@ -68,38 +69,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Video(controller: _video),
-          Positioned(
-            top: 12,
-            left: 12,
-            child: IconButton.filledTonal(
-              tooltip: 'Back',
-              onPressed: () => Navigator.of(context).maybePop(),
-              icon: const Icon(Icons.arrow_back_rounded),
-            ),
+          // `controls: null` turns media_kit's stock controls off; ours sit
+          // on top.
+          Video(controller: _video, controls: null),
+          PlayerControls(
+            player: _player,
+            title: mediaTitleFromUrl(widget.url),
+            onBack: () => Navigator.of(context).maybePop(),
           ),
           if (error != null)
             Positioned(
               left: 24,
               right: 24,
-              bottom: 96,
-              child: Center(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: const Color(0xE6240A12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
+              bottom: 120,
+              child: IgnorePointer(
+                child: Center(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0xE6240A12),
+                      borderRadius: BorderRadius.circular(DharaRadii.md),
+                      border: Border.all(color: DharaColors.bad),
                     ),
-                    // Plain Text widget: server-influenced strings are never
-                    // interpreted as markup.
-                    child: Text(
-                      'Playback error: $error',
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      // Plain Text widget: server-influenced strings are
+                      // never interpreted as markup.
+                      child: Text(
+                        'Playback error: $error',
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                 ),
