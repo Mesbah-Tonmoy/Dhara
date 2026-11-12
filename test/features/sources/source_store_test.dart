@@ -50,6 +50,20 @@ void main() {
     expect(file.existsSync(), isFalse, reason: 'loading writes nothing');
   });
 
+  test('without a file, changes last for this run only', () async {
+    final store = SourceStore(starter: _starter);
+    await store.load();
+
+    await store.add(_source('mine'));
+    await store.setEnabled(['alpha'], enabled: true);
+    await store.remove('beta');
+
+    expect(ids(store), ['alpha', 'gamma', 'mine']);
+    expect(store.isEnabled('alpha'), isTrue);
+    expect(store.savedFileWasUnreadable, isFalse);
+    expect(dir.listSync(), isEmpty);
+  });
+
   test('knows the starter list even before load', () {
     expect(SourceStore(starter: _starter, file: file).sources, _starter);
   });
@@ -141,8 +155,7 @@ void main() {
     expect(reopened.sources[1], edited);
   });
 
-  test('editing a source back to the starter values saves no change',
-      () async {
+  test('editing a source back to the starter values saves no change', () async {
     final store = await open();
 
     await store.update(_source('beta', name: 'Beta (renamed)'));
@@ -207,6 +220,7 @@ void main() {
       'sources': [_source('mine').toJson()],
       'removedIds': ['alpha'],
       'enabledIds': ['gamma'],
+      'health': <String, Object?>{},
     });
     expect(dir.listSync(recursive: true).whereType<File>(), hasLength(1));
   });
@@ -355,6 +369,191 @@ void main() {
     expect(ids(store), ['alpha', 'gamma']);
     expect(saved()['removedIds'], ['beta']);
     expect(saved()['enabledIds'], ['alpha', 'gamma']);
+  });
+
+  group('test results', () {
+    final checked = SourceHealth(
+      checkedAt: DateTime(2026, 11, 12, 21, 30),
+      reachable: true,
+      readable: true,
+      ping: const Duration(milliseconds: 14),
+    );
+    final dead = SourceHealth(
+      checkedAt: DateTime(2026, 11, 12, 21, 31),
+      reachable: false,
+      readable: false,
+    );
+
+    test('are remembered across restarts', () async {
+      final store = await open();
+      expect(store.healthOf('alpha'), isNull);
+
+      await store
+          .recordHealth({'alpha': checked, 'beta': dead, 'nobody': dead});
+
+      final reopened = await open();
+      final alpha = reopened.healthOf('alpha')!;
+      expect(alpha.checkedAt, checked.checkedAt);
+      expect(alpha.readable, isTrue);
+      expect(alpha.ping, const Duration(milliseconds: 14));
+      expect(reopened.healthOf('beta')!.reachable, isFalse);
+      expect(reopened.healthOf('beta')!.ping, isNull);
+      expect(reopened.healthOf('gamma'), isNull);
+      expect(reopened.healthOf('nobody'), isNull);
+    });
+
+    test('are dropped when the source changes or goes', () async {
+      final store = await open();
+      await store.add(_source('mine'));
+      await store
+          .recordHealth({'alpha': checked, 'beta': checked, 'mine': checked});
+
+      await store.update(_source('alpha', name: 'Alpha, moved'));
+      await store.update(_source('beta'));
+      await store.remove('mine');
+      await store.add(_source('mine'));
+
+      expect(store.healthOf('alpha'), isNull, reason: 'edited');
+      expect(store.healthOf('beta'), isNotNull, reason: 'saved unchanged');
+      expect(store.healthOf('mine'), isNull, reason: 'removed, added again');
+    });
+
+    test('that are malformed are skipped without losing the sources', () async {
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(
+        jsonEncode({
+          'schemaVersion': 1,
+          'sources': [_source('mine').toJson()],
+          'enabledIds': ['alpha'],
+          'health': {
+            'alpha': checked.toJson(),
+            'beta': {'checkedAt': 'yesterday', 'reachable': true},
+            'gamma': 'fine',
+            'mine': {
+              'checkedAt': '2026-11-12T10:00:00Z',
+              'reachable': false,
+              'readable': true,
+              'pingMs': -4,
+            },
+          },
+        }),
+      );
+
+      final store = await open();
+
+      expect(store.savedFileWasUnreadable, isFalse);
+      expect(ids(store), ['alpha', 'beta', 'gamma', 'mine']);
+      expect(store.isEnabled('alpha'), isTrue);
+      expect(store.healthOf('alpha')!.readable, isTrue);
+      expect(store.healthOf('beta'), isNull);
+      expect(store.healthOf('gamma'), isNull);
+      // "Readable but unreachable" makes no sense, nor does a negative ping.
+      expect(store.healthOf('mine')!.readable, isFalse);
+      expect(store.healthOf('mine')!.ping, isNull);
+    });
+
+    test('a "health" value of the wrong kind is ignored', () async {
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(
+        jsonEncode({'schemaVersion': 1, 'sources': <Object>[], 'health': 7}),
+      );
+
+      final store = await open();
+
+      expect(store.savedFileWasUnreadable, isFalse);
+      expect(store.sources, _starter);
+    });
+  });
+
+  group('import and export', () {
+    test('a preview tells new, changed and unchanged sources apart', () async {
+      final store = await open();
+      final changed = _source('beta', name: 'Beta, renamed');
+
+      final preview = store.previewImport([
+        _source('alpha'),
+        changed,
+        _source('one'),
+        _source('two'),
+      ]);
+
+      expect(preview.added, [_source('one'), _source('two')]);
+      expect(preview.changed, [changed]);
+      expect(preview.unchanged, 1);
+      expect(preview.changesNothing, isFalse);
+      expect(store.sources, _starter, reason: 'a preview changes nothing');
+      expect(store.previewImport([_source('alpha')]).changesNothing, isTrue);
+    });
+
+    test('an import adds new sources and replaces known ones', () async {
+      final store = await open();
+      final changed = _source('beta', name: 'Beta, renamed');
+
+      await store.importSources([_source('alpha'), changed, _source('one')]);
+
+      expect(ids(store), ['alpha', 'beta', 'gamma', 'one']);
+      final reopened = await open();
+      expect(reopened.sources[1], changed);
+      expect(reopened.sources.last, _source('one'));
+    });
+
+    test('an import enables nothing and switches off what it replaced',
+        () async {
+      final store = await open();
+      await store.setEnabled(['alpha', 'beta'], enabled: true);
+      await store.recordHealth({
+        for (final id in ['alpha', 'beta'])
+          id: SourceHealth(
+            checkedAt: DateTime(2026, 11, 12),
+            reachable: true,
+            readable: true,
+          ),
+      });
+
+      await store.importSources([
+        _source('alpha'),
+        _source('beta', url: 'http://10.66.66.66/'),
+        _source('one'),
+      ]);
+
+      expect(store.isEnabled('alpha'), isTrue, reason: 'unchanged');
+      expect(store.isEnabled('beta'), isFalse, reason: 'points elsewhere now');
+      expect(store.isEnabled('one'), isFalse);
+      expect(store.healthOf('alpha'), isNotNull);
+      expect(store.healthOf('beta'), isNull);
+    });
+
+    test('an import brings back a removed starter source', () async {
+      final store = await open();
+      await store.remove('beta');
+
+      await store.importSources(_starter);
+
+      expect(store.sources, _starter);
+      expect(saved()['removedIds'], isEmpty);
+    });
+
+    test('an import that changes nothing writes nothing', () async {
+      final store = await open();
+
+      await store.importSources(_starter);
+
+      expect(file.existsSync(), isFalse);
+    });
+
+    test('the export is a source list the app can read back', () async {
+      final store = await open();
+      await store.add(_source('mine'));
+      await store.remove('alpha');
+      await store.setEnabled(['beta'], enabled: true);
+
+      final exported = store.exportJson();
+
+      expect(parseSourceList(exported), store.sources);
+      final root = jsonDecode(exported) as Map<String, dynamic>;
+      expect(root.keys, ['schemaVersion', 'sources']);
+      expect(exported, contains('\n  "sources": ['), reason: 'indented');
+    });
   });
 
   test('reports a failed save but keeps the change for this run', () async {

@@ -2,6 +2,9 @@ import 'package:dhara/app.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/player/resume_store.dart';
+import 'package:dhara/features/sources/source_store.dart';
+import 'package:dhara/features/sources/source_test_controller.dart';
+import 'package:dhara/features/sources/source_tester.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,6 +13,10 @@ Widget _app() {
   return DharaApp(
     settings: SettingsController(store),
     resumeStore: ResumeStore(store),
+    sourceTests: SourceTestController(
+      store: SourceStore(starter: const []),
+      tester: SourceTester(deviceId: 'dhara-test'),
+    ),
   );
 }
 

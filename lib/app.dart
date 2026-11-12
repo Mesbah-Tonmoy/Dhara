@@ -1,6 +1,7 @@
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/player/open_url_screen.dart';
 import 'package:dhara/features/player/resume_store.dart';
+import 'package:dhara/features/sources/source_test_controller.dart';
 import 'package:dhara/theme/theme.dart';
 import 'package:flutter/material.dart';
 
@@ -10,10 +11,12 @@ class DharaApp extends StatelessWidget {
     super.key,
     required this.settings,
     required this.resumeStore,
+    required this.sourceTests,
   });
 
   final SettingsController settings;
   final ResumeStore resumeStore;
+  final SourceTestController sourceTests;
 
   @override
   Widget build(BuildContext context) {
@@ -21,11 +24,14 @@ class DharaApp extends StatelessWidget {
       settings: settings,
       child: ResumeStoreScope(
         store: resumeStore,
-        child: MaterialApp(
-          title: 'Dhara',
-          debugShowCheckedModeBanner: false,
-          theme: buildDharaTheme(),
-          home: const OpenUrlScreen(),
+        child: SourcesScope(
+          controller: sourceTests,
+          child: MaterialApp(
+            title: 'Dhara',
+            debugShowCheckedModeBanner: false,
+            theme: buildDharaTheme(),
+            home: const OpenUrlScreen(),
+          ),
         ),
       ),
     );
