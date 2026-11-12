@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dhara/core/net/media_url.dart';
 import 'package:dhara/features/player/player_screen.dart';
+import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -110,6 +111,21 @@ class _OpenUrlScreenState extends State<OpenUrlScreen> {
                   label: const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Text('Play'),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                Center(
+                  child: TextButton.icon(
+                    key: const Key('open-discovery'),
+                    onPressed: () => unawaited(
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const ServerDiscoveryScreen(),
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.dns_outlined),
+                    label: const Text('Server Discovery (BDIX Tester)'),
                   ),
                 ),
               ],

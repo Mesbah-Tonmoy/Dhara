@@ -35,6 +35,9 @@ abstract final class DharaColors {
 
   static const stroke = Color(0x1AFFFFFF);
   static const strokeStrong = Color(0x3DFFFFFF);
+
+  static const good = Color(0xFF3DDC97);
+  static const warn = Color(0xFFFFC04D);
   static const bad = Color(0xFFFF5D6C);
 }
 

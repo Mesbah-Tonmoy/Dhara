@@ -1,0 +1,657 @@
+import 'dart:io';
+
+import 'package:dhara/app.dart';
+import 'package:dhara/core/settings/key_value_store.dart';
+import 'package:dhara/core/settings/settings_controller.dart';
+import 'package:dhara/features/player/resume_store.dart';
+import 'package:dhara/features/sources/source.dart';
+import 'package:dhara/features/sources/source_list.dart';
+import 'package:dhara/features/sources/source_store.dart';
+import 'package:dhara/features/sources/source_test_controller.dart';
+import 'package:dhara/features/sources/source_tester.dart';
+import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
+import 'package:dhara/features/sources/ui/source_form_dialog.dart';
+import 'package:dhara/features/sources/ui/source_list_files.dart';
+import 'package:dhara/theme/theme.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import '../../../support/local_server.dart';
+
+Source _source(
+  String id, {
+  String? name,
+  SourceType type = SourceType.h5ai,
+  List<String>? urls,
+  String? isp,
+}) =>
+    Source(
+      id: id,
+      name: name ?? 'Server $id',
+      isp: isp,
+      type: type,
+      category: SourceCategory.movies,
+      baseUrls: [
+        for (final url in urls ?? ['http://10.0.0.1/$id/']) Uri.parse(url),
+      ],
+    );
+
+SourceHealth _health({bool reachable = true, bool readable = true, int? ms}) =>
+    SourceHealth(
+      checkedAt: DateTime(2026, 11, 12, 21, 30),
+      reachable: reachable,
+      readable: readable,
+      ping: ms == null ? null : Duration(milliseconds: ms),
+    );
+
+/// Stands in for the system file dialogs.
+class _FakeFiles extends SourceListFiles {
+  _FakeFiles({this.toRead, this.readError});
+
+  final String? toRead;
+  final SourceFormatException? readError;
+  String? saved;
+
+  @override
+  Future<String?> pickAndRead() async {
+    final error = readError;
+    if (error != null) throw error;
+    return toRead;
+  }
+
+  @override
+  Future<String?> save(String json) async {
+    saved = json;
+    return r'C:\Users\me\dhara-sources.json';
+  }
+}
+
+void main() {
+  /// Shows the screen over a store holding [sources]. The store has no
+  /// file: real file I/O does not mix with a widget test's fake clock.
+  Future<SourceTestController> show(
+    WidgetTester tester, {
+    required List<Source> sources,
+    Set<String> enabled = const {},
+    Map<String, SourceHealth> health = const {},
+    SourceListFiles files = const SourceListFiles(),
+    Size size = const Size(1600, 1000),
+  }) async {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final store = SourceStore(starter: sources);
+    await store.setEnabled(enabled, enabled: true);
+    await store.recordHealth(health);
+    final controller = SourceTestController(
+      store: store,
+      tester: SourceTester(deviceId: 'dhara-test'),
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      SourcesScope(
+        controller: controller,
+        child: MaterialApp(
+          theme: buildDharaTheme(),
+          home: ServerDiscoveryScreen(files: files),
+        ),
+      ),
+    );
+    return controller;
+  }
+
+  Future<void> chooseFromMenu(
+    WidgetTester tester,
+    String id,
+    String item,
+  ) async {
+    await tester.tap(find.byKey(Key('menu-$id')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(item));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('lists every source with its details', (tester) async {
+    await show(
+      tester,
+      sources: [
+        _source('alpha', name: 'DhakaFlix 7', isp: 'SAM Online'),
+        _source(
+          'beta',
+          name: 'ICC FTP 3',
+          type: SourceType.directoryListing,
+          urls: ['http://10.16.100.241/a/', 'http://10.16.100.241/b/'],
+        ),
+        _source('gamma', type: SourceType.customSite),
+      ],
+    );
+
+    expect(find.text('Server Discovery'), findsOneWidget);
+    expect(find.text('DhakaFlix 7'), findsOneWidget);
+    expect(find.text('http://10.0.0.1/alpha/'), findsOneWidget);
+    expect(find.text('SAM Online'), findsOneWidget);
+    expect(find.text('http://10.16.100.241/a/  +1 more'), findsOneWidget);
+    expect(find.text('h5ai'), findsOneWidget);
+    expect(find.text('Folder listing'), findsOneWidget);
+    expect(find.text('Website'), findsOneWidget);
+    expect(find.text('Not tested'), findsNWidgets(3));
+    expect(find.text('3 server types'), findsOneWidget);
+    expect(find.text('no server reachable'), findsOneWidget);
+  });
+
+  testWidgets('shows what the last saved test found', (tester) async {
+    await show(
+      tester,
+      sources: [
+        _source('fast'),
+        _source('slow'),
+        _source('dead'),
+        _source('site', type: SourceType.customSite),
+        _source('broken'),
+        _source('new'),
+      ],
+      enabled: {'fast'},
+      health: {
+        'fast': _health(ms: 14),
+        'slow': _health(ms: 350),
+        'dead': _health(reachable: false, readable: false),
+        'site': _health(readable: false, ms: 90),
+        'broken': _health(readable: false, ms: 20),
+      },
+    );
+
+    expect(find.text('Reachable'), findsNWidgets(3), reason: '2 rows + stat');
+    expect(find.text('Unreachable'), findsNWidgets(2), reason: 'row + filter');
+    expect(find.text('No adapter'), findsOneWidget);
+    expect(find.text('Problem'), findsOneWidget);
+    expect(find.text('Not tested'), findsOneWidget);
+    expect(find.text('14 ms'), findsNWidgets(2), reason: 'row + fastest');
+    expect(find.text('350 ms'), findsOneWidget);
+    expect(find.text('Checked 12 Nov, 21:30'), findsNWidgets(5));
+    expect(find.text('2 the app can read'), findsOneWidget);
+    expect(find.text('Server fast'), findsNWidgets(2), reason: 'row + fastest');
+  });
+
+  testWidgets('filters the list', (tester) async {
+    await show(
+      tester,
+      sources: [_source('up'), _source('down'), _source('new')],
+      enabled: {'new'},
+      health: {
+        'up': _health(ms: 10),
+        'down': _health(reachable: false, readable: false),
+      },
+    );
+
+    await tester.tap(find.byKey(const Key('filter-reachable')));
+    await tester.pump();
+    expect(find.text('http://10.0.0.1/up/'), findsOneWidget);
+    expect(find.text('http://10.0.0.1/down/'), findsNothing);
+    expect(find.text('http://10.0.0.1/new/'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('filter-unreachable')));
+    await tester.pump();
+    expect(find.text('http://10.0.0.1/down/'), findsOneWidget);
+    expect(find.text('http://10.0.0.1/up/'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('filter-enabled')));
+    await tester.pump();
+    expect(find.text('http://10.0.0.1/new/'), findsOneWidget);
+    expect(find.text('http://10.0.0.1/up/'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('filter-all')));
+    await tester.pump();
+    expect(find.text('http://10.0.0.1/up/'), findsOneWidget);
+    expect(find.text('http://10.0.0.1/down/'), findsOneWidget);
+  });
+
+  testWidgets('an empty view says so', (tester) async {
+    await show(tester, sources: [_source('new')]);
+
+    await tester.tap(find.byKey(const Key('filter-enabled')));
+    await tester.pump();
+
+    expect(find.text('No servers in this view'), findsOneWidget);
+  });
+
+  testWidgets('the switch turns a source on and off', (tester) async {
+    final controller = await show(tester, sources: [_source('alpha')]);
+
+    await tester.tap(find.byKey(const Key('enable-alpha')));
+    await tester.pumpAndSettle();
+    expect(controller.store.isEnabled('alpha'), isTrue);
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+
+    await tester.tap(find.byKey(const Key('enable-alpha')));
+    await tester.pumpAndSettle();
+    expect(controller.store.isEnabled('alpha'), isFalse);
+  });
+
+  testWidgets('"Enable all reachable" enables what the app can read',
+      (tester) async {
+    final controller = await show(
+      tester,
+      sources: [
+        _source('up'),
+        _source('site'),
+        _source('down'),
+        _source('new')
+      ],
+      health: {
+        'up': _health(ms: 10),
+        'site': _health(readable: false),
+        'down': _health(reachable: false, readable: false),
+      },
+    );
+
+    await tester.tap(find.byKey(const Key('enable-all')));
+    await tester.pumpAndSettle();
+
+    final store = controller.store;
+    expect(store.isEnabled('up'), isTrue);
+    expect(store.isEnabled('site'), isFalse);
+    expect(store.isEnabled('down'), isFalse);
+    expect(store.isEnabled('new'), isFalse);
+    expect(find.text('Enabled 1 more server.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('enable-all')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('No more reachable servers'), findsOneWidget);
+  });
+
+  testWidgets('"Test all" runs the tester and shows each outcome',
+      (tester) async {
+    // Widget tests answer every HTTP request with status 400, so each
+    // server counts as "answered, but with an error".
+    final controller = await show(
+      tester,
+      sources: [_source('alpha'), _source('beta')],
+    );
+
+    await tester.tap(find.byKey(const Key('test-all')));
+    await tester.pump();
+    for (var i = 0; i < 20 && controller.isTesting; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    await tester.pumpAndSettle();
+
+    expect(controller.isTesting, isFalse);
+    expect(find.text('Problem'), findsNWidgets(2));
+    expect(find.text('The server answered 400.'), findsNWidgets(2));
+    expect(find.text('Test all'), findsOneWidget);
+    expect(controller.store.healthOf('alpha')!.reachable, isTrue);
+  });
+
+  testWidgets('shows what a real run found on each server', (tester) async {
+    // Real HTTP against a local server instead of the canned 400 answers.
+    final overrides = HttpOverrides.current;
+    HttpOverrides.global = null;
+    addTearDown(() => HttpOverrides.global = overrides);
+    late LocalServer server;
+    await tester.runAsync(() async => server = await LocalServer.start());
+    addTearDown(() => server.close());
+    server
+      ..serve('/DHAKA-FLIX-7/', fixture('listings/h5ai_root.html'))
+      ..serve('/site/', fixture('listings/not_a_listing.html'));
+
+    final controller = await show(
+      tester,
+      sources: [
+        // The list calls it a folder listing; the test finds h5ai.
+        _source(
+          'flix',
+          type: SourceType.directoryListing,
+          urls: ['${server.url('/DHAKA-FLIX-7/')}'],
+        ),
+        _source(
+          'site',
+          type: SourceType.customSite,
+          urls: ['${server.url('/site/')}'],
+        ),
+        _source('gone', urls: ['${server.url('/gone/')}']),
+      ],
+    );
+    await tester.runAsync(controller.testAll);
+    await tester.pump();
+
+    expect(
+      find.text('4 items · 3D Movies · English Movies · '
+          'Foreign Language Movies · Kolkata Bangla Movies'),
+      findsOneWidget,
+    );
+    expect(find.text('h5ai'), findsNWidgets(2), reason: 'detected, not listed');
+    expect(find.text('Folder listing'), findsNothing);
+    expect(find.text('Website: Example Net - Home'), findsOneWidget);
+    expect(find.text('No adapter'), findsOneWidget);
+    expect(find.text('The server answered 404.'), findsOneWidget);
+    expect(find.text('Problem'), findsOneWidget);
+    expect(find.text('1 the app can read'), findsOneWidget);
+  });
+
+  group('adding and editing', () {
+    testWidgets('a new source goes through the form into the list',
+        (tester) async {
+      final controller = await show(tester, sources: [_source('my-server')]);
+
+      await tester.tap(find.byKey(const Key('add-source')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('source-name')), 'My Server');
+      await tester.enterText(
+        find.byKey(const Key('source-urls')),
+        'http://10.0.0.9/movies\nhttp://10.0.0.9/series/',
+      );
+      await tester.tap(find.byKey(const Key('source-save')));
+      await tester.pumpAndSettle();
+
+      final added = controller.store.sources.last;
+      expect(added.id, 'my-server-2', reason: 'the plain id was taken');
+      expect(added.name, 'My Server');
+      expect(added.baseUrls.map((url) => '$url'), [
+        'http://10.0.0.9/movies/',
+        'http://10.0.0.9/series/',
+      ]);
+      expect(controller.store.isEnabled(added.id), isFalse);
+      expect(find.text('My Server'), findsOneWidget);
+    });
+
+    testWidgets('the form says what is wrong and stays open', (tester) async {
+      final controller = await show(tester, sources: const []);
+
+      await tester.tap(find.byKey(const Key('add-source')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('source-name')), 'Mine');
+      await tester.enterText(
+        find.byKey(const Key('source-urls')),
+        'http://10.0.0.9/ok/\nftp://10.0.0.9/movies/',
+      );
+      await tester.tap(find.byKey(const Key('source-save')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Base URL on line 2: must be an http or https URL.'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('source-save')), findsOneWidget);
+      expect(controller.store.sources, isEmpty);
+
+      await tester.enterText(
+        find.byKey(const Key('source-urls')),
+        'http://me:secret@10.0.0.9/movies/',
+      );
+      await tester.tap(find.byKey(const Key('source-save')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('user name or password'), findsOneWidget);
+
+      await tester.enterText(find.byKey(const Key('source-name')), '');
+      await tester.enterText(
+        find.byKey(const Key('source-urls')),
+        'http://10.0.0.9/',
+      );
+      await tester.tap(find.byKey(const Key('source-save')));
+      await tester.pumpAndSettle();
+      expect(find.text('Name: is missing.'), findsOneWidget);
+    });
+
+    testWidgets('editing keeps the id and replaces the details',
+        (tester) async {
+      final controller = await show(
+        tester,
+        sources: [_source('alpha')],
+        enabled: {'alpha'},
+      );
+
+      await chooseFromMenu(tester, 'alpha', 'Edit');
+      expect(find.text('Edit source'), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('source-name')), 'Renamed');
+      await tester.tap(find.byKey(const Key('source-save')));
+      await tester.pumpAndSettle();
+
+      final edited = controller.store.sources.single;
+      expect(edited.id, 'alpha');
+      expect(edited.name, 'Renamed');
+      expect(edited.type, SourceType.h5ai);
+      expect(controller.store.isEnabled('alpha'), isTrue);
+    });
+
+    testWidgets('cancelling the form changes nothing', (tester) async {
+      final controller = await show(tester, sources: [_source('alpha')]);
+
+      await chooseFromMenu(tester, 'alpha', 'Edit');
+      await tester.enterText(find.byKey(const Key('source-name')), 'Renamed');
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(controller.store.sources.single.name, 'Server alpha');
+    });
+  });
+
+  testWidgets('a source is removed only after confirming', (tester) async {
+    final controller = await show(
+      tester,
+      sources: [_source('alpha'), _source('beta')],
+    );
+
+    await chooseFromMenu(tester, 'alpha', 'Remove');
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(controller.store.sources, hasLength(2));
+
+    await chooseFromMenu(tester, 'alpha', 'Remove');
+    await tester.tap(find.byKey(const Key('confirm-remove')));
+    await tester.pumpAndSettle();
+
+    expect(controller.store.sources.map((s) => s.id), ['beta']);
+    expect(find.text('Server alpha'), findsNothing);
+  });
+
+  group('import and export', () {
+    String listOf(List<Source> sources) =>
+        SourceStore(starter: sources).exportJson();
+
+    testWidgets('an import shows what will change, then applies it',
+        (tester) async {
+      final files = _FakeFiles(
+        toRead: listOf([
+          _source('alpha'),
+          _source('beta', name: 'Beta, renamed'),
+          _source('one'),
+          _source('two'),
+        ]),
+      );
+      final controller = await show(
+        tester,
+        sources: [_source('alpha'), _source('beta')],
+        files: files,
+      );
+
+      await tester.tap(find.byKey(const Key('import-sources')));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('2 new and 1 changed (1 already in your list)'),
+        findsOneWidget,
+      );
+      expect(controller.store.sources, hasLength(2), reason: 'not yet');
+
+      await tester.tap(find.byKey(const Key('confirm-import')));
+      await tester.pumpAndSettle();
+
+      expect(
+        controller.store.sources.map((s) => s.id),
+        ['alpha', 'beta', 'one', 'two'],
+      );
+      expect(controller.store.sources[1].name, 'Beta, renamed');
+      expect(find.text('Imported: 2 added, 1 replaced.'), findsOneWidget);
+    });
+
+    testWidgets('a cancelled import changes nothing', (tester) async {
+      final controller = await show(
+        tester,
+        sources: [_source('alpha')],
+        files: _FakeFiles(toRead: listOf([_source('one')])),
+      );
+
+      await tester.tap(find.byKey(const Key('import-sources')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(controller.store.sources, hasLength(1));
+    });
+
+    testWidgets('a broken file is refused with the reason', (tester) async {
+      final controller = await show(
+        tester,
+        sources: [_source('alpha')],
+        files: _FakeFiles(
+          toRead: '{"schemaVersion": 1, "sources": [{"id": "x"}]}',
+        ),
+      );
+
+      await tester.tap(find.byKey(const Key('import-sources')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('Nothing was imported. sources[0]'),
+        findsOneWidget,
+      );
+      expect(controller.store.sources, hasLength(1));
+    });
+
+    testWidgets('a file that is too large or unreadable is refused',
+        (tester) async {
+      await show(
+        tester,
+        sources: const [],
+        files: _FakeFiles(
+          readError: const SourceFormatException('The file is too large.'),
+        ),
+      );
+
+      await tester.tap(find.byKey(const Key('import-sources')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Nothing was imported. The file is too large.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a file with nothing new says so', (tester) async {
+      await show(
+        tester,
+        sources: [_source('alpha')],
+        files: _FakeFiles(toRead: listOf([_source('alpha')])),
+      );
+
+      await tester.tap(find.byKey(const Key('import-sources')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Nothing new'), findsOneWidget);
+    });
+
+    testWidgets('picking no file does nothing', (tester) async {
+      await show(tester, sources: [_source('alpha')], files: _FakeFiles());
+
+      await tester.tap(find.byKey(const Key('import-sources')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SnackBar), findsNothing);
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('an export writes the whole list as a source list',
+        (tester) async {
+      final files = _FakeFiles();
+      final controller = await show(
+        tester,
+        sources: [_source('alpha'), _source('beta')],
+        enabled: {'alpha'},
+        files: files,
+      );
+
+      await tester.tap(find.byKey(const Key('export-sources')));
+      await tester.pumpAndSettle();
+
+      expect(parseSourceList(files.saved!), controller.store.sources);
+      expect(files.saved, isNot(contains('enabled')));
+      expect(find.text('Saved 2 sources.'), findsOneWidget);
+    });
+  });
+
+  testWidgets('fits a small window without overflowing', (tester) async {
+    await show(
+      tester,
+      size: const Size(1040, 600),
+      sources: [
+        _source(
+          'long',
+          name: 'A server with a very long name that will not fit the column',
+          isp: 'An ISP with a long name too',
+          urls: ['http://a-very-long-host-name.example.net/with/a/long/path/'],
+        ),
+        _source('up'),
+      ],
+      health: {'up': _health(ms: 14), 'long': _health(readable: false, ms: 9)},
+    );
+
+    // Any overflow would already have failed the test; the narrow layout
+    // drops the ISP column.
+    expect(find.text('An ISP with a long name too'), findsNothing);
+    expect(find.text('ISP'), findsNothing);
+  });
+
+  testWidgets('opens from the start screen and goes back', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final store = MemoryKeyValueStore();
+    final controller = SourceTestController(
+      store: SourceStore(starter: [_source('alpha')]),
+      tester: SourceTester(deviceId: 'dhara-test'),
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      DharaApp(
+        settings: SettingsController(store),
+        resumeStore: ResumeStore(store),
+        sourceTests: controller,
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('open-discovery')));
+    await tester.pumpAndSettle();
+    expect(find.text('Server Discovery'), findsOneWidget);
+    expect(find.text('Server alpha'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('url-field')), findsOneWidget);
+  });
+
+  group('uniqueSourceId', () {
+    test('makes an id from the name', () {
+      expect(uniqueSourceId('My Server!', {}), 'my-server');
+      expect(uniqueSourceId('  DhakaFlix   7 (Movies) ', {}),
+          'dhakaflix-7-movies');
+      expect(uniqueSourceId('ICC_FTP#3', {}), 'icc-ftp-3');
+    });
+
+    test('falls back when the name has nothing usable', () {
+      expect(uniqueSourceId('', {}), 'source');
+      expect(uniqueSourceId('বাংলা সার্ভার', {}), 'source');
+    });
+
+    test('numbers an id that is taken', () {
+      expect(uniqueSourceId('Mine', {'mine'}), 'mine-2');
+      expect(uniqueSourceId('Mine', {'mine', 'mine-2', 'mine-3'}), 'mine-4');
+    });
+
+    test('keeps long names within the id length limit', () {
+      final id = uniqueSourceId('word ' * 40, {});
+
+      expect(id.length, lessThanOrEqualTo(48));
+      expect(id, matches(RegExp(r'^[a-z0-9]+(-[a-z0-9]+)*$')));
+    });
+  });
+}
