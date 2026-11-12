@@ -16,7 +16,7 @@ A Bangla + English README is written in Phase 8.
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
 | 2. Player | Done and tested on real BDIX links. Not yet tried: HEVC / 4K files and `https://` links (none found so far) |
-| 3. Sources and server discovery | In progress (7 of 11 increments): starter list of 38 checked servers, source model and parser, saved source store, safe HTTP client, adapters for folder listings, h5ai and Emby/Jellyfin. Not wired into the app yet |
+| 3. Sources and server discovery | In progress (8 of 11 increments): starter list of 38 checked servers, source model and parser, saved source store, safe HTTP client, adapters for folder listings, h5ai and Emby/Jellyfin, tester engine. Not wired into the app yet |
 | 4–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -146,6 +146,24 @@ upper levels or names hiding a `/` are dropped. Server HTML is parsed with
 
 The sample pages are in `test/fixtures` (see
 [test/fixtures/listings/README.md](test/fixtures/listings/README.md)).
+
+### BDIX Tester (engine)
+
+`SourceTester.testAll(sources)` (`lib/features/sources/source_tester.dart`)
+fetches the first page of every base URL, a few sources at a time, and
+reports each source as soon as it is done:
+
+- reachable or not, and the response time ("ping")
+- the detected server type, whatever the list claims: h5ai, folder listing,
+  Emby/Jellyfin (asked through its public info address), or "other website"
+- the server software, how many entries the first page lists and the first
+  few names
+- for anything unusable, the reason in plain English
+
+A source is *readable* when it answered, an adapter exists for what it
+turned out to be, and listing it worked. Each run uses an HTTP client that
+only knows the hosts of the sources being tested: no port scanning, no
+address sweeps, and a redirect to any other host is refused.
 
 Known gaps: Emby/Jellyfin video URLs need the session token as a request
 header, which playback does not send yet; `https` servers with self-signed

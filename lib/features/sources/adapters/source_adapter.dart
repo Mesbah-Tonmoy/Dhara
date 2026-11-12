@@ -99,3 +99,12 @@ Future<SafeHttpResponse> fetchFolderPage(
 }
 
 String _asFolder(String path) => path.endsWith('/') ? path : '$path/';
+
+/// Server text made safe to keep and show: control characters become
+/// spaces (so it stays on one line) and it is cut to [maxLength].
+String cleanServerText(String text, int maxLength) {
+  final clean = text.replaceAll(_controlChars, ' ').trim();
+  return clean.length <= maxLength ? clean : clean.substring(0, maxLength);
+}
+
+final _controlChars = RegExp(r'[\x00-\x1F\x7F]');

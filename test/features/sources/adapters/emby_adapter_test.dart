@@ -1,7 +1,5 @@
-// The public answers (`System/Info/Public`, `Users/Public`) are real captures
-// from the Emby server in the starter list. Everything behind the sign-in is
-// written by hand from the Emby/Jellyfin API documentation, with made-up
-// titles: it has not been checked against a real server yet.
+// Runs against test/support/fake_emby.dart; see there for what is a real
+// capture and what is written from the API documentation.
 import 'dart:convert';
 import 'dart:io';
 
@@ -11,158 +9,18 @@ import 'package:dhara/features/sources/adapters/source_adapter.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../../support/fake_emby.dart';
 import '../../../support/local_server.dart';
-
-const _guestId = '91450e318b574e69aa36c056d83a4acd';
-
-const _library = <String?, List<Map<String, Object?>>>{
-  null: [
-    {'Name': 'Movies', 'Id': '3', 'IsFolder': true, 'Type': 'CollectionFolder'},
-    {'Name': 'Series', 'Id': '5', 'IsFolder': true, 'Type': 'CollectionFolder'},
-  ],
-  '3': [
-    {
-      'Name': 'Quiet River',
-      'Id': '101',
-      'Type': 'Movie',
-      'MediaType': 'Video',
-      'IsFolder': false,
-      'ProductionYear': 2019,
-      'Path': '/mnt/disk1/Movies/Quiet River (2019)/'
-          'Quiet.River.2019.1080p.BluRay.x264.mkv',
-      'DateCreated': '2024-03-04T15:09:00.0000000Z',
-      'MediaSources': [
-        {'Id': 'ms101', 'Container': 'mkv', 'Size': 2147483648},
-      ],
-    },
-    {
-      'Name': 'Paper Kites',
-      'Id': '102',
-      'Type': 'Movie',
-      'MediaType': 'Video',
-      'ProductionYear': 2021,
-      'MediaSources': [
-        {'Id': 'abcdef0123', 'Container': 'mov,mp4,m4a,3gp,3g2,mj2', 'Size': 1500},
-      ],
-    },
-    {'Name': 'Soundtrack', 'Id': '103', 'Type': 'Audio', 'MediaType': 'Audio'},
-    {
-      'Name': 'Glass Orchard',
-      'Id': '104',
-      'MediaType': 'Video',
-      'Path': r'D:\Media\Movies\Glass.Orchard.2020.720p.mp4',
-    },
-  ],
-  '5': [
-    {
-      'Name': 'Harbor Lights',
-      'Id': '200',
-      'Type': 'Series',
-      'IsFolder': true,
-      'ProductionYear': 2022,
-    },
-  ],
-  '200': [
-    {
-      'Name': 'Pilot',
-      'Id': '301',
-      'Type': 'Episode',
-      'MediaType': 'Video',
-      'SeriesName': 'Harbor Lights',
-      'ParentIndexNumber': 1,
-      'IndexNumber': 2,
-      'MediaSources': [
-        {'Id': 'ms301', 'Container': 'mkv', 'Size': 10},
-      ],
-    },
-  ],
-};
-
-/// The parts of an Emby server the adapter talks to.
-class _FakeEmby {
-  _FakeEmby(this.server, {String prefix = ''}) {
-    server
-      ..serve(
-        '$prefix/System/Info/Public',
-        fixture('emby/emby_system_info_public.json'),
-        contentType: 'application/json; charset=utf-8',
-      )
-      ..routes['$prefix/Users/Public'] = _users
-      ..routes['$prefix/Users/AuthenticateByName'] = _authenticate
-      ..routes['$prefix/Items'] = _items;
-  }
-
-  final LocalServer server;
-
-  Map<String?, List<Map<String, Object?>>> library = _library;
-  String publicUsers = fixture('emby/emby_users_public.json');
-
-  /// The token handed out by the next sign-in; only it is accepted.
-  String token = 'token-1';
-  String? password;
-  final signIns = <Map<String, dynamic>>[];
-
-  Future<void> _json(HttpRequest request, Object? body, [int status = 200]) {
-    request.response
-      ..statusCode = status
-      ..headers.contentType = ContentType.json
-      ..write(jsonEncode(body));
-    return request.response.close();
-  }
-
-  Future<void> _users(HttpRequest request) {
-    request.response
-      ..headers.contentType = ContentType.json
-      ..write(publicUsers);
-    return request.response.close();
-  }
-
-  Future<void> _authenticate(HttpRequest request) async {
-    final body = jsonDecode(await utf8.decodeStream(request)) as Map<String, dynamic>;
-    signIns.add(body);
-    final accepted = request.method == 'POST' &&
-        (password == null
-            ? body['Username'] == 'Taltola.Net' && body['Pw'] == ''
-            : body['Username'] == 'mehedi' && body['Pw'] == password);
-    if (!accepted) return _json(request, 'Invalid user or password.', 401);
-    return _json(request, {
-      'User': {'Name': body['Username'], 'Id': _guestId},
-      'AccessToken': token,
-      'ServerId': '60918f598ceb4317b2ed24a9d9ad937f',
-    });
-  }
-
-  Future<void> _items(HttpRequest request) {
-    final query = request.uri.queryParameters;
-    if (request.headers.value('x-emby-token') != token ||
-        query['UserId'] != _guestId) {
-      request.response.statusCode = 401;
-      return request.response.close();
-    }
-    final all = library[query['ParentId']] ?? const [];
-    final start = int.parse(query['StartIndex']!);
-    final limit = int.parse(query['Limit']!);
-    return _json(request, {
-      'Items': all.skip(start).take(limit).toList(),
-      'TotalRecordCount': all.length,
-    });
-  }
-
-  List<HttpRequest> requestsTo(String path) => [
-        for (final request in server.requests)
-          if (request.uri.path == path) request,
-      ];
-}
 
 void main() {
   late LocalServer server;
   late SafeHttpClient client;
-  late _FakeEmby emby;
+  late FakeEmby emby;
 
   setUp(() async {
     server = await LocalServer.start();
     client = server.client();
-    emby = _FakeEmby(server);
+    emby = FakeEmby(server);
   });
 
   tearDown(() async {
@@ -303,8 +161,7 @@ void main() {
       ]);
     });
 
-    test('names series folders and episodes so they can be parsed',
-        () async {
+    test('names series folders and episodes so they can be parsed', () async {
       final emby = adapter();
 
       final series = await emby.list(server.url('/Items?ParentId=5'));
@@ -328,7 +185,9 @@ void main() {
       expect(entries, hasLength(250));
       expect(entries.last.name, 'Clip 249');
       expect(
-        emby.requestsTo('/Items').map((r) => r.uri.queryParameters['StartIndex']),
+        emby
+            .requestsTo('/Items')
+            .map((r) => r.uri.queryParameters['StartIndex']),
         ['0', '100', '200'],
       );
     });
@@ -351,7 +210,7 @@ void main() {
     test('gives up when a fresh sign-in is refused as well', () async {
       final emby_ = adapter();
       // Signing in "works", but the token never does.
-      emby.routes401();
+      emby.refuseEveryToken();
 
       await expectLater(emby_.list(server.url('/')), refuses('401'));
       expect(emby.signIns, hasLength(2));
@@ -499,10 +358,10 @@ void main() {
   });
 
   test('works for a server under a sub-path, slash or not', () async {
-    final nested = _FakeEmby(server, prefix: '/emby');
+    final nested = FakeEmby(server, prefix: '/emby');
 
-    final entries = await adapter(baseUrl: server.url('/emby'))
-        .list(server.url('/emby'));
+    final entries =
+        await adapter(baseUrl: server.url('/emby')).list(server.url('/emby'));
 
     expect(entries.first.url, server.url('/emby/Items?ParentId=3'));
     expect(nested.requestsTo('/emby/Items'), hasLength(1));
@@ -511,14 +370,4 @@ void main() {
       SourceType.emby,
     );
   });
-}
-
-extension on _FakeEmby {
-  /// Makes every library request fail with 401, whatever the token.
-  void routes401() {
-    server.routes['/Items'] = (request) async {
-      request.response.statusCode = 401;
-      await request.response.close();
-    };
-  }
 }

@@ -75,6 +75,23 @@ void main() {
     expect(seen.single.headers.value('user-agent'), 'Dhara');
   });
 
+  test('measures the time to the answer, not the time to read the body',
+      () async {
+    routes['/slow-body'] = (request) async {
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      request.response.write('start');
+      await request.response.flush();
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      await request.response.close();
+    };
+
+    final response = await client.get(at('/slow-body'));
+
+    expect(
+        response.responseTime, greaterThan(const Duration(milliseconds: 140)));
+    expect(response.responseTime, lessThan(const Duration(milliseconds: 600)));
+  });
+
   test('an error status is a response, not an exception', () async {
     final response = await client.get(at('/missing'));
 
@@ -153,8 +170,7 @@ void main() {
       expect(seen, hasLength(1));
     });
 
-    test('to the first host are fine even if it is not on the list',
-        () async {
+    test('to the first host are fine even if it is not on the list', () async {
       // The caller vouches for the first host by asking for it; here the
       // list only knows "localhost".
       final narrow = SafeHttpClient(

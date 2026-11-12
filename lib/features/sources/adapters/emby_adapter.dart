@@ -42,8 +42,8 @@ Future<MediaServerInfo?> probeMediaServer(
   final name = json['ServerName'];
   return MediaServerInfo(
     type: isJellyfin ? SourceType.jellyfin : SourceType.emby,
-    name: name is String ? _clean(name, 80) : '',
-    version: _clean(version, 20),
+    name: name is String ? cleanServerText(name, 80) : '',
+    version: cleanServerText(version, 20),
   );
 }
 
@@ -73,7 +73,7 @@ class EmbyAdapter implements SourceAdapter {
         _username = username,
         _password = password {
     // It goes into a header, so it must not be able to break out of one.
-    if (!_idPattern.hasMatch(deviceId)) {
+    if (!isValidDeviceId(deviceId)) {
       throw ArgumentError.value(deviceId, 'deviceId', 'letters, digits, "-"');
     }
   }
@@ -154,7 +154,7 @@ class EmbyAdapter implements SourceAdapter {
     if (id is! String || !_idPattern.hasMatch(id) || rawName is! String) {
       return null;
     }
-    final name = _clean(rawName, 200);
+    final name = cleanServerText(rawName, 200);
     if (name.isEmpty) return null;
     final created = item['DateCreated'];
     final modified =
@@ -180,11 +180,14 @@ class EmbyAdapter implements SourceAdapter {
         source is Map<String, dynamic> ? source['Container'] : null;
 
     final path = item['Path'];
-    final diskName =
-        path is String ? _clean(path.split(_pathSeparator).last, 300) : '';
+    final diskName = path is String
+        ? cleanServerText(path.split(_pathSeparator).last, 300)
+        : '';
     final extension = _extensionOf(diskName) ??
         // Emby reports "mov,mp4,m4a,3gp,3g2,mj2" for an MP4 file.
-        (container is String ? _extensionOf('.${container.split(',')[0]}') : null);
+        (container is String
+            ? _extensionOf('.${container.split(',')[0]}')
+            : null);
     final dotExtension = extension == null ? '' : '.$extension';
 
     final String fileName;
@@ -194,7 +197,7 @@ class EmbyAdapter implements SourceAdapter {
     if (diskName.isNotEmpty) {
       fileName = diskName;
     } else if (series is String && season is int && episode is int) {
-      fileName = '${_clean(series, 200)} '
+      fileName = '${cleanServerText(series, 200)} '
           'S${'$season'.padLeft(2, '0')}E${'$episode'.padLeft(2, '0')} '
           '$name$dotExtension';
     } else {
@@ -325,10 +328,12 @@ const _smallAnswer = 256 * 1024;
 
 // Ids and tokens end up in URLs and headers, so only harmless characters.
 final _idPattern = RegExp(r'^[A-Za-z0-9-]{1,64}$');
+
+/// Whether [id] can be used as the `deviceId` of an [EmbyAdapter].
+bool isValidDeviceId(String id) => _idPattern.hasMatch(id);
 final _tokenPattern = RegExp(r'^[A-Za-z0-9._-]{1,256}$');
 final _pathSeparator = RegExp(r'[/\\]');
 final _extensionPattern = RegExp(r'\.([A-Za-z0-9]{2,5})$');
-final _controlChars = RegExp(r'[\x00-\x1F\x7F]');
 
 /// The API address [path] under [baseUrl] (which may or may not end in
 /// "/"), with [query] as its only query.
@@ -346,12 +351,6 @@ Object? _decode(String body) {
   } on FormatException {
     return null;
   }
-}
-
-/// Server text made safe to keep: one line, at most [maxLength] characters.
-String _clean(String text, int maxLength) {
-  final clean = text.replaceAll(_controlChars, ' ').trim();
-  return clean.length <= maxLength ? clean : clean.substring(0, maxLength);
 }
 
 String? _extensionOf(String fileName) =>

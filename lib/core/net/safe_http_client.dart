@@ -40,6 +40,7 @@ class SafeHttpResponse {
   SafeHttpResponse._({
     required this.url,
     required this.statusCode,
+    required this.responseTime,
     required this.bodyBytes,
     required Map<String, String> headers,
     required String? charset,
@@ -49,6 +50,10 @@ class SafeHttpResponse {
   /// The URL that answered, after any redirects.
   final Uri url;
   final int statusCode;
+
+  /// From sending the request until the answer's headers arrived, with
+  /// connecting and any redirects included. This is the app's "ping".
+  final Duration responseTime;
   final Uint8List bodyBytes;
   final Map<String, String> _headers;
   final String? _charset;
@@ -163,6 +168,7 @@ class SafeHttpClient {
     }
 
     var current = url;
+    final watch = Stopwatch()..start();
     try {
       for (var redirects = 0;; redirects++) {
         final request = await _inner.openUrl(method, current);
@@ -182,9 +188,11 @@ class SafeHttpClient {
         final response = await request.close();
         final location = response.headers.value(HttpHeaders.locationHeader);
         if (method != 'GET' || !response.isRedirect || location == null) {
+          final responseTime = watch.elapsed;
           return SafeHttpResponse._(
             url: current,
             statusCode: response.statusCode,
+            responseTime: responseTime,
             headers: _headerMap(response.headers),
             charset: _charsetOf(response.headers),
             bodyBytes: await _readBody(call, response, maxBytes),
