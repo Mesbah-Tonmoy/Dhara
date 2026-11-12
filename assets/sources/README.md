@@ -40,6 +40,25 @@ one from your connection and only reachable servers are enabled.
 A source may have several `baseUrls` (for example one per disk on the same
 host). Each is crawled as its own root.
 
+## What the app checks when it reads a list
+
+The same parser (`lib/features/sources/source_list.dart`) reads this file,
+the user's saved changes and imported lists. One bad entry rejects the whole
+list, with a message that names the field.
+
+- `schemaVersion` and `sources` are required; `checkedOn` and any other
+  unknown key are ignored. A list with a newer `schemaVersion` is refused.
+- `id`: unique, up to 64 characters. `name`, `provider`, `isp`: one line, up
+  to 80 characters. `notes`: up to 1000 characters.
+- `baseUrls`: 1 to 64 per source, `http` or `https` only, no `?` or `#`, and
+  **no user name or password** (the list is plain text and can be exported).
+  A missing final `/` is added. Private addresses (10.x, 172.16.x, …) are fine.
+- `portalUrl`: `http` or `https`, no user name or password.
+- At most 2000 sources and 2 MB per list.
+
+`test/assets/starter_sources_test.dart` additionally keeps this file tidy:
+exactly the fields above, already normalised, and no base URL listed twice.
+
 ## How this list was built (2026-11-12)
 
 1. Started from the servers already in use, and the servers their landing
