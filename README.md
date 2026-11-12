@@ -16,7 +16,7 @@ A Bangla + English README is written in Phase 8.
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
 | 2. Player | Done and tested on real BDIX links. Not yet tried: HEVC / 4K files and `https://` links (none found so far) |
-| 3. Sources and server discovery | In progress (3 of 11 increments): starter list of 38 checked servers, source model and parser, saved source store. Not wired into the app yet |
+| 3. Sources and server discovery | In progress (7 of 11 increments): starter list of 38 checked servers, source model and parser, saved source store, safe HTTP client, adapters for folder listings, h5ai and Emby/Jellyfin. Not wired into the app yet |
 | 4–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -115,6 +115,42 @@ on with the starter list.
 Source lists never hold passwords: URLs with a user name or password are
 refused.
 
+### Talking to servers
+
+Everything the app fetches from a source goes through `SafeHttpClient`
+(`lib/core/net/safe_http_client.dart`), built on `dart:io` with no extra
+package:
+
+- `http`/`https` only, and only to hosts the caller allows (the configured
+  sources). Private addresses are not blocked; BDIX servers live there.
+- Redirects are followed by hand, at most 5, and only to the first host or
+  another allowed one. Request headers are not passed on to another host.
+- One total time limit (15 s) and one size limit (4 MB, counted after
+  decompression) per request; folder pages get 8 MB.
+- No cookies, no proxy settings, and error messages never contain a URL.
+
+### Adapters
+
+One adapter per server type, all behind `SourceAdapter.list(folder)`
+(`lib/features/sources/adapters`). An adapter only returns entries directly
+inside the folder it was asked for: links to other hosts, other schemes,
+upper levels or names hiding a `/` are dropped. Server HTML is parsed with
+`package:html` and never rendered or run.
+
+| Type | Adapter | Checked against |
+|---|---|---|
+| `directory_listing` | `DirectoryListingAdapter`: Apache (table and plain), nginx, IIS | real Apache and IIS pages; nginx and IIS-with-dates pages written by hand |
+| `h5ai` | `H5aiAdapter`: reads the plain table every h5ai page carries | real DhakaFlix and CircleFTP pages |
+| `emby`, `jellyfin` | `EmbyAdapter`: signs in (guest user by default) and reads the library API | real public answers only; **sign-in and library calls are written from the API docs and not yet tried on a real server** |
+| `custom_site` | none yet | |
+
+The sample pages are in `test/fixtures` (see
+[test/fixtures/listings/README.md](test/fixtures/listings/README.md)).
+
+Known gaps: Emby/Jellyfin video URLs need the session token as a request
+header, which playback does not send yet; `https` servers with self-signed
+certificates are refused.
+
 ## Settings
 
 User settings (skip steps, volume, subtitle size) are saved by `shared_preferences` in
@@ -126,6 +162,7 @@ load, so a broken file falls back to defaults. No secrets are stored there.
 ```
 lib/                 app code
 test/                automated tests (run anywhere)
+test/fixtures/       saved server answers the adapter tests run against
 design/prototype/    Phase 1 clickable HTML prototype (no network calls)
 assets/fonts/        bundled Inter and Plus Jakarta Sans
 assets/sources/      starter BDIX source list (Phase 3)
