@@ -1,7 +1,8 @@
 // A stand-in for an Emby server. The public answers are real captures from
-// the Emby server in the starter list; everything behind the sign-in is
-// written by hand from the Emby/Jellyfin API documentation, with made-up
-// titles, and has not been checked against a real server yet.
+// the Emby server in the starter list. Everything behind the sign-in is
+// written by hand, with made-up titles, in the shape the API documentation
+// gives; that shape was compared with the real server's answers on
+// 2026-11-13 (sign-in, library listing, a movie item, its stream address).
 import 'dart:convert';
 import 'dart:io';
 

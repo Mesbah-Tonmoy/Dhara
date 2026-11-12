@@ -126,6 +126,29 @@ class SafeHttpClient {
   }) =>
       _send('POST', url, headers, jsonEncode(body), timeout, maxBytes);
 
+  /// Finds out where [url] leads and what answers there, without
+  /// downloading it: redirects are followed under the same rules as [get],
+  /// and the connection is dropped as soon as the final answer's headers
+  /// are in. Made for media files, which are far too large to fetch.
+  ///
+  /// The returned response has an empty body.
+  Future<SafeHttpResponse> probe(
+    Uri url, {
+    Map<String, String> headers = const {},
+    Duration? timeout,
+  }) =>
+      _send(
+        'GET',
+        url,
+        // Asks for one byte, for servers that would otherwise start
+        // sending the whole file.
+        {HttpHeaders.rangeHeader: 'bytes=0-0', ...headers},
+        null,
+        timeout,
+        0,
+        readBody: false,
+      );
+
   /// Drops every connection, including requests still running.
   void close() => _inner.close(force: true);
 
@@ -135,12 +158,20 @@ class SafeHttpClient {
     Map<String, String> headers,
     String? jsonBody,
     Duration? timeout,
-    int? maxBytes,
-  ) {
+    int? maxBytes, {
+    bool readBody = true,
+  }) {
     final limit = timeout ?? this.timeout;
     final call = _Call();
-    return _run(call, method, url, headers, jsonBody, maxBytes ?? this.maxBytes)
-        .timeout(
+    return _run(
+      call,
+      method,
+      url,
+      headers,
+      jsonBody,
+      maxBytes ?? this.maxBytes,
+      readBody: readBody,
+    ).timeout(
       limit,
       onTimeout: () {
         call.cancel();
@@ -158,8 +189,9 @@ class SafeHttpClient {
     Uri url,
     Map<String, String> headers,
     String? jsonBody,
-    int maxBytes,
-  ) async {
+    int maxBytes, {
+    required bool readBody,
+  }) async {
     if (!_isWebUrl(url) || !_isAllowedHost(url.host)) {
       throw const SafeHttpException(
         SafeHttpFailure.blockedUrl,
@@ -181,8 +213,13 @@ class SafeHttpClient {
         // Headers may hold a token meant for the first host only.
         if (current.host == url.host) headers.forEach(request.headers.set);
         if (jsonBody != null) {
+          final bytes = utf8.encode(jsonBody);
           request.headers.contentType = ContentType.json;
-          request.add(utf8.encode(jsonBody));
+          // With the length given the body goes out in one piece. Without
+          // it dart:io sends it "chunked", which some servers (Emby, for
+          // one) do not read.
+          request.contentLength = bytes.length;
+          request.add(bytes);
         }
 
         final response = await request.close();
@@ -195,12 +232,14 @@ class SafeHttpClient {
             responseTime: responseTime,
             headers: _headerMap(response.headers),
             charset: _charsetOf(response.headers),
-            bodyBytes: await _readBody(call, response, maxBytes),
+            bodyBytes: readBody
+                ? await _readBody(call, response, maxBytes)
+                : _dropBody(response),
           );
         }
 
         // Not interested in a redirect's body.
-        unawaited(response.listen((_) {}).cancel());
+        _dropBody(response);
         if (redirects >= maxRedirects) {
           throw SafeHttpException(
             SafeHttpFailure.tooManyRedirects,
@@ -230,6 +269,12 @@ class SafeHttpClient {
         (target.host == first.host || _isAllowedHost(target.host));
     if (!allowed) throw _blockedRedirect(first);
     return target;
+  }
+
+  /// Hangs up without reading what the server is sending.
+  static Uint8List _dropBody(HttpClientResponse response) {
+    unawaited(response.listen((_) {}).cancel());
+    return Uint8List(0);
   }
 
   Future<Uint8List> _readBody(

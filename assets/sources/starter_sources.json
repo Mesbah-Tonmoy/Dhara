@@ -206,7 +206,7 @@
       "category": "mixed",
       "baseUrls": ["http://146.196.48.10/FILE--SERVER/"],
       "portalUrl": null,
-      "notes": "Apache directory listing. Same network as the Emby server below."
+      "notes": "Apache directory listing. The Emby server below shows these same files as a library."
     },
     {
       "id": "emby-146-196-48-9",
@@ -217,7 +217,7 @@
       "category": "mixed",
       "baseUrls": ["http://146.196.48.9/"],
       "portalUrl": null,
-      "notes": "Emby 4.8.5. Browsing is expected to need a login."
+      "notes": "Emby 4.8.5 with a password-less guest user, which the app signs in as. Its library is the file server above."
     },
     {
       "id": "funtime",

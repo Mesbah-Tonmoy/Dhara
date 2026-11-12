@@ -16,7 +16,7 @@ A Bangla + English README is written in Phase 8.
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
 | 2. Player | Done and tested on real BDIX links. Not yet tried: HEVC / 4K files and `https://` links (none found so far) |
-| 3. Sources and server discovery | In progress (8 of 11 increments): starter list of 38 checked servers, source model and parser, saved source store, safe HTTP client, adapters for folder listings, h5ai and Emby/Jellyfin, tester engine. Not wired into the app yet |
+| 3. Sources and server discovery | Done: starter list of 38 checked servers, Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet |
 | 4–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -53,8 +53,16 @@ Known gaps, tracked for later phases:
 
 - The bundled libmpv is mpv 0.36 / FFmpeg 6.0 from 2023-09-24, the last
   release of the now-archived `media-kit/libmpv-win32-video-build`.
-- FFmpeg follows HTTP redirects itself, so the "same host or configured
-  source only" redirect rule is not enforced for playback yet.
+- FFmpeg follows HTTP redirects itself, to any http(s) host, and this
+  build has no option to stop it (checked: the DLL has no `max_redirects`).
+  The app therefore follows redirects first, under its own rule (same host
+  or a configured source, at most 5), refuses to play if the chain breaks
+  it, and hands the player the final address
+  (`lib/features/player/playback_url.dart`). What is left: a server could
+  still answer the player itself with a new redirect. Closing that needs a
+  libmpv whose FFmpeg can limit redirects.
+- If the server cannot be asked beforehand (unreachable, slower than 5 s),
+  the video is opened unchecked and the player reports the real error.
 
 ## Player keyboard shortcuts
 
@@ -107,13 +115,21 @@ also documents the JSON format and what the parser checks.
 
 `SourceStore` keeps the starter list with the user's changes on top and
 saves **only the changes** (added or edited sources, removed starter ids,
-enabled ids) to one JSON file. Untouched starter entries therefore keep
-following the starter list across app updates. Nothing is enabled by
-default. A damaged saved file is renamed to `<name>.bad` and the app carries
-on with the starter list.
+enabled ids) plus the last test result of each source to
+`%APPDATA%\com.dhara\dhara\sources.json`. Untouched starter entries
+therefore keep following the starter list across app updates. Nothing is
+enabled by default. A damaged saved file is renamed to `sources.json.bad`
+and the app carries on with the starter list; if the data folder cannot be
+found, changes last for that run only.
 
 Source lists never hold passwords: URLs with a user name or password are
 refused.
+
+The data folder is asked for through `path_provider_platform_interface`,
+which `shared_preferences` already brings along with its Windows and Linux
+implementations. The usual `path_provider` front package would add about a
+dozen packages for platforms this app does not target; switch to it if
+macOS support is added.
 
 ### Talking to servers
 
@@ -141,13 +157,30 @@ upper levels or names hiding a `/` are dropped. Server HTML is parsed with
 |---|---|---|
 | `directory_listing` | `DirectoryListingAdapter`: Apache (table and plain), nginx, IIS | real Apache and IIS pages; nginx and IIS-with-dates pages written by hand |
 | `h5ai` | `H5aiAdapter`: reads the plain table every h5ai page carries | real DhakaFlix and CircleFTP pages |
-| `emby`, `jellyfin` | `EmbyAdapter`: signs in (guest user by default) and reads the library API | real public answers only; **sign-in and library calls are written from the API docs and not yet tried on a real server** |
+| `emby`, `jellyfin` | `EmbyAdapter`: signs in (guest user by default) and reads the library API | a real Emby 4.8.5 server (2026-11-13): guest sign-in, library listing, item fields and the stream address. The automated tests use a stand-in server. **Jellyfin has not been tried on a real server** |
 | `custom_site` | none yet | |
 
 The sample pages are in `test/fixtures` (see
 [test/fixtures/listings/README.md](test/fixtures/listings/README.md)).
 
-### BDIX Tester (engine)
+### Server Discovery (BDIX Tester)
+
+Open it from the start screen. It lists every source with what the last
+test found and offers:
+
+- **Test all** (or "Test now" on one row), and **Enable all reachable**,
+  which switches on every source the app could read. Custom websites answer
+  but stay off: there is no adapter for them yet.
+- **Add source**, and Edit / Remove from a row's menu. The form uses the
+  same checks as the list parser.
+- **Import** and **Export** of the list as JSON. An import shows how many
+  sources are new or changed before anything happens, never enables
+  anything, and switches off a source it replaces until that is tested
+  again. An export does not say which sources are enabled.
+
+Enabled sources are tested again when the app starts once their last test
+is a week old, so dead servers get marked. Nothing is switched off
+automatically.
 
 `SourceTester.testAll(sources)` (`lib/features/sources/source_tester.dart`)
 fetches the first page of every base URL, a few sources at a time, and

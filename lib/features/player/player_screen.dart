@@ -1,11 +1,15 @@
 import 'dart:async';
 
 import 'package:dhara/core/net/media_url.dart';
+import 'package:dhara/core/net/safe_http_client.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/core/window/fullscreen.dart';
+import 'package:dhara/features/player/playback_url.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/player/secure_player.dart';
 import 'package:dhara/features/player/widgets/player_controls.dart';
+import 'package:dhara/features/sources/source_store.dart';
+import 'package:dhara/features/sources/source_test_controller.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
@@ -42,6 +46,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
   late final Player _player = createPlayer();
   late final VideoController _video = VideoController(_player);
   late final ResumeStore _resume = ResumeStoreScope.of(context);
+  late final SourceStore _sources;
+
+  /// Checks where a video's server redirects to before the player opens
+  /// it (see [resolvePlaybackUrl]).
+  late final SafeHttpClient _http = SafeHttpClient(
+    isAllowedHost: _mayPlayFrom,
+    timeout: const Duration(seconds: 5),
+  );
   final _subscriptions = <StreamSubscription<Object?>>[];
   late final Future<void> _started;
 
@@ -61,12 +73,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Uri get _url => widget.urls[_index];
 
+  /// A video may come from the hosts in this queue and from the
+  /// configured sources (looked up each time: the list can change).
+  bool _mayPlayFrom(String host) =>
+      widget.urls.any((url) => url.host == host) ||
+      _sources.sources.any(
+        (source) => source.baseUrls.any((url) => url.host == host),
+      );
+
   Uri? get _nextUrl =>
       _index + 1 < widget.urls.length ? widget.urls[_index + 1] : null;
 
   @override
   void initState() {
     super.initState();
+    // Looked up now: the redirect check may still be running when this
+    // screen is gone, and must not touch the widget tree then.
+    _sources = SourcesScope.read(context).store;
     final stream = _player.stream;
     _subscriptions.addAll([
       stream.error.listen((message) {
@@ -114,7 +137,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _autoNextCancelled = false;
       _resumedFrom = resumeFrom;
     });
-    final media = Media(_url.toString());
+    final Uri address;
+    try {
+      address = await resolvePlaybackUrl(_http, _url);
+    } on PlaybackBlocked catch (blocked) {
+      if (mounted && _index == index) {
+        setState(() => _error = blocked.message);
+      }
+      return;
+    }
+    // The user may have left or moved on while the server was asked.
+    if (!mounted || _index != index) return;
+    // Resume positions and titles stay tied to the URL that was asked for;
+    // only the player is pointed at where it leads.
+    final media = Media(address.toString());
     if (resumeFrom == null) {
       await _player.open(media);
       return;
@@ -181,6 +217,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     for (final subscription in _subscriptions) {
       unawaited(subscription.cancel());
     }
+    _http.close();
     // Fullscreen belongs to the player; the rest of the app is windowed.
     if (_fullscreen) unawaited(setWindowFullscreen(false));
     // Dispose only after start-up has settled, so libmpv is never torn down

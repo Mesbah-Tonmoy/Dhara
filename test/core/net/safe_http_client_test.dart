@@ -351,6 +351,57 @@ void main() {
     });
   });
 
+  group('probe', () {
+    test('reports where a URL leads without downloading it', () async {
+      var sent = 0;
+      routes['/a'] = (request) => redirect(request, '/big.mkv');
+      routes['/big.mkv'] = (request) async {
+        try {
+          for (var i = 0; i < 200; i++) {
+            request.response.add(List.filled(64 * 1024, 0));
+            sent += 64 * 1024;
+            await request.response.flush();
+            await Future<void>.delayed(const Duration(milliseconds: 1));
+          }
+          await request.response.close();
+        } on Object {
+          // The client hung up.
+        }
+      };
+
+      final response = await client.probe(at('/a'));
+
+      expect(response.url, at('/big.mkv'));
+      expect(response.statusCode, 200);
+      expect(response.bodyBytes, isEmpty);
+      expect(seen.last.headers.value('range'), 'bytes=0-0');
+      // Far more than the client's size limit would have allowed anyway;
+      // the point is that it did not wait for it.
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(sent, lessThan(200 * 64 * 1024));
+    });
+
+    test('follows the same redirect rules as get', () async {
+      routes['/out'] = (request) => redirect(request, 'http://example.com/v');
+      routes['/loop'] = (request) => redirect(request, '/loop');
+
+      await expectLater(
+        client.probe(at('/out')),
+        failsWith(SafeHttpFailure.blockedRedirect),
+      );
+      await expectLater(
+        client.probe(at('/loop')),
+        failsWith(SafeHttpFailure.tooManyRedirects),
+      );
+    });
+
+    test('returns an error status like any other answer', () async {
+      final response = await client.probe(at('/missing'));
+
+      expect(response.statusCode, 404);
+    });
+  });
+
   test('postJson sends a JSON body and returns the answer', () async {
     routes['/login'] = (request) async {
       final body = await utf8.decodeStream(request);
@@ -367,6 +418,9 @@ void main() {
     );
 
     expect(seen.single.method, 'POST');
+    // Sent with its length, not chunked: Emby ignores a chunked body.
+    expect(seen.single.headers.contentLength, 28);
+    expect(seen.single.headers.chunkedTransferEncoding, isFalse);
     expect(seen.single.headers.contentType?.mimeType, 'application/json');
     expect(seen.single.headers.value('x-auth'), 'x');
     expect(jsonDecode(response.body), {
