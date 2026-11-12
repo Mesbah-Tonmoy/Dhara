@@ -16,7 +16,7 @@ A Bangla + English README is written in Phase 8.
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
 | 2. Player | Done and tested on real BDIX links. Not yet tried: HEVC / 4K files and `https://` links (none found so far) |
-| 3. Sources and server discovery | In progress: starter list of 38 checked servers in `assets/sources` (1 of 11 increments) |
+| 3. Sources and server discovery | In progress (3 of 11 increments): starter list of 38 checked servers, source model and parser, saved source store. Not wired into the app yet |
 | 4–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -98,6 +98,22 @@ fetched at runtime. Sources, licences (OFL 1.1) and checksums are in
 [assets/fonts/README.md](assets/fonts/README.md). In code use
 `DharaFonts.ui` / `DharaFonts.display`; a button `textStyle` replaces the
 theme's, so name the family there explicitly.
+
+## Sources
+
+A source is one BDIX media server (`lib/features/sources/source.dart`). The
+app ships a starter list, [assets/sources](assets/sources/README.md), which
+also documents the JSON format and what the parser checks.
+
+`SourceStore` keeps the starter list with the user's changes on top and
+saves **only the changes** (added or edited sources, removed starter ids,
+enabled ids) to one JSON file. Untouched starter entries therefore keep
+following the starter list across app updates. Nothing is enabled by
+default. A damaged saved file is renamed to `<name>.bad` and the app carries
+on with the starter list.
+
+Source lists never hold passwords: URLs with a user name or password are
+refused.
 
 ## Settings
 
