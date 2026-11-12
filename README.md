@@ -16,7 +16,7 @@ A Bangla + English README is written in Phase 8.
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
 | 2. Player | Done and tested on real BDIX links. Not yet tried: HEVC / 4K files and `https://` links (none found so far) |
-| 3. Sources and server discovery | Next |
+| 3. Sources and server discovery | In progress: starter list of 38 checked servers in `assets/sources` (1 of 11 increments) |
 | 4–9 | Not started |
 
 ## Prerequisites (Windows)

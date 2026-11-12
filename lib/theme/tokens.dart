@@ -7,7 +7,6 @@ import 'package:flutter/widgets.dart';
 /// screens that need them are built.
 abstract final class DharaColors {
   static const bg = Color(0xFF06070C);
-  static const bgElev = Color(0xFF0D0F18);
 
   static const text = Color(0xFFF2F4FB);
   static const text2 = Color(0xFFAAB0C6);
@@ -57,7 +56,6 @@ abstract final class DharaShadows {
 abstract final class DharaMotion {
   static const fast = Duration(milliseconds: 120);
   static const base = Duration(milliseconds: 220);
-  static const slow = Duration(milliseconds: 420);
 
   static const easeOut = Cubic(.16, 1, .3, 1);
 }

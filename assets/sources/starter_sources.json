@@ -1,0 +1,443 @@
+{
+  "schemaVersion": 1,
+  "checkedOn": "2026-11-12",
+  "sources": [
+    {
+      "id": "dhakaflix-7",
+      "name": "DhakaFlix 7",
+      "provider": "DhakaFlix",
+      "isp": "SAM Online",
+      "type": "h5ai",
+      "category": "movies",
+      "baseUrls": ["http://172.16.50.7/DHAKA-FLIX-7/"],
+      "portalUrl": "http://172.16.50.4/",
+      "notes": "English, Kolkata Bangla, foreign-language and 3D movies."
+    },
+    {
+      "id": "dhakaflix-12",
+      "name": "DhakaFlix 12",
+      "provider": "DhakaFlix",
+      "isp": "SAM Online",
+      "type": "h5ai",
+      "category": "series",
+      "baseUrls": ["http://172.16.50.12/DHAKA-FLIX-12/"],
+      "portalUrl": "http://172.16.50.4/",
+      "notes": "TV and web series."
+    },
+    {
+      "id": "dhakaflix-14",
+      "name": "DhakaFlix 14",
+      "provider": "DhakaFlix",
+      "isp": "SAM Online",
+      "type": "h5ai",
+      "category": "mixed",
+      "baseUrls": ["http://172.16.50.14/DHAKA-FLIX-14/"],
+      "portalUrl": "http://172.16.50.4/",
+      "notes": "English (1080p), Hindi, South Indian and animation movies; Korean series."
+    },
+    {
+      "id": "dhakaflix-10",
+      "name": "DhakaFlix 10",
+      "provider": "DhakaFlix",
+      "isp": "SAM Online",
+      "type": "h5ai",
+      "category": "mixed",
+      "baseUrls": ["http://172.16.50.10/DHAKA-FLIX-10/"],
+      "portalUrl": "http://172.16.50.4/",
+      "notes": "Anime and cartoon series, documentaries, shows, tutorials."
+    },
+    {
+      "id": "circleftp-index2",
+      "name": "CircleFTP index2",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "h5ai",
+      "category": "movies",
+      "baseUrls": ["http://index2.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "English and foreign dubbed movies."
+    },
+    {
+      "id": "circleftp-ftp15",
+      "name": "CircleFTP ftp15",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "h5ai",
+      "category": "anime",
+      "baseUrls": ["http://ftp15.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "English and foreign anime series."
+    },
+    {
+      "id": "bokasoka-nas1",
+      "name": "Bokasoka NAS1",
+      "provider": "Bokasoka",
+      "isp": null,
+      "type": "h5ai",
+      "category": "mixed",
+      "baseUrls": ["http://bokasoka.net/NAS1/"],
+      "portalUrl": "http://bokasoka.net/",
+      "notes": "h5ai with custom branding."
+    },
+    {
+      "id": "icc-ftps3",
+      "name": "ICC FTP ftps3",
+      "provider": "ICC FTP",
+      "isp": "ICC Communication",
+      "type": "directory_listing",
+      "category": "mixed",
+      "baseUrls": [
+        "http://10.16.100.241/ftps3d1/",
+        "http://10.16.100.241/ftps3d3/",
+        "http://10.16.100.241/ftps3d5/",
+        "http://10.16.100.241/ftps3d6/",
+        "http://10.16.100.241/ftps3d9/"
+      ],
+      "portalUrl": "http://10.16.100.244/",
+      "notes": "IIS directory listing."
+    },
+    {
+      "id": "icc-ftps2",
+      "name": "ICC FTP ftps2",
+      "provider": "ICC FTP",
+      "isp": "ICC Communication",
+      "type": "directory_listing",
+      "category": "mixed",
+      "baseUrls": [
+        "http://10.16.100.245/ftps2d1/",
+        "http://10.16.100.245/ftps2d3/"
+      ],
+      "portalUrl": "http://10.16.100.244/",
+      "notes": "IIS directory listing."
+    },
+    {
+      "id": "icc-ftps4",
+      "name": "ICC FTP ftps4",
+      "provider": "ICC FTP",
+      "isp": "ICC Communication",
+      "type": "directory_listing",
+      "category": "mixed",
+      "baseUrls": [
+        "http://10.16.100.246/ftps4d1/",
+        "http://10.16.100.246/ftps4d2/",
+        "http://10.16.100.246/ftps4d3/"
+      ],
+      "portalUrl": "http://10.16.100.244/",
+      "notes": "IIS directory listing."
+    },
+    {
+      "id": "icc-ftps6",
+      "name": "ICC FTP ftps6",
+      "provider": "ICC FTP",
+      "isp": "ICC Communication",
+      "type": "directory_listing",
+      "category": "mixed",
+      "baseUrls": [
+        "http://10.16.100.248/ftps6d1/",
+        "http://10.16.100.248/ftps6d2/",
+        "http://10.16.100.248/ftps6d3/",
+        "http://10.16.100.248/ftps6d4/",
+        "http://10.16.100.248/ftps6d5/"
+      ],
+      "portalUrl": "http://10.16.100.244/",
+      "notes": "IIS directory listing."
+    },
+    {
+      "id": "icc-ftps10-iis",
+      "name": "ICC FTP ftps10 (disk 2)",
+      "provider": "ICC FTP",
+      "isp": "ICC Communication",
+      "type": "directory_listing",
+      "category": "mixed",
+      "baseUrls": ["http://10.16.100.250/ftps10d2/"],
+      "portalUrl": "http://10.16.100.244/",
+      "notes": "IIS directory listing."
+    },
+    {
+      "id": "icc-ftps10",
+      "name": "ICC FTP ftps10",
+      "provider": "ICC FTP",
+      "isp": "ICC Communication",
+      "type": "directory_listing",
+      "category": "mixed",
+      "baseUrls": ["http://10.16.100.202/ftps10/"],
+      "portalUrl": "http://10.16.100.244/",
+      "notes": "Apache directory listing."
+    },
+    {
+      "id": "icc-ftps3-apache",
+      "name": "ICC FTP ftps3 (Apache)",
+      "provider": "ICC FTP",
+      "isp": "ICC Communication",
+      "type": "directory_listing",
+      "category": "mixed",
+      "baseUrls": ["http://10.16.100.206/ftps3/"],
+      "portalUrl": "http://10.16.100.244/",
+      "notes": "Apache directory listing."
+    },
+    {
+      "id": "xplex-s1d1",
+      "name": "Xplex s1d1",
+      "provider": "Xplex",
+      "isp": null,
+      "type": "directory_listing",
+      "category": "movies",
+      "baseUrls": ["http://172.27.27.124/s1d1/"],
+      "portalUrl": null,
+      "notes": "Apache directory listing. Hindi and Tamil movies by year."
+    },
+    {
+      "id": "xplex-2tb4",
+      "name": "Xplex 2TB4",
+      "provider": "Xplex",
+      "isp": null,
+      "type": "directory_listing",
+      "category": "movies",
+      "baseUrls": ["http://172.27.27.26/2TB4/"],
+      "portalUrl": null,
+      "notes": "Apache directory listing."
+    },
+    {
+      "id": "fileserver-146-196-48-10",
+      "name": "File server 146.196.48.10",
+      "provider": null,
+      "isp": null,
+      "type": "directory_listing",
+      "category": "mixed",
+      "baseUrls": ["http://146.196.48.10/FILE--SERVER/"],
+      "portalUrl": null,
+      "notes": "Apache directory listing. Same network as the Emby server below."
+    },
+    {
+      "id": "emby-146-196-48-9",
+      "name": "Emby 146.196.48.9",
+      "provider": null,
+      "isp": null,
+      "type": "emby",
+      "category": "mixed",
+      "baseUrls": ["http://146.196.48.9/"],
+      "portalUrl": null,
+      "notes": "Emby 4.8.5. Browsing is expected to need a login."
+    },
+    {
+      "id": "funtime",
+      "name": "Funtime",
+      "provider": "Funtime",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://172.20.21.22/"],
+      "portalUrl": null,
+      "notes": "PHP site; files are served from http://172.20.21.3/, which has no directory listing."
+    },
+    {
+      "id": "circleftp-new",
+      "name": "CircleFTP (new site)",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://new.circleftp.net/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "JavaScript app backed by an API."
+    },
+    {
+      "id": "circleftp-hd",
+      "name": "Circle HD",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://hd.circleftp.net/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": null
+    },
+    {
+      "id": "dflix",
+      "name": "DFLIX",
+      "provider": "Discovery FTP",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://movies.discoveryftp.net/"],
+      "portalUrl": "http://discoveryftp.net/",
+      "notes": null
+    },
+    {
+      "id": "ctgmovies",
+      "name": "CTGMovies",
+      "provider": "CTGMovies",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["https://ctgmovies.com/"],
+      "portalUrl": null,
+      "notes": null
+    },
+    {
+      "id": "ihub",
+      "name": "iHub",
+      "provider": "iHub",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://ihub.live/"],
+      "portalUrl": null,
+      "notes": null
+    },
+    {
+      "id": "naturalbd",
+      "name": "NaturalBD",
+      "provider": "NaturalBD",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://www.naturalbd.com/"],
+      "portalUrl": null,
+      "notes": null
+    },
+    {
+      "id": "flixhub",
+      "name": "FlixHub",
+      "provider": "FlixHub",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://flixhub.net/"],
+      "portalUrl": null,
+      "notes": null
+    },
+    {
+      "id": "nowhdtime",
+      "name": "NowHDTime",
+      "provider": "NowHDTime",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://nowhdtime.com.bd/"],
+      "portalUrl": null,
+      "notes": null
+    },
+    {
+      "id": "sunplex",
+      "name": "SunPlex",
+      "provider": "SunPlex",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["https://sunplex.net/"],
+      "portalUrl": null,
+      "notes": null
+    },
+    {
+      "id": "khulnaplex",
+      "name": "Khulnaplex",
+      "provider": "Khulnaplex",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://khulnaplex.net/"],
+      "portalUrl": null,
+      "notes": null
+    },
+    {
+      "id": "fastplex",
+      "name": "FastPlex",
+      "provider": "FastPlex",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["https://fastplex.net/"],
+      "portalUrl": null,
+      "notes": null
+    },
+    {
+      "id": "amaderftp",
+      "name": "AmaderFTP",
+      "provider": "AmaderFTP",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://amaderftp.net/"],
+      "portalUrl": null,
+      "notes": null
+    },
+    {
+      "id": "ftpmedia",
+      "name": "FTPmedia",
+      "provider": "FTPmedia",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://10.1.1.1/"],
+      "portalUrl": null,
+      "notes": "Local media portal."
+    },
+    {
+      "id": "radiant-media",
+      "name": "Radiant Digital Media Portal",
+      "provider": "Radiant",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://media.radiantbd.com/"],
+      "portalUrl": null,
+      "notes": null
+    },
+    {
+      "id": "halum",
+      "name": "Halum",
+      "provider": "Halum",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://halum.net/"],
+      "portalUrl": null,
+      "notes": "WordPress site."
+    },
+    {
+      "id": "relaxtime",
+      "name": "Relax Time",
+      "provider": "Relax Time",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://10.100.100.10/"],
+      "portalUrl": null,
+      "notes": "WordPress site."
+    },
+    {
+      "id": "ctgstream",
+      "name": "Ctgstream",
+      "provider": "Ctgstream",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://ctgstream.com/"],
+      "portalUrl": null,
+      "notes": "JavaScript app."
+    },
+    {
+      "id": "moviehaat",
+      "name": "Moviehaat",
+      "provider": "Moviehaat",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["http://moviehaat.net/"],
+      "portalUrl": null,
+      "notes": "JavaScript app."
+    },
+    {
+      "id": "mojaloss",
+      "name": "MojaLoss",
+      "provider": "MojaLoss",
+      "isp": null,
+      "type": "custom_site",
+      "category": "mixed",
+      "baseUrls": ["https://www.mojaloss.stream/"],
+      "portalUrl": null,
+      "notes": null
+    }
+  ]
+}

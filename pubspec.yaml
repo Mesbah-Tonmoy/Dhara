@@ -24,6 +24,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  assets:
+    - assets/sources/starter_sources.json
+
   # Bundled, never fetched at runtime. Variable fonts: one file per family
   # covers every weight. Sources and checksums: assets/fonts/README.md
   fonts:
