@@ -9,7 +9,7 @@ import 'package:dhara/features/indexer/index_store.dart';
 import 'package:dhara/features/sources/adapters/adapter_factory.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_store.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 /// Runs the indexer for the app: starts and stops crawls in the library
 /// isolate, keeps their progress and the size of the index for the UI, and
@@ -22,6 +22,7 @@ class IndexController extends ChangeNotifier {
     required LibraryWorker library,
     required SourceStore sources,
     required String deviceId,
+    this.startupNotice,
     DateTime Function() clock = DateTime.now,
   }) : _library = library,
        _sources = sources,
@@ -33,6 +34,16 @@ class IndexController extends ChangeNotifier {
   /// The index is brought up to date at start-up once the last complete
   /// crawl of an enabled source is older than this.
   static const updateAfter = Duration(hours: 24);
+
+  /// Something the user should know about the index file found at
+  /// start-up (damaged and replaced, not saved this run), in plain English.
+  final String? startupNotice;
+
+  /// The source list this index belongs to.
+  SourceStore get sources => _sources;
+
+  /// The time, as this controller sees it.
+  DateTime get now => _clock();
 
   final LibraryWorker _library;
   final SourceStore _sources;
@@ -190,6 +201,29 @@ class IndexController extends ChangeNotifier {
 
   void _notify() {
     if (!_disposed) notifyListeners();
+  }
+}
+
+/// Makes the [IndexController] available to the widget tree.
+class IndexScope extends InheritedNotifier<IndexController> {
+  const IndexScope({
+    super.key,
+    required IndexController controller,
+    required super.child,
+  }) : super(notifier: controller);
+
+  /// The controller; the calling widget rebuilds whenever it changes.
+  static IndexController of(BuildContext context) {
+    final scope = context.dependOnInheritedWidgetOfExactType<IndexScope>();
+    assert(scope != null, 'No IndexScope above this widget');
+    return scope!.notifier!;
+  }
+
+  /// The controller, without rebuilding on changes (for event handlers).
+  static IndexController read(BuildContext context) {
+    final scope = context.getInheritedWidgetOfExactType<IndexScope>();
+    assert(scope != null, 'No IndexScope above this widget');
+    return scope!.notifier!;
   }
 }
 

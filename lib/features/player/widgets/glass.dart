@@ -173,3 +173,56 @@ class DharaChip extends StatelessWidget {
     );
   }
 }
+
+/// A card with one number: a small heading, the value, and a note below.
+class StatCard extends StatelessWidget {
+  const StatCard({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.note,
+    this.valueColor = DharaColors.text,
+  });
+
+  final String label;
+  final String value;
+  final String note;
+  final Color valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+      decoration: BoxDecoration(
+        color: DharaColors.surface,
+        borderRadius: BorderRadius.circular(DharaRadii.md),
+        border: Border.all(color: DharaColors.stroke),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PanelHeading(label),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: DharaFonts.display,
+              fontSize: 26,
+              fontWeight: FontWeight.w700,
+              height: 1.25,
+              color: valueColor,
+            ),
+          ),
+          Text(
+            note,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, color: DharaColors.text2),
+          ),
+        ],
+      ),
+    );
+  }
+}

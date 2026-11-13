@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dhara/core/net/media_url.dart';
+import 'package:dhara/features/indexer/ui/index_screen.dart';
 import 'package:dhara/features/player/player_screen.dart';
 import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
 import 'package:flutter/material.dart';
@@ -114,19 +115,36 @@ class _OpenUrlScreenState extends State<OpenUrlScreen> {
                   ),
                 ),
                 const SizedBox(height: 28),
-                Center(
-                  child: TextButton.icon(
-                    key: const Key('open-discovery'),
-                    onPressed: () => unawaited(
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const ServerDiscoveryScreen(),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    TextButton.icon(
+                      key: const Key('open-discovery'),
+                      onPressed: () => unawaited(
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const ServerDiscoveryScreen(),
+                          ),
                         ),
                       ),
+                      icon: const Icon(Icons.dns_outlined),
+                      label: const Text('Server Discovery (BDIX Tester)'),
                     ),
-                    icon: const Icon(Icons.dns_outlined),
-                    label: const Text('Server Discovery (BDIX Tester)'),
-                  ),
+                    TextButton.icon(
+                      key: const Key('open-index'),
+                      onPressed: () => unawaited(
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const IndexScreen(),
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.video_library_outlined),
+                      label: const Text('Library index and search'),
+                    ),
+                  ],
                 ),
               ],
             ),

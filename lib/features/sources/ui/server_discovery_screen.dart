@@ -441,23 +441,23 @@ class _Stats extends StatelessWidget {
     final enabled = sources.where((s) => store.isEnabled(s.id)).length;
 
     final cards = [
-      _StatCard(
+      StatCard(
         label: 'Candidates',
         value: '${sources.length}',
         note: '$types server ${types == 1 ? 'type' : 'types'}',
       ),
-      _StatCard(
+      StatCard(
         label: 'Reachable',
         value: '$reachable',
         valueColor: DharaColors.good,
         note: '$readable the app can read',
       ),
-      _StatCard(
+      StatCard(
         label: 'Enabled',
         value: '$enabled',
         note: 'used for search and playback',
       ),
-      _StatCard(
+      StatCard(
         label: 'Fastest',
         value: fastestPing == null ? '–' : '${fastestPing.inMilliseconds} ms',
         note: fastest?.name ?? 'no server reachable',
@@ -477,57 +477,6 @@ class _Stats extends StatelessWidget {
           ),
         ],
       ],
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.note,
-    this.valueColor = DharaColors.text,
-  });
-
-  final String label;
-  final String value;
-  final String note;
-  final Color valueColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-      decoration: BoxDecoration(
-        color: DharaColors.surface,
-        borderRadius: BorderRadius.circular(DharaRadii.md),
-        border: Border.all(color: DharaColors.stroke),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PanelHeading(label),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontFamily: DharaFonts.display,
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
-              height: 1.25,
-              color: valueColor,
-            ),
-          ),
-          Text(
-            note,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, color: DharaColors.text2),
-          ),
-        ],
-      ),
     );
   }
 }
