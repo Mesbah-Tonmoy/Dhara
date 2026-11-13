@@ -44,6 +44,12 @@ The first build (and the first `flutter test`) needs internet access: the
 release and checks it against a SHA-256 that is part of the pinned package
 (see [Library database](#library-database)).
 
+If `flutter run` fails with hundreds of `Undefined name` errors in packages
+(`immutable`, `visibleForTesting`, `sqlite3` …), or the app starts but
+reports `No available native assets`, a package was missing when the build
+first ran and the build cache remembers that. Run `flutter pub get`, delete
+`.dart_tool\flutter_build` (or run `flutter clean`) and start again.
+
 ## Player hardening
 
 Every player is created in `lib/features/player/secure_player.dart`. Before a
@@ -223,7 +229,10 @@ folder (which is also the crawl queue), the video files, their subtitles, a
 full-text index (FTS5) over file names and folder paths, and the playback
 positions. The schema carries a version; a file made by a newer version of
 the app is refused and left untouched, and a damaged file is set aside as
-`library.db.bad` and replaced, since the index can be crawled again.
+`library.db.bad` and replaced, since the index can be crawled again. If no
+database can be opened at all (the file is not reachable, or SQLite itself
+did not load), the app still starts, without index and search, and the
+Library index screen says so.
 
 SQLite comes from the `sqlite3` package (pinned), which bundles the native
 library through its build hook: at build time it downloads the prebuilt

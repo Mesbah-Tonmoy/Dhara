@@ -7,6 +7,11 @@ enum LibraryDbProblem {
 
   /// The file is not a usable SQLite database.
   damaged,
+
+  /// No database could be opened: the file cannot be reached, or SQLite
+  /// itself is missing. Reported by `LibraryIsolate`; says nothing about
+  /// the content of the file.
+  unavailable,
 }
 
 class LibraryDbException implements Exception {

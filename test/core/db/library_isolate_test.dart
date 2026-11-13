@@ -151,6 +151,44 @@ void main() {
       expect(File(path).readAsBytesSync(), before);
       expect(File('$path.bad').existsSync(), isFalse);
     });
+
+    test(
+      'says so when the file cannot be opened, and leaves it alone',
+      () async {
+        // A folder where the file should be: nothing SQLite can open.
+        Directory(path).createSync();
+
+        await expectLater(
+          LibraryIsolate.spawn(path: path),
+          throwsA(
+            isA<LibraryDbException>().having(
+              (e) => e.problem,
+              'problem',
+              LibraryDbProblem.unavailable,
+            ),
+          ),
+        );
+
+        // Not taken for a damaged database: nothing was moved out of the way.
+        expect(Directory(path).existsSync(), isTrue);
+        expect(
+          FileSystemEntity.typeSync('$path.bad'),
+          FileSystemEntityType.notFound,
+        );
+      },
+    );
+  });
+
+  group('NoLibrary', () {
+    test('fails every piece of work, and nothing else', () async {
+      const library = NoLibrary();
+
+      await expectLater(
+        library.run(_positions, null),
+        throwsA(isA<LibraryWorkException>()),
+      );
+      await library.close();
+    });
   });
 
   group('LocalLibrary', () {

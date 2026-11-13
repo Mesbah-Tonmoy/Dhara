@@ -104,37 +104,48 @@ Future<List<Source>> _loadStarterSources() async {
 /// background isolate, what the user should know about it, if anything, and
 /// whether it is saved.
 ///
-/// The app always gets a library: if the file cannot be used, one that
-/// lasts for this run only.
+/// The app always gets a library and this never throws: if the file cannot
+/// be used, the library lasts for this run only, and if no database can be
+/// started at all, it is one that does nothing.
 Future<(LibraryWorker, String?, bool)> _openLibrary(String? folder) async {
+  String notice;
   if (folder == null) {
-    return (
-      await LibraryIsolate.spawn(),
-      "The app's data folder was not found, so the index is kept for this "
-          'run only.',
-      false,
-    );
-  }
-  try {
-    final library = await LibraryIsolate.spawn(
-      path: '$folder${Platform.pathSeparator}library.db',
-    );
-    return (
-      library,
-      library.replacedDamagedFile
-          ? 'The index file was damaged, so a new index was started. The '
-                'old file was kept as library.db.bad.'
-          : null,
-      true,
-    );
-  } on LibraryDbException catch (error) {
-    return (
-      await LibraryIsolate.spawn(),
-      error.problem == LibraryDbProblem.newerVersion
+    notice =
+        "The app's data folder was not found, so the index is kept "
+        'for this run only.';
+  } else {
+    try {
+      final library = await LibraryIsolate.spawn(
+        path: '$folder${Platform.pathSeparator}library.db',
+      );
+      return (
+        library,
+        library.replacedDamagedFile
+            ? 'The index file was damaged, so a new index was started. The '
+                  'old file was kept as library.db.bad.'
+            : null,
+        true,
+      );
+    } on LibraryDbException catch (error) {
+      notice = error.problem == LibraryDbProblem.newerVersion
           ? 'The index file was made by a newer version of Dhara and was '
                 'left alone. This run uses an empty index that is not saved.'
           : 'The index file could not be opened. This run uses an empty '
-                'index that is not saved.',
+                'index that is not saved.';
+    } on LibraryWorkException {
+      notice =
+          'The index file could not be opened. This run uses an empty '
+          'index that is not saved.';
+    }
+  }
+  try {
+    return (await LibraryIsolate.spawn(), notice, false);
+  } on Exception {
+    // Not even in memory: SQLite itself did not start.
+    return (
+      const NoLibrary(),
+      'The library database could not be started, so there is no index '
+          'and no search in this run. Playing a pasted URL still works.',
       false,
     );
   }

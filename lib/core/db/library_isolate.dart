@@ -48,7 +48,9 @@ class LibraryIsolate implements LibraryWorker {
   /// A file that is not a usable database is set aside as `<name>.bad` and
   /// a new one is started (see [replacedDamagedFile]): the index can be
   /// crawled again. Throws a [LibraryDbException] for a file made by a
-  /// newer version of the app, which is left alone.
+  /// newer version of the app, and when no database can be opened at all
+  /// ([LibraryDbProblem.unavailable]); the file is left alone in both
+  /// cases.
   static Future<LibraryIsolate> spawn({String? path}) async {
     try {
       return await _spawn(path);
@@ -171,6 +173,19 @@ class LocalLibrary implements LibraryWorker {
   Future<void> close() async => _db.close();
 }
 
+/// Stands in when no database could be opened, so the rest of the app
+/// still runs: every piece of work fails.
+class NoLibrary implements LibraryWorker {
+  const NoLibrary();
+
+  @override
+  Future<R> run<A, R>(LibraryWork<A, R> work, A argument) =>
+      Future.error(const LibraryWorkException('There is no library.'));
+
+  @override
+  Future<void> close() async {}
+}
+
 class _Request<A, R> {
   const _Request(this.id, this.work, this.argument);
 
@@ -199,9 +214,11 @@ void _serve((SendPort, String?) start) {
   } on LibraryDbException catch (error) {
     replies.send(error.problem);
     return;
-  } on Exception {
-    // Cannot be opened at all (no access, a folder in its place).
-    replies.send(LibraryDbProblem.damaged);
+  } on Object {
+    // No database to be had: the file cannot be reached (no access, held
+    // by another program, a folder in its place) or SQLite itself did not
+    // load. Errors too: an uncaught one would leave the caller waiting.
+    replies.send(LibraryDbProblem.unavailable);
     return;
   }
 
