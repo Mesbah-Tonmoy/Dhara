@@ -54,10 +54,14 @@ class RemoteEntry {
 
 /// The server answered, but not with something the adapter can use.
 class SourceReadException implements Exception {
-  const SourceReadException(this.message);
+  const SourceReadException(this.message, {this.statusCode});
 
   /// Plain English, safe to show; never quotes the server's answer.
   final String message;
+
+  /// The HTTP status the server answered with, if that is what went wrong.
+  /// It tells a busy server (503) from a folder that is gone (404).
+  final int? statusCode;
 
   @override
   String toString() => 'SourceReadException: $message';
@@ -87,7 +91,10 @@ Future<SafeHttpResponse> fetchFolderPage(
 ) async {
   final response = await client.get(folder, maxBytes: maxListingBytes);
   if (!response.isOk) {
-    throw SourceReadException('The server answered ${response.statusCode}.');
+    throw SourceReadException(
+      'The server answered ${response.statusCode}.',
+      statusCode: response.statusCode,
+    );
   }
   if (response.url.host != folder.host ||
       _asFolder(response.url.path) != _asFolder(folder.path)) {

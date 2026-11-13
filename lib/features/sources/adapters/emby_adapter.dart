@@ -237,6 +237,7 @@ class EmbyAdapter implements SourceAdapter {
       if (!response.isOk) {
         throw SourceReadException(
           'The server answered ${response.statusCode}.',
+          statusCode: response.statusCode,
         );
       }
       final json = _decode(response.body);
