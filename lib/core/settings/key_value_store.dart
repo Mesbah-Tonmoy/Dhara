@@ -14,6 +14,9 @@ abstract interface class KeyValueStore {
   Future<void> setInt(String key, int value);
   Future<void> setDouble(String key, double value);
   Future<void> setString(String key, String value);
+
+  /// Forgets the value of [key], whatever its type.
+  Future<void> remove(String key);
 }
 
 /// In-memory store for tests and as a fallback when the settings file cannot
@@ -49,6 +52,9 @@ class MemoryKeyValueStore implements KeyValueStore {
 
   @override
   Future<void> setDouble(String key, double value) async => values[key] = value;
+
+  @override
+  Future<void> remove(String key) async => values.remove(key);
 }
 
 /// Settings stored by `shared_preferences`: on Windows a small JSON file in
@@ -90,4 +96,7 @@ class SharedPrefsStore implements KeyValueStore {
   @override
   Future<void> setDouble(String key, double value) =>
       _prefs.setDouble(key, value);
+
+  @override
+  Future<void> remove(String key) => _prefs.remove(key);
 }

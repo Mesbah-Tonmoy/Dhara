@@ -161,7 +161,8 @@ class LocalLibrary implements LibraryWorker {
   Future<R> run<A, R>(LibraryWork<A, R> work, A argument) async {
     try {
       return await work(_db, argument);
-    } on Exception catch (error) {
+    } on Object catch (error) {
+      // Errors too, as the isolate does.
       throw LibraryWorkException('$error');
     }
   }

@@ -17,7 +17,8 @@ A Bangla + English README is written in Phase 8.
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
 | 2. Player | Done and tested on real BDIX links. Not yet tried: HEVC / 4K files and `https://` links (none found so far) |
 | 3. Sources and server discovery | Done: starter list of 38 checked servers, Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet |
-| 4–9 | Not started |
+| 4. Indexer | Done in code and in automated tests: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. Tried on real servers only briefly (2026-11-13: 40 folders each of DhakaFlix 7 and ICC FTP S10). **A full crawl of all enabled servers has not been run yet** |
+| 5–9 | Not started |
 
 ## Prerequisites (Windows)
 
@@ -37,6 +38,11 @@ flutter analyze
 flutter test
 flutter run -d windows
 ```
+
+The first build (and the first `flutter test`) needs internet access: the
+`sqlite3` package downloads its prebuilt SQLite library from its GitHub
+release and checks it against a SHA-256 that is part of the pinned package
+(see [Library database](#library-database)).
 
 ## Player hardening
 
@@ -85,8 +91,10 @@ Known gaps, tracked for later phases:
 - Paste several URLs (one per line) to play them in order. In the last 15
   seconds a countdown offers "Play now" / "Cancel"; otherwise the next video
   starts when the current one ends.
-- Positions are kept for the 200 most recently watched videos in the settings
-  file for now; they move to the library database in Phase 4.
+- Positions are kept for the 2,000 most recently watched videos in the
+  library database (table `playback`). Positions an older build kept in the
+  settings file are moved over once, at start-up. If the database file is
+  ever replaced because it was damaged, the positions go with it.
 
 ## Subtitles and audio tracks
 
@@ -201,6 +209,97 @@ address sweeps, and a redirect to any other host is refused.
 Known gaps: Emby/Jellyfin video URLs need the session token as a request
 header, which playback does not send yet; `https` servers with self-signed
 certificates are refused.
+
+## Library index
+
+The index is the list of every video on the enabled servers, kept so that
+search is instant and nothing has to be asked of a server while browsing.
+
+### Library database
+
+`%APPDATA%\com.dhara\dhara\library.db` is one SQLite file
+(`lib/core/db/library_db.dart`): the crawl state of each source, every
+folder (which is also the crawl queue), the video files, their subtitles, a
+full-text index (FTS5) over file names and folder paths, and the playback
+positions. The schema carries a version; a file made by a newer version of
+the app is refused and left untouched, and a damaged file is set aside as
+`library.db.bad` and replaced, since the index can be crawled again.
+
+SQLite comes from the `sqlite3` package (pinned), which bundles the native
+library through its build hook: at build time it downloads the prebuilt
+`sqlite3.dll` of that release from GitHub and checks it against a SHA-256
+held in the package. Nothing else needs installing, and `sqlite3_flutter_libs`
+is not used. To update SQLite, raise the `sqlite3` version in `pubspec.yaml`;
+`test/core/db/library_db_test.dart` checks that FTS5 is still there.
+
+`package:sqlite3` is synchronous, so the database lives in a background
+isolate that holds the only connection (`lib/core/db/library_isolate.dart`).
+The UI sends it work as top-level functions and never touches SQLite or
+parses a folder page itself. All SQL takes its values as parameters.
+
+### Crawler
+
+`Crawler` (`lib/features/indexer/crawler.dart`) walks the folders of the
+enabled sources through their adapters and keeps the index in step
+(`IndexStore`, `lib/features/indexer/index_store.dart`):
+
+- **What is kept:** files with a video extension (`mkv`, `mp4`, `m4v`,
+  `avi`, `mov`, `webm`, `ts`, `m2ts`, `mpg`, `mpeg`, `wmv`, `flv`) and the
+  subtitle files (`srt`, `ass`, `ssa`, `vtt`) that belong to one by name, in
+  the same folder or in a `Subs` folder next to it. Everything else is
+  ignored: never stored, never fetched.
+- **Polite:** two folders of a source at a time, sources on one host in
+  turn, six hosts side by side. A timeout, a connection error or a 408, 429
+  or 5xx answer is tried again after 2 s and 8 s. After three folders in a
+  row failed that way the source is left for the next run.
+- **Limits:** 12 levels below a base URL, 50,000 folders per source, 20,000
+  entries per folder, 15 s and 8 MB per folder page.
+- **Allowed hosts:** the crawl's HTTP client only knows the hosts of the
+  sources being crawled; a redirect or link elsewhere is refused. An
+  Emby/Jellyfin session token stays in the isolate's memory and is never
+  written to the database.
+- **Incremental:** everything is saved folder by folder, so a crawl that
+  was stopped (or the app closed) carries on where it was. A later crawl
+  starts at the base URLs again but does not re-read a folder that held no
+  folders last time and still shows the same date. Files and folders are
+  removed from the index only after the folder that held them was read
+  successfully and no longer lists them; a folder that cannot be read keeps
+  what the index has.
+- **Sources:** a disabled source keeps its files but is left out of search;
+  a source removed from the list is removed from the index.
+
+### Library index screen
+
+Open it from the start screen. It lists the enabled servers with what the
+index holds of each, shows the progress of a crawl, and offers **Update
+index**, **Stop** and **Full re-check** (reads every folder again, also
+those that look unchanged). The search box searches file names and folder
+paths while you type (every word must match, the last one may be
+unfinished); a result opens in the player. It is a working screen until the
+real Home and Search screens arrive in Phase 6.
+
+Once the index has been built, the app brings it up to date by itself: 15
+seconds after start-up, if an enabled server was last crawled to the end
+more than a day ago. The very first crawl only starts when you ask for it.
+
+Measured with the automated tests: search over 100,000 files answers in
+under 30 ms, and writing 100,000 files takes about 5 s.
+
+Known gaps:
+
+- Servers that give no dates (the ICC FTP IIS servers) are read in full on
+  every crawl.
+- A change inside a folder that does not change the folder's date (a file
+  replaced under the same name, a new subtitle in `Subs`) is only noticed
+  by a full re-check.
+- Subtitles kept in one folder per episode (`Subs/<episode>/English.srt`)
+  are not linked to their videos.
+- The same file on two servers is two entries; merging them into one title
+  is Phase 5. The Emby server at `146.196.48.9` holds the same files as the
+  folder-listing source `146.196.48.10`, and its files cannot be played yet
+  (see the Emby gap above), so it is best left disabled for now.
+- The 20 custom websites in the starter list have no adapter and are not
+  indexed.
 
 ## Settings
 

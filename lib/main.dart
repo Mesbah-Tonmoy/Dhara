@@ -25,7 +25,7 @@ Future<void> main() async {
   // Loads the bundled libmpv; no external player install is needed.
   MediaKit.ensureInitialized();
   final folder = await _appDataPath();
-  final (store, sources, (library, libraryNotice)) = await (
+  final (store, sources, (library, libraryNotice, librarySaved)) = await (
     _openSettingsStore(),
     _openSourceStore(folder),
     _openLibrary(folder),
@@ -41,10 +41,14 @@ Future<void> main() async {
     deviceId: deviceId,
     startupNotice: libraryNotice,
   );
+  // Positions go to the database only if it is the one on disk; with a
+  // stand-in for this run they stay in the settings file, where they were.
+  final resumeStore = ResumeStore(librarySaved ? library : null);
+  await resumeStore.load(legacy: store);
   runApp(
     DharaApp(
       settings: SettingsController(store),
-      resumeStore: ResumeStore(store),
+      resumeStore: resumeStore,
       sourceTests: sourceTests,
       index: index,
     ),
@@ -97,16 +101,18 @@ Future<List<Source>> _loadStarterSources() async {
 }
 
 /// The library database (`library.db`, next to the settings file) in its
-/// background isolate, and what the user should know about it, if anything.
+/// background isolate, what the user should know about it, if anything, and
+/// whether it is saved.
 ///
 /// The app always gets a library: if the file cannot be used, one that
 /// lasts for this run only.
-Future<(LibraryWorker, String?)> _openLibrary(String? folder) async {
+Future<(LibraryWorker, String?, bool)> _openLibrary(String? folder) async {
   if (folder == null) {
     return (
       await LibraryIsolate.spawn(),
       "The app's data folder was not found, so the index is kept for this "
           'run only.',
+      false,
     );
   }
   try {
@@ -119,6 +125,7 @@ Future<(LibraryWorker, String?)> _openLibrary(String? folder) async {
           ? 'The index file was damaged, so a new index was started. The '
                 'old file was kept as library.db.bad.'
           : null,
+      true,
     );
   } on LibraryDbException catch (error) {
     return (
@@ -128,6 +135,7 @@ Future<(LibraryWorker, String?)> _openLibrary(String? folder) async {
                 'left alone. This run uses an empty index that is not saved.'
           : 'The index file could not be opened. This run uses an empty '
                 'index that is not saved.',
+      false,
     );
   }
 }

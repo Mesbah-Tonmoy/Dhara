@@ -617,7 +617,7 @@ void main() {
     await tester.pumpWidget(
       DharaApp(
         settings: SettingsController(store),
-        resumeStore: ResumeStore(store),
+        resumeStore: ResumeStore(),
         sourceTests: controller,
         index: IndexController(
           library: LocalLibrary(LibraryDb.inMemory()),

@@ -16,7 +16,7 @@ Widget _app() {
   final sources = SourceStore(starter: const []);
   return DharaApp(
     settings: SettingsController(store),
-    resumeStore: ResumeStore(store),
+    resumeStore: ResumeStore(),
     sourceTests: SourceTestController(
       store: sources,
       tester: SourceTester(deviceId: 'dhara-test'),

@@ -1,27 +1,75 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dhara/core/db/library_db.dart';
+import 'package:dhara/core/db/library_isolate.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/features/player/playback_progress.dart';
 import 'package:flutter/widgets.dart';
 
 /// Remembers where each video was left, so it can be resumed.
 ///
-/// Interim storage: one JSON value in the settings file, capped at
-/// [maxEntries] (least recently watched dropped first). It moves into the
-/// SQLite library database when that arrives with the indexer.
+/// The positions live in the library database (table `playback`), for the
+/// [maxEntries] most recently watched videos. They are also held in
+/// memory, so asking for one never waits; changes are written behind.
+///
+/// Without a library the positions last for this run only.
 class ResumeStore {
-  ResumeStore(this._store) {
-    _load();
-  }
+  ResumeStore([this._library, this._clock = DateTime.now]);
 
-  static const maxEntries = 200;
-  static const _key = 'player.resumePositions';
+  static const maxEntries = 2000;
 
-  final KeyValueStore _store;
+  /// Where the positions lived before the library database existed.
+  static const legacyKey = 'player.resumePositions';
 
-  // url -> [positionMs, durationMs]; insertion order = least recent first.
+  final LibraryWorker? _library;
+  final DateTime Function() _clock;
+
+  // url -> (positionMs, durationMs); insertion order = least recent first.
   final _entries = <String, (int, int)>{};
+
+  /// Reads the saved positions. Call once at start-up. Never throws.
+  ///
+  /// Positions still in the settings file ([legacy]) are moved to the
+  /// database and then taken out of the settings. They stay there if the
+  /// database cannot take them, so nothing is lost.
+  Future<void> load({KeyValueStore? legacy}) async {
+    final library = _library;
+    final old = legacy == null ? const <_Row>[] : _legacyRows(legacy);
+    var saved = const <_Row>[];
+    var readable = false;
+    if (library != null) {
+      try {
+        saved = await library.run(_readPositions, maxEntries);
+        readable = true;
+      } on LibraryWorkException {
+        // This run starts without saved positions.
+      }
+    }
+
+    // Whatever the database holds was watched after the move.
+    for (final (url, position, duration) in [...old, ...saved]) {
+      _entries
+        ..remove(url)
+        ..[url] = (position, duration);
+    }
+    while (_entries.length > maxEntries) {
+      _entries.remove(_entries.keys.first);
+    }
+
+    if (old.isEmpty || library == null || !readable) return;
+    try {
+      // Their real dates are not known: just before now, in their order.
+      final first = _clock().millisecondsSinceEpoch - old.length * 1000;
+      await library.run(_importPositions, [
+        for (final (index, (url, position, duration)) in old.indexed)
+          (url, position, duration, first + index * 1000),
+      ]);
+      await legacy!.remove(legacyKey);
+    } on LibraryWorkException {
+      // Tried again at the next start.
+    }
+  }
 
   /// The position to resume [url] from, or `null` to start at the beginning.
   Duration? positionFor(Uri url) {
@@ -36,58 +84,116 @@ class ResumeStore {
     if (duration <= Duration.zero) return;
     final key = _keyFor(url);
     if (!isResumable(position, duration)) {
-      if (_entries.remove(key) != null) _persist();
+      if (_entries.remove(key) != null) _write(_deletePosition, key);
       return;
     }
+    final entry = (position.inMilliseconds, duration.inMilliseconds);
     _entries
       ..remove(key)
-      ..[key] = (position.inMilliseconds, duration.inMilliseconds);
+      ..[key] = entry;
+    _write(_writePosition, (
+      key,
+      entry.$1,
+      entry.$2,
+      _clock().millisecondsSinceEpoch,
+    ));
     while (_entries.length > maxEntries) {
-      _entries.remove(_entries.keys.first);
+      final oldest = _entries.keys.first;
+      _entries.remove(oldest);
+      _write(_deletePosition, oldest);
     }
-    _persist();
   }
 
   /// Forgets [url], e.g. after it was watched to the end.
   void clear(Uri url) {
-    if (_entries.remove(_keyFor(url)) != null) _persist();
+    final key = _keyFor(url);
+    if (_entries.remove(key) != null) _write(_deletePosition, key);
   }
 
   // The fragment never reaches the server, so it is not part of the identity.
   static String _keyFor(Uri url) => url.removeFragment().toString();
 
-  void _persist() {
-    final rows = [
-      for (final entry in _entries.entries)
-        [entry.key, entry.value.$1, entry.value.$2],
-    ];
-    unawaited(_store.setString(_key, jsonEncode(rows)));
+  /// Sends a change to the database without waiting for it. If it fails,
+  /// the position is still right until the app closes.
+  void _write<A>(LibraryWork<A, void> change, A argument) {
+    final library = _library;
+    if (library == null) return;
+    unawaited(library.run(change, argument).then((_) {}, onError: (_) {}));
   }
 
-  /// Reads the saved list, skipping anything that is not a well-formed row,
-  /// so a damaged or hand-edited file cannot break playback.
-  void _load() {
-    final raw = _store.getString(_key);
-    if (raw == null) return;
+  /// Reads the list that used to be kept in the settings, skipping anything
+  /// that is not a well-formed row, so a damaged or hand-edited file cannot
+  /// break playback.
+  static List<_Row> _legacyRows(KeyValueStore store) {
+    final raw = store.getString(legacyKey);
+    if (raw == null) return const [];
     final Object? decoded;
     try {
       decoded = jsonDecode(raw);
     } on FormatException {
-      return;
+      return const [];
     }
-    if (decoded is! List) return;
+    if (decoded is! List) return const [];
+    final rows = <_Row>[];
     for (final row in decoded) {
       if (row is! List || row.length != 3) continue;
       final [url, position, duration] = row;
       if (url is! String || position is! int || duration is! int) continue;
       if (position < 0 || duration <= 0 || position > duration) continue;
-      _entries[url] = (position, duration);
+      rows.add((url, position, duration));
     }
-    while (_entries.length > maxEntries) {
-      _entries.remove(_entries.keys.first);
-    }
+    return rows;
   }
 }
+
+/// A saved position: URL, position and duration in milliseconds.
+typedef _Row = (String, int, int);
+
+// What follows runs in the library isolate.
+
+/// The saved positions, least recently watched first. Rows beyond the
+/// [keep] most recent ones are dropped for good.
+List<_Row> _readPositions(LibraryDb db, int keep) {
+  db.db.execute(
+    'DELETE FROM playback WHERE url NOT IN '
+    '(SELECT url FROM playback ORDER BY updated_at DESC LIMIT ?)',
+    [keep],
+  );
+  return [
+    for (final row in db.db.select(
+      'SELECT url, position_ms, duration_ms FROM playback ORDER BY updated_at',
+    ))
+      (
+        row['url'] as String,
+        row['position_ms'] as int,
+        row['duration_ms'] as int,
+      ),
+  ];
+}
+
+void _writePosition(LibraryDb db, (String, int, int, int) row) => db.db.execute(
+  'INSERT INTO playback (url, position_ms, duration_ms, updated_at) '
+  'VALUES (?, ?, ?, ?) ON CONFLICT (url) DO UPDATE SET '
+  'position_ms = excluded.position_ms, '
+  'duration_ms = excluded.duration_ms, updated_at = excluded.updated_at',
+  [row.$1, row.$2, row.$3, row.$4],
+);
+
+void _deletePosition(LibraryDb db, String url) =>
+    db.db.execute('DELETE FROM playback WHERE url = ?', [url]);
+
+/// Adds positions from before the database; a video the database already
+/// knows keeps its newer position.
+void _importPositions(LibraryDb db, List<(String, int, int, int)> rows) =>
+    db.transaction(() {
+      for (final (url, position, duration, updatedAt) in rows) {
+        db.db.execute(
+          'INSERT OR IGNORE INTO playback '
+          '(url, position_ms, duration_ms, updated_at) VALUES (?, ?, ?, ?)',
+          [url, position, duration, updatedAt],
+        );
+      }
+    });
 
 /// Makes the [ResumeStore] available to the widget tree.
 class ResumeStoreScope extends InheritedWidget {
