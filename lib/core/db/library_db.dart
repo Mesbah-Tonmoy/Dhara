@@ -50,17 +50,19 @@ class LibraryDb {
       // Waits instead of failing if a second copy of the app has the file.
       db.execute('PRAGMA busy_timeout = 3000');
       db.execute('PRAGMA foreign_keys = ON');
+
+      // Checked before anything is written: a newer app's file is not to
+      // be touched, not even its journal mode.
+      final version = db.userVersion;
+      if (version > schemaVersion) {
+        throw const LibraryDbException(LibraryDbProblem.newerVersion);
+      }
       if (onDisk) {
         // Readers and the writer do not block each other, and a commit does
         // not wait for the disk. A crash can lose the last few commits but
         // never damages the file; the index can be crawled again.
         db.execute('PRAGMA journal_mode = WAL');
         db.execute('PRAGMA synchronous = NORMAL');
-      }
-
-      final version = db.userVersion;
-      if (version > schemaVersion) {
-        throw const LibraryDbException(LibraryDbProblem.newerVersion);
       }
       final library = LibraryDb._(db);
       for (var next = version; next < schemaVersion; next++) {
