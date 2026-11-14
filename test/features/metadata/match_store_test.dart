@@ -116,6 +116,31 @@ void main() {
     });
   });
 
+  test('reviewableTitles lists what is unsure or not found, as spelled', () {
+    final sure = add('Movies', 'Sure (2001).mkv');
+    final unsure = add(
+      'English Movies/(2006)/Silent Hills (2006) 720p',
+      'Silent.Hill.2006.BluRay.720p.x264.YIFY.mp4',
+    );
+    final lost = add('Movies', 'lost film (2004).mkv');
+    add('Movies', 'Waiting (2005).mkv');
+    store
+      ..apply(sure, _film(1, 'Sure', 2001), confidence: 95)
+      ..apply(unsure, _film(2, 'Silent Hill', 2006), confidence: 70)
+      ..markNotFound(lost);
+
+    final titles = store.reviewableTitles();
+
+    expect([for (final entry in titles) entry.id], [unsure, lost]);
+    // By what the files call it, not by what TMDB does.
+    expect(titles.first.name, 'Silent Hills');
+    expect(titles.first.year, 2006);
+    expect(titles.first.altName, 'Silent Hill');
+    expect(titles.last.name, 'lost film');
+    expect(store.reviewableTitles(after: unsure).single.id, lost);
+    expect(store.reviewableTitles(limit: 1), hasLength(1));
+  });
+
   group('apply', () {
     test('a sure match gives the title the film\'s data', () {
       final id = add('Movies', 'vivarium (2019) 720p.mkv');

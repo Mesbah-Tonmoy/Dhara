@@ -44,8 +44,13 @@ class ScoredCandidate {
 /// The confidence is made of up to 70 points for the name (how alike the
 /// spellings are, against the title and the original title), up to 20 for
 /// the year, and, for the best one only, up to 10 for standing clear of
-/// the second best. A candidate whose year is plainly wrong never gets
-/// past 59; two that cannot be told apart never past 84.
+/// the second best.
+///
+/// - A candidate whose year is plainly wrong never gets past 59; a film
+///   two years off never past 79.
+/// - Of two that fit equally well, the one far better known is taken (the
+///   other is a short film or a fan cut of the same name); if neither is,
+///   the match never gets past 84.
 List<ScoredCandidate> rankCandidates(
   TitleQuery query,
   List<TmdbCandidate> candidates,
@@ -68,14 +73,53 @@ List<ScoredCandidate> rankCandidates(
         entry.candidate,
         index == 0
             ? _confidenceOfBest(entry, scored.length > 1 ? scored[1] : null)
-            : entry.confidenceAlone,
+            : entry.capped(entry.base, 84),
       ),
   ];
 }
 
+/// The confidence of a match that rests on TMDB's word alone.
+const aliasConfidence = 70;
+
+/// The best match for [query] in what TMDB answered, or `null` if it
+/// answered nothing of use.
+///
+/// [byNameAndYear] is the answer to the search by name and year; [others]
+/// are the answers to any further searches (without the year, by the other
+/// name).
+///
+/// If no name fits, but the search by name and year came back with exactly
+/// one film or show of that year, that one is taken as an unsure match:
+/// TMDB also searches the other titles a film goes by ("Formula 51" finds
+/// "The 51st State", a Hindi dub's title finds the original), and those
+/// names are not in its answer.
+ScoredCandidate? bestMatch(
+  TitleQuery query, {
+  required List<TmdbCandidate> byNameAndYear,
+  List<TmdbCandidate> others = const [],
+}) {
+  final best = rankCandidates(query, [...byNameAndYear, ...others]).firstOrNull;
+  if (best != null && best.confidence >= unsureConfidence) return best;
+
+  final asked = query.year;
+  final sameKind = {
+    for (final candidate in byNameAndYear)
+      if (candidate.kind == query.kind) candidate.id: candidate,
+  };
+  if (asked != null && sameKind.length == 1) {
+    final only = sameKind.values.single;
+    final year = only.year;
+    final fits =
+        year != null &&
+        (query.kind == TitleKind.series ? year <= asked : year == asked);
+    if (fits) return ScoredCandidate(only, aliasConfidence);
+  }
+  return best;
+}
+
 /// How alike two titles are, 0 to 1: 1 for the same name in any spelling
-/// ("Godzilla Vs. Kong", "godzilla vs kong"; "Part III", "Part 3"; with or
-/// without "The").
+/// ("Godzilla Vs. Kong", "godzilla vs kong"; "Part III", "Part 3"; "4
+/// Assassins", "Four Assassins"; with or without "The").
 double titleSimilarity(String a, String b) {
   final first = _forms(a);
   final second = _forms(b);
@@ -90,12 +134,7 @@ double titleSimilarity(String a, String b) {
 }
 
 class _Scored {
-  const _Scored(
-    this.candidate,
-    this.name,
-    this.year, {
-    required this.wrongYear,
-  });
+  const _Scored(this.candidate, this.name, this.year, this.most);
 
   final TmdbCandidate candidate;
 
@@ -104,17 +143,18 @@ class _Scored {
 
   /// Points for the year, 0 to 20.
   final int year;
-  final bool wrongYear;
+
+  /// What the year allows the confidence to be at most.
+  final int most;
 
   int get base => name + year;
 
-  /// The confidence without the points for standing clear of the others.
-  int get confidenceAlone => _capped(base, 84);
-
-  int _capped(int points, int most) {
-    if (name == 0) return points < 40 ? points : 40;
-    if (wrongYear) return points < 59 ? points : 59;
-    return points < most ? points : most;
+  /// [points], held down to what this candidate can be trusted with at
+  /// most, and to [limit].
+  int capped(int points, int limit) {
+    var top = limit < most ? limit : most;
+    if (name == 0 && top > 40) top = 40;
+    return points < top ? points : top;
   }
 }
 
@@ -133,53 +173,51 @@ _Scored _score(TitleQuery query, TmdbCandidate candidate) {
 
   final asked = query.year;
   final actual = candidate.year;
-  var year = 8;
-  var wrongYear = false;
-  if (asked != null && actual != null) {
-    final later = asked - actual;
-    if (query.kind == TitleKind.series) {
-      // A season folder carries the year of the season: the same year or
-      // any later one fits a show.
-      year = later == 0
-          ? 20
-          : later > 0
-          ? 14
-          : later == -1
-          ? 8
-          : 0;
-      wrongYear = later < -1;
-    } else {
-      year = later == 0
-          ? 20
-          : later.abs() == 1
-          ? 12
-          : 0;
-      wrongYear = later.abs() > 1;
-    }
+  if (asked == null || actual == null) return _Scored(candidate, name, 8, 100);
+  final later = asked - actual;
+  if (query.kind == TitleKind.series) {
+    // A season folder carries the year of the season: the same year or any
+    // later one fits a show.
+    return switch (later) {
+      0 => _Scored(candidate, name, 20, 100),
+      > 0 => _Scored(candidate, name, 14, 100),
+      -1 => _Scored(candidate, name, 8, 100),
+      _ => _Scored(candidate, name, 0, 59),
+    };
   }
-  return _Scored(candidate, name, year, wrongYear: wrongYear);
+  // Servers and TMDB often differ by a year (festival or home release),
+  // now and then by two.
+  return switch (later.abs()) {
+    0 => _Scored(candidate, name, 20, 100),
+    1 => _Scored(candidate, name, 12, 100),
+    2 => _Scored(candidate, name, 4, 79),
+    _ => _Scored(candidate, name, 0, 59),
+  };
 }
 
 int _confidenceOfBest(_Scored best, _Scored? next) {
-  if (next == null) return best._capped(best.base + 10, 100);
+  if (next == null) return best.capped(best.base + 10, 100);
   final gap = best.base - next.base;
   if (gap > 0) {
     final clear = gap >= 15 ? 10 : (gap * 10 / 15).round();
-    return best._capped(best.base + clear, 100);
+    return best.capped(best.base + clear, 100);
   }
-  // Two that fit equally well: only being far better known tells them
-  // apart, and not for certain.
+  // Two that fit equally well. If one is far better known, the other is a
+  // short film or a fan cut of the same name and year.
   final known = best.candidate.votes;
   final other = next.candidate.votes < 1 ? 1 : next.candidate.votes;
-  return best._capped(best.base + (known >= 10 * other ? 5 : 0), 84);
+  if (known >= 20 && known >= 10 * other) {
+    return best.capped(best.base + 5, 100);
+  }
+  return best.capped(best.base, 84);
 }
 
 /// The spellings of [title] to compare: plain, and without "the", "a" or
-/// "an" in front. Roman numerals count as numbers.
+/// "an" in front. Roman numerals and number words count as numbers.
 List<String> _forms(String title) {
   final words = [
     for (final word in normalizeTitle(title).split(' '))
-      if (word.isNotEmpty) _romanNumerals[word] ?? word,
+      if (word.isNotEmpty) _numbers[word] ?? word,
   ];
   if (words.isEmpty) return const [];
   final plain = words.join(' ');
@@ -193,14 +231,24 @@ double _similarity(String a, String b) {
   if (a == b) return 1;
   final longer = a.length > b.length ? a : b;
   final shorter = a.length > b.length ? b : a;
-  final alike = 1 - _distance(a, b) / longer.length;
+  var alike = 1 - _distance(a, b) / longer.length;
+  // The same words in another order: "Jason Lives: Friday the 13th Part
+  // VI", "Friday the 13th Part VI-Jason Lives".
+  if (alike < .95 && _sorted(a) == _sorted(b)) alike = .95;
   // A name without its subtitle: "Nameless Gangster", "Nameless Gangster
   // Rules of the Time". Not for one short word ("It", "It Chapter Two").
   final isStart =
       longer.startsWith('$shorter ') &&
       (shorter.contains(' ') || shorter.length >= 6);
-  return isStart && alike < .85 ? .85 : alike;
+  if (isStart && alike < .85) return .85;
+  // What stands in front may be another film altogether ("The Dead",
+  // "Survival of the Dead"): close enough for a match, never for a sure
+  // one.
+  final isEnd = longer.endsWith(' $shorter') && shorter.contains(' ');
+  return isEnd && alike < .75 ? .75 : alike;
 }
+
+String _sorted(String words) => (words.split(' ')..sort()).join(' ');
 
 /// How many letters have to be added, dropped or changed to turn [a] into
 /// [b] (Levenshtein distance).
@@ -227,7 +275,8 @@ int _distance(String a, String b) {
 
 const _articles = {'the', 'a', 'an'};
 
-const _romanNumerals = {
+/// Roman numerals and number words by the number they stand for.
+const _numbers = {
   'ii': '2',
   'iii': '3',
   'iv': '4',
@@ -240,4 +289,18 @@ const _romanNumerals = {
   'xi': '11',
   'xii': '12',
   'xiii': '13',
+  'zero': '0',
+  'one': '1',
+  'two': '2',
+  'three': '3',
+  'four': '4',
+  'five': '5',
+  'six': '6',
+  'seven': '7',
+  'eight': '8',
+  'nine': '9',
+  'ten': '10',
+  'eleven': '11',
+  'twelve': '12',
+  'thirteen': '13',
 };

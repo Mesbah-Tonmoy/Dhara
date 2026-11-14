@@ -87,10 +87,16 @@ class MatchPanel extends StatelessWidget {
   (String, Color) _status() {
     final progress = match.progress;
     if (match.isRunning) {
+      // What is left, not what this run has done: a run that was stopped
+      // and started again carries on, and its own count starts at nothing.
+      final left = progress == null ? 0 : progress.total - progress.done;
+      final time = match.timeLeft;
       return (
         progress == null || progress.total == 0
             ? 'Asking TMDB …'
-            : 'Asking TMDB … ${progress.done} / ${progress.total} titles',
+            : time == null
+            ? 'Asking TMDB … $left titles to go'
+            : 'Asking TMDB … $left titles to go, about ${_about(time)}',
         DharaColors.accent2,
       );
     }
@@ -112,7 +118,10 @@ class MatchPanel extends StatelessWidget {
           DharaColors.warn,
         );
       case MatchEnd.stopped:
-        return ('Stopped. It carries on from here.', DharaColors.text2);
+        return (
+          'Stopped. "Match now" carries on with the titles that are left.',
+          DharaColors.text2,
+        );
       case MatchEnd.finished:
         return ('Every title has been looked up.', DharaColors.good);
       case MatchEnd.noKey || null:
@@ -134,4 +143,12 @@ class MatchPanel extends StatelessWidget {
       DharaColors.text2,
     );
   }
+}
+
+/// "a minute", "12 min", "1 h 5 min".
+String _about(Duration time) {
+  final minutes = (time.inSeconds / 60).round();
+  if (minutes <= 1) return 'a minute';
+  if (minutes < 90) return '$minutes min';
+  return '${minutes ~/ 60} h ${minutes % 60} min';
 }

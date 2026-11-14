@@ -47,6 +47,18 @@ class CachedTmdb {
     return found;
   }
 
+  /// What TMDB answered to this search, if the answer is still kept; no
+  /// request is made. `null` if it was never asked or the answer is too
+  /// old.
+  List<TmdbCandidate>? kept(TitleKind kind, String title, {int? year}) {
+    final body = _store.cachedAnswer(
+      provider,
+      searchKey(kind, title, year),
+      maxAge: keepFor,
+    );
+    return body == null ? null : _decode(body);
+  }
+
   /// Drops the answers that no longer count.
   int forgetOldAnswers() => _store.forgetAnswers(provider, maxAge: keepFor);
 

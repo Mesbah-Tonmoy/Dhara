@@ -120,6 +120,29 @@ class MatchStore {
       ),
   ];
 
+  /// Up to [limit] titles that are unsure or were not found, with an id
+  /// above [after], lowest id first: by the name and year their files give
+  /// them, which is what TMDB was asked by.
+  List<PendingTitle> reviewableTitles({int after = 0, int limit = 200}) => [
+    for (final row in _db.select(
+      'SELECT t.id, t.kind, k.name, k.year, k.alt_name FROM titles t '
+      // The first of its spellings stands for the title.
+      'JOIN title_keys k ON k.key = (SELECT min(key) FROM title_keys '
+      'WHERE title = t.id) '
+      'WHERE t.match_state IN (2, 3) AND t.id > ? '
+      'AND EXISTS (SELECT 1 FROM file_meta m WHERE m.title = t.id) '
+      'ORDER BY t.id LIMIT ?',
+      [after, limit],
+    ))
+      PendingTitle(
+        id: row['id'] as int,
+        kind: row['kind'] == 1 ? TitleKind.series : TitleKind.movie,
+        name: row['name'] as String,
+        altName: row['alt_name'] as String?,
+        year: row['year'] as int?,
+      ),
+  ];
+
   /// Lets titles that were not found more than [after] ago be looked up
   /// again: films appear on TMDB later than on the servers. Returns how
   /// many.

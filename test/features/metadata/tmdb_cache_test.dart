@@ -180,6 +180,20 @@ void main() {
     expect(asked('/3/search/movie'), 3);
   });
 
+  test('kept gives an answer back without asking', () async {
+    expect(tmdb.kept(TitleKind.movie, 'The Glass Harbor', year: 2019), isNull);
+    await tmdb.candidates(TitleKind.movie, 'The Glass Harbor', year: 2019);
+
+    final kept = tmdb.kept(TitleKind.movie, 'the.glass.harbor', year: 2019)!;
+
+    expect(kept.first.id, 90001);
+    expect(asked('/3/search/movie'), 1);
+    expect(tmdb.kept(TitleKind.movie, 'The Glass Harbor'), isNull);
+    expect(tmdb.kept(TitleKind.series, 'The Glass Harbor', year: 2019), isNull);
+    clock = clock.add(const Duration(days: 31));
+    expect(tmdb.kept(TitleKind.movie, 'The Glass Harbor', year: 2019), isNull);
+  });
+
   test('forgets answers that no longer count', () async {
     await tmdb.candidates(TitleKind.movie, 'Old One');
     clock = clock.add(const Duration(days: 20));

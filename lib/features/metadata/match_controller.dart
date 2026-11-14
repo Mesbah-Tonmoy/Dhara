@@ -94,6 +94,12 @@ class MatchController extends ChangeNotifier {
   var _wasReading = false;
   var _disposed = false;
 
+  /// How long the run under way has been going, and when the titles were
+  /// last counted during it.
+  final _clock = Stopwatch();
+  var _countedAt = 0;
+  var _counting = false;
+
   /// How many titles are matched, as of the last count; `null` before the
   /// first.
   MatchCounts? get counts => _counts;
@@ -109,6 +115,17 @@ class MatchController extends ChangeNotifier {
 
   /// How the last run of this session ended; `null` if there was none.
   MatchEnd? get lastEnd => _lastEnd;
+
+  /// About how long the run under way still takes, going by its pace so
+  /// far; `null` while that cannot be told.
+  Duration? get timeLeft {
+    final progress = _progress;
+    if (!isRunning || progress == null || progress.done < 30) return null;
+    final elapsed = _clock.elapsed;
+    if (elapsed < const Duration(seconds: 15)) return null;
+    final left = progress.total - progress.done;
+    return left <= 0 ? Duration.zero : elapsed * (left / progress.done);
+  }
 
   /// Counts the titles again. Call once at start-up. Never throws.
   Future<void> load() => _refresh();
@@ -136,6 +153,10 @@ class MatchController extends ChangeNotifier {
   Future<void> _match() async {
     _progress = const MatchProgress();
     _lastEnd = null;
+    _countedAt = 0;
+    _clock
+      ..reset()
+      ..start();
     final events = ReceivePort();
     events.listen((message) {
       if (message is SendPort) {
@@ -157,6 +178,7 @@ class MatchController extends ChangeNotifier {
           notFound: notFound,
         );
         _notify();
+        _countNowAndThen();
       }
     });
     // Lets the caller's `_run` be set before anyone is told.
@@ -192,11 +214,25 @@ class MatchController extends ChangeNotifier {
       end = MatchEnd.failed;
     }
     events.close();
+    _clock.stop();
     _control = null;
     _stopping = false;
     _lastEnd = end;
     _run = null;
     await _refresh();
+  }
+
+  /// Keeps the numbers of matched titles moving while a run is under way.
+  void _countNowAndThen() {
+    final now = _clock.elapsedMilliseconds;
+    if (_counting || now - _countedAt < 3000) return;
+    _countedAt = now;
+    _counting = true;
+    unawaited(
+      _refresh().whenComplete(() {
+        _counting = false;
+      }),
+    );
   }
 
   /// Names were just read: there may be new titles to look up.
@@ -248,13 +284,18 @@ class MatchScope extends InheritedNotifier<MatchController> {
   }
 }
 
-// What follows runs in the library isolate.
+/// What follows runs in the library isolate.
 
 MatchCounts _countMatches(LibraryDb db, Object? _) => MatchStore(db).counts();
 
-/// How many titles are looked up side by side; the TMDB client spaces the
-/// requests out whatever this is.
-const _sideBySide = 4;
+/// How many titles are looked up side by side.
+const _sideBySide = 10;
+
+/// A run asks TMDB at most about 16 times a second, with at most 8
+/// requests under way: well below the 40 or so a second TMDB allows, and
+/// several times faster than one request after the other.
+const _spacing = Duration(milliseconds: 60);
+const _maxInFlight = 8;
 
 /// After this many titles in a row that TMDB gave no answer for, the run
 /// gives up until next time.
@@ -266,6 +307,10 @@ const _progressEveryMs = 200;
 /// `events`: first a port that stops the run when anything is sent to it,
 /// then `(done, total, matched, unsure, notFound)` now and then. Returns
 /// the name of the [MatchEnd] and those numbers as they stand at the end.
+///
+/// Before it asks TMDB anything, it judges the titles that were unsure or
+/// not found again from the answers that are kept: that costs no request,
+/// and lets better rules reach titles that were looked up before.
 Future<(String, (int, int, int, int, int))> _matchTitles(
   LibraryDb db,
   (String, int, Uri?, int, SendPort) request,
@@ -276,6 +321,8 @@ Future<(String, (int, int, int, int, int))> _matchTitles(
     kind: TmdbKeyKind.values[kind],
     baseUrl: tmdbUrl,
     retries: retries,
+    spacing: _spacing,
+    maxInFlight: _maxInFlight,
   );
   final store = MatchStore(db);
   final tmdb = CachedTmdb(client, MetadataStore(db));
@@ -303,9 +350,43 @@ Future<(String, (int, int, int, int, int))> _matchTitles(
     events.send((done, total, matched, unsure, notFound));
   }
 
+  /// Keeps what was found for [title]; returns what became of it.
+  MatchOutcome? keep(PendingTitle title, ScoredCandidate? best) {
+    if (best == null || best.confidence < unsureConfidence) {
+      store.markNotFound(title.id, confidence: best?.confidence);
+      return null;
+    }
+    final (outcome, _) = store.apply(
+      title.id,
+      best.candidate,
+      confidence: best.confidence,
+    );
+    return outcome;
+  }
+
   Future<MatchEnd> run() async {
     store.retryNotFound();
     tmdb.forgetOldAnswers();
+
+    var judged = 0;
+    while (!stopping) {
+      final batch = store.reviewableTitles(after: judged);
+      if (batch.isEmpty) break;
+      for (final title in batch) {
+        final best = await _judge(title, (name, year) async {
+          return tmdb.kept(title.kind, name, year: year);
+        });
+        // Only what turns out a match changes anything: a title that is
+        // still not found stays as it was.
+        if (best is ScoredCandidate && best.confidence >= unsureConfidence) {
+          store.apply(title.id, best.candidate, confidence: best.confidence);
+        }
+      }
+      judged = batch.last.id;
+      // Lets a search or a count in between.
+      await Future<void>.delayed(Duration.zero);
+    }
+
     total = store.counts().pending;
     report(always: true);
 
@@ -318,58 +399,51 @@ Future<(String, (int, int, int, int, int))> _matchTitles(
         // Titles TMDB gave no answer for are still to be looked up.
         return unanswered > 0 ? MatchEnd.unreachable : MatchEnd.finished;
       }
-      for (var i = 0; i < batch.length && !stopping; i += _sideBySide) {
-        final end = i + _sideBySide < batch.length
-            ? i + _sideBySide
-            : batch.length;
-        final group = batch.sublist(i, end);
-        final found = await Future.wait([
-          for (final title in group) _lookUp(tmdb, title),
-        ]);
-        for (final (index, result) in found.indexed) {
-          final title = group[index];
-          switch (result) {
-            case final TmdbException error:
-              // Cut off by the stop, not by TMDB.
-              if (stopping) continue;
-              if (error.failure == TmdbFailure.invalidKey) {
-                return MatchEnd.keyRefused;
-              }
-              unanswered++;
-              if (++failuresInARow >= _maxFailuresInARow) {
-                return MatchEnd.unreachable;
-              }
-            case null:
-              failuresInARow = 0;
-              store.markNotFound(title.id);
-              notFound++;
-              done++;
-            case final ScoredCandidate best:
-              failuresInARow = 0;
-              if (best.confidence < unsureConfidence) {
-                store.markNotFound(title.id, confidence: best.confidence);
-                notFound++;
-              } else {
-                final (outcome, _) = store.apply(
-                  title.id,
-                  best.candidate,
-                  confidence: best.confidence,
-                );
-                switch (outcome) {
-                  case MatchOutcome.matched || MatchOutcome.merged:
-                    matched++;
-                  case MatchOutcome.unsure || MatchOutcome.unsureNotApplied:
-                    unsure++;
-                  case MatchOutcome.skipped:
-                    break;
-                }
-              }
-              done++;
+      var next = 0;
+      MatchEnd? ended;
+
+      // Each takes the next title of the batch as soon as it is done with
+      // its last, so one slow answer holds nobody up.
+      Future<void> worker() async {
+        while (!stopping && ended == null && next < batch.length) {
+          final title = batch[next++];
+          final result = await _judge(
+            title,
+            (name, year) => tmdb.candidates(title.kind, name, year: year),
+          );
+          if (result is TmdbException) {
+            // Cut off by the stop, not by TMDB.
+            if (stopping) return;
+            if (result.failure == TmdbFailure.invalidKey) {
+              ended = MatchEnd.keyRefused;
+              return;
+            }
+            unanswered++;
+            if (++failuresInARow >= _maxFailuresInARow) {
+              ended ??= MatchEnd.unreachable;
+            }
+            continue;
           }
+          failuresInARow = 0;
+          switch (keep(title, result as ScoredCandidate?)) {
+            case null:
+              notFound++;
+            case MatchOutcome.matched || MatchOutcome.merged:
+              matched++;
+            case MatchOutcome.unsure || MatchOutcome.unsureNotApplied:
+              unsure++;
+            case MatchOutcome.skipped:
+              break;
+          }
+          done++;
+          report();
         }
-        after = group.last.id;
-        report();
       }
+
+      await Future.wait([for (var i = 0; i < _sideBySide; i++) worker()]);
+      final end = ended;
+      if (end != null) return end;
+      after = batch.last.id;
     }
     return MatchEnd.stopped;
   }
@@ -383,29 +457,33 @@ Future<(String, (int, int, int, int, int))> _matchTitles(
   }
 }
 
-/// The best candidate for [title], `null` if TMDB knows nothing like it,
-/// or the error that kept TMDB from answering.
+/// Finds out what [title] is from TMDB's answers, which [answer] gives for
+/// a name and a year: the best candidate, `null` if TMDB knows nothing
+/// like it or an answer is missing, or the error that kept TMDB from
+/// answering.
 ///
 /// Asks by name and year first; if that is not a sure match, also without
 /// the year (the servers and TMDB often differ by one) and by the name the
 /// file gives the title.
-Future<Object?> _lookUp(CachedTmdb tmdb, PendingTitle title) async {
+Future<Object?> _judge(
+  PendingTitle title,
+  Future<List<TmdbCandidate>?> Function(String name, int? year) answer,
+) async {
   final query = title.query;
   try {
-    final candidates = [
-      ...await tmdb.candidates(title.kind, title.name, year: title.year),
-    ];
-    ScoredCandidate? best() => rankCandidates(query, candidates).firstOrNull;
+    final byNameAndYear = await answer(title.name, title.year);
+    if (byNameAndYear == null) return null;
+    final others = <TmdbCandidate>[];
+    ScoredCandidate? best() =>
+        bestMatch(query, byNameAndYear: byNameAndYear, others: others);
     bool sure() => (best()?.confidence ?? 0) >= sureConfidence;
 
     if (!sure() && title.year != null) {
-      candidates.addAll(await tmdb.candidates(title.kind, title.name));
+      others.addAll(await answer(title.name, null) ?? const []);
     }
     final alt = title.altName;
     if (!sure() && alt != null) {
-      candidates.addAll(
-        await tmdb.candidates(title.kind, alt, year: title.year),
-      );
+      others.addAll(await answer(alt, title.year) ?? const []);
     }
     return best();
   } on TmdbException catch (error) {

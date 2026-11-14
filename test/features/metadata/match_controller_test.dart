@@ -40,6 +40,8 @@ void _put(LibraryDb library, (String, List<String>) files) {
   }
 }
 
+void _execute(LibraryDb library, String sql) => library.db.execute(sql);
+
 List<List<Object?>> _titles(LibraryDb library, Object? _) => [
   for (final row in library.db.select(
     'SELECT name, year, tmdb_id, match_state, confidence, poster_path, '
@@ -272,14 +274,14 @@ void main() {
       await open(LocalLibrary(LibraryDb.inMemory()));
       tmdb.addFilm(1, 'A', 2001);
       await put('Movies', [
-        for (final name in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'])
-          '$name (2001).mkv',
+        'A (2001).mkv',
+        for (var i = 0; i < 60; i++) 'Film Number $i (2001).mkv',
       ]);
       await readNames();
       var seen = 0;
       match.addListener(() {
-        // Out of order from the second group of titles on.
-        if (match.progress!.done >= 4 && seen++ == 0) tmdb.failWith = 500;
+        // Out of order once a few titles have been looked up.
+        if (match.progress!.done >= 5 && seen++ == 0) tmdb.failWith = 500;
       });
 
       await match.start();
@@ -287,8 +289,8 @@ void main() {
       expect(match.lastEnd, MatchEnd.unreachable);
       final counts = match.counts!;
       expect(counts.matched, 1);
-      expect(counts.notFound, 3);
-      expect(counts.pending, 4);
+      expect(counts.notFound, greaterThanOrEqualTo(4));
+      expect(counts.pending, inInclusiveRange(1, 55));
 
       // Next time it carries on with what is left.
       tmdb.failWith = null;
@@ -300,7 +302,7 @@ void main() {
     test('can be stopped and carried on', () async {
       await open(LocalLibrary(LibraryDb.inMemory()));
       await put('Movies', [
-        for (var i = 0; i < 24; i++) 'Film Number $i (2001).mkv',
+        for (var i = 0; i < 80; i++) 'Film Number $i (2001).mkv',
       ]);
       await readNames();
       var stopped = false;
@@ -315,12 +317,56 @@ void main() {
       expect(match.lastEnd, MatchEnd.stopped);
       expect(match.isStopping, isFalse);
       final left = match.counts!.pending;
-      expect(left, inInclusiveRange(1, 20));
+      expect(left, inInclusiveRange(1, 76));
 
       await match.start();
       expect(match.lastEnd, MatchEnd.finished);
       expect(match.counts!.pending, 0);
-      expect(match.counts!.notFound, 24);
+      expect(match.counts!.notFound, 80);
+    });
+  });
+
+  group('what was looked up before', () {
+    setUp(() => open(LocalLibrary(LibraryDb.inMemory())));
+
+    test('is judged again from the answers kept, without asking', () async {
+      tmdb
+        ..addFilm(1, 'Stillwater', 2018)
+        ..addFilm(2, 'The 51st State', 2001);
+      await put('Movies/English', [
+        'Stillwater (2018) 1080p WEBDL.mkv',
+        'Nothing Like This (2001) 720p.mkv',
+      ]);
+      await readNames();
+      await match.start();
+      // As older rules left them: one not found, one unsure.
+      await library.run(
+        _execute,
+        'UPDATE titles SET match_state = 3, tmdb_id = NULL, '
+        "poster_path = NULL WHERE name = 'Stillwater'",
+      );
+      await library.run(
+        _execute,
+        "UPDATE titles SET match_state = 2 WHERE name = 'Nothing Like This'",
+      );
+      final asked = tmdb.asked.length;
+
+      await match.start();
+
+      expect(tmdb.asked, hasLength(asked));
+      final found = await stored();
+      expect(found['Stillwater'], [2018, 1, 1, 100, '/poster1.jpg', 1]);
+      // Still nothing that fits: left as it was.
+      expect(found['Nothing Like This']!.sublist(1, 3), [null, 2]);
+      expect(match.lastEnd, MatchEnd.finished);
+    });
+
+    test('says nothing about time left when no run is under way', () async {
+      expect(match.timeLeft, isNull);
+      await put('Movies', ['Stillwater (2018).mkv']);
+      await readNames();
+      await match.start();
+      expect(match.timeLeft, isNull);
     });
   });
 

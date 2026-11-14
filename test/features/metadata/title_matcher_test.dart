@@ -66,6 +66,8 @@ void main() {
       expect(titleSimilarity('Alien', 'Aliens vs. Predator'), lessThan(.5));
       expect(titleSimilarity('The Ring', 'The Raid'), lessThan(.8));
       expect(titleSimilarity('', 'Anything'), 0);
+      expect(titleSimilarity('4 Assassins', 'Four Assassins'), 1);
+      expect(titleSimilarity('Seven', 'Se7en'), lessThan(1));
       expect(titleSimilarity('!!!', '???'), 0);
     });
 
@@ -79,6 +81,41 @@ void main() {
       );
       // One short word is not a title cut short.
       expect(titleSimilarity('It', 'It Chapter Two'), lessThan(.5));
+    });
+
+    test('a name with something in front of it is close, not sure', () {
+      expect(
+        titleSimilarity(
+          "Tom Clancy's-The Division-Agent Origins",
+          'The Division: Agent Origins',
+        ),
+        .75,
+      );
+      expect(
+        titleSimilarity('Barney Thomson', 'The Legend of Barney Thomson'),
+        .75,
+      );
+      // One word at the end says too little.
+      expect(titleSimilarity('Batman Returns', 'Returns'), lessThan(.75));
+
+      // What stands in front may be another film: never a sure match.
+      final (id, confidence) = best('The Dead', 2010, [
+        _film(1, 'Survival of the Dead', 2010, votes: 900),
+      ])!;
+      expect(id, 1);
+      expect(
+        confidence,
+        inInclusiveRange(unsureConfidence, sureConfidence - 1),
+      );
+    });
+    test('counts the same words in another order as nearly the same', () {
+      expect(
+        titleSimilarity(
+          'Friday the 13th Part VI-Jason Lives',
+          'Jason Lives: Friday the 13th Part VI',
+        ),
+        .95,
+      );
     });
   });
 
@@ -120,12 +157,44 @@ void main() {
     test('two that fit equally well are never a sure match', () {
       final twins = [
         _film(1, 'Twins', 2019, votes: 40),
-        _film(2, 'Twins', 2019, votes: 900),
+        _film(2, 'Twins', 2019, votes: 90),
       ];
       final (id, confidence) = best('Twins', 2019, twins)!;
       expect(id, 2, reason: 'the better known one');
       expect(confidence, lessThan(sureConfidence));
       expect(confidence, greaterThanOrEqualTo(unsureConfidence));
+    });
+
+    test('of two of one name and year, the far better known is it', () {
+      // As TMDB has them: the film, and a short or fan cut of its name.
+      final (id, confidence) = best('Anna', 2013, [
+        _film(1, 'Anna', 2013, votes: 4),
+        _film(2, 'Anna', 2013, votes: 747),
+        _film(3, 'Anna', 2013, votes: 0),
+      ])!;
+      expect(id, 2);
+      expect(confidence, greaterThanOrEqualTo(sureConfidence));
+
+      // Hardly known either way: that tells nothing.
+      final (_, obscure) = best('Numb', 2007, [
+        _film(1, 'Numb', 2007, votes: 12),
+        _film(2, 'Numb', 2007, votes: 0),
+      ])!;
+      expect(obscure, lessThan(sureConfidence));
+    });
+
+    test('a film two years off is a match, but never a sure one', () {
+      final (id, confidence) = best('Terrifier', 2016, [
+        _film(1, 'Terrifier', 2018, votes: 3152),
+        _film(2, 'Terrifier 3', 2024, votes: 2107),
+      ])!;
+      expect(id, 1);
+      expect(confidence, inInclusiveRange(unsureConfidence, 79));
+
+      final (_, three) = best('Storming Juno', 2013, [
+        _film(1, 'Storming Juno', 2010),
+      ])!;
+      expect(three, lessThan(unsureConfidence));
     });
 
     test('matches on the original title and on the other name', () {
@@ -179,6 +248,66 @@ void main() {
       expect(later, greaterThanOrEqualTo(sureConfidence));
       final (_, earlier) = best('The Quiet Signal', 2010, signal, kind: kind)!;
       expect(earlier, lessThan(unsureConfidence));
+    });
+
+    test('bestMatch takes TMDB at its word for one answer of that year', () {
+      const query = TitleQuery(
+        kind: TitleKind.movie,
+        name: 'Formula 51',
+        year: 2001,
+      );
+      final state = _film(1, 'The 51st State', 2001, votes: 712);
+
+      // TMDB found it by a name that is not in its answer.
+      final alias = bestMatch(query, byNameAndYear: [state])!;
+      expect(alias.candidate.id, 1);
+      expect(alias.confidence, aliasConfidence);
+      expect(aliasConfidence, inInclusiveRange(unsureConfidence, 84));
+
+      // Not with several answers, another year, or without a year.
+      expect(
+        bestMatch(
+          query,
+          byNameAndYear: [state, _film(2, 'Fifty One', 2001)],
+        )!.confidence,
+        lessThan(unsureConfidence),
+      );
+      expect(
+        bestMatch(
+          query,
+          byNameAndYear: [_film(1, 'The 51st State', 2002)],
+        )!.confidence,
+        lessThan(unsureConfidence),
+      );
+      expect(
+        bestMatch(
+          const TitleQuery(kind: TitleKind.movie, name: 'Formula 51'),
+          byNameAndYear: [state],
+        )!.confidence,
+        lessThan(unsureConfidence),
+      );
+      // An answer to another search does not count for this.
+      expect(
+        bestMatch(query, byNameAndYear: const [], others: [state])!.confidence,
+        lessThan(unsureConfidence),
+      );
+      expect(bestMatch(query, byNameAndYear: const []), isNull);
+    });
+
+    test('bestMatch prefers a name that fits over TMDB\'s word', () {
+      final found = bestMatch(
+        const TitleQuery(kind: TitleKind.movie, name: 'Vivarium', year: 2019),
+        byNameAndYear: [_film(1, 'Vivarium', 2019)],
+        others: [_film(2, 'Vivarium', 2001)],
+      )!;
+      expect((found.candidate.id, found.confidence), (1, 100));
+
+      // For a show, the one answer may be from an earlier year.
+      final show = bestMatch(
+        const TitleQuery(kind: TitleKind.series, name: 'Dub Name', year: 2019),
+        byNameAndYear: [_show(7, 'Original Name', 2017)],
+      )!;
+      expect((show.candidate.id, show.confidence), (7, aliasConfidence));
     });
 
     test('leaves out the other kind and repeated candidates', () {
