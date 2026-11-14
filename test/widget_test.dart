@@ -1,101 +1,32 @@
-import 'package:dhara/app.dart';
-import 'package:dhara/core/db/library_db.dart';
-import 'package:dhara/core/db/library_isolate.dart';
-import 'package:dhara/core/secrets/secret_store.dart';
-import 'package:dhara/core/settings/key_value_store.dart';
-import 'package:dhara/core/settings/settings_controller.dart';
-import 'package:dhara/features/indexer/index_controller.dart';
-import 'package:dhara/features/metadata/anime_controller.dart';
-import 'package:dhara/features/metadata/match_controller.dart';
-import 'package:dhara/features/metadata/review_controller.dart';
-import 'package:dhara/features/metadata/titles_controller.dart';
-import 'package:dhara/features/metadata/tmdb_key.dart';
-import 'package:dhara/features/player/resume_store.dart';
-import 'package:dhara/features/sources/source_store.dart';
-import 'package:dhara/features/sources/source_test_controller.dart';
-import 'package:dhara/features/sources/source_tester.dart';
+import 'package:dhara/shell/app_shell.dart';
+import 'package:dhara/theme/scale.dart';
+import 'package:dhara/widgets/toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-Widget _app() {
-  final store = MemoryKeyValueStore();
-  final sources = SourceStore(starter: const []);
-  final library = LocalLibrary(LibraryDb.inMemory());
-  final index = IndexController(
-    library: library,
-    sources: sources,
-    deviceId: 'dhara-test',
-  );
-  final titles = TitlesController(library: library, index: index);
-  final tmdbKey = TmdbKeyController(MemorySecretStore());
-  final match = MatchController(
-    library: library,
-    titles: titles,
-    tmdbKey: tmdbKey,
-  );
-  return DharaApp(
-    settings: SettingsController(store),
-    resumeStore: ResumeStore(),
-    sourceTests: SourceTestController(
-      store: sources,
-      tester: SourceTester(deviceId: 'dhara-test'),
-    ),
-    index: index,
-    titles: titles,
-    tmdbKey: tmdbKey,
-    match: match,
-    review: ReviewController(
-      library: library,
-      titles: titles,
-      match: match,
-      tmdbKey: tmdbKey,
-    ),
-    anime: AnimeController(library: library),
-  );
-}
+import 'support/test_app.dart';
 
 void main() {
-  testWidgets('app boots on the open-URL screen', (tester) async {
-    await tester.pumpWidget(_app());
+  testWidgets('the app boots into the shell, on Home', (tester) async {
+    await tester.pumpWidget(testApp().app);
 
+    expect(find.byType(AppShell), findsOneWidget);
     expect(find.byKey(const Key('app-title')), findsOneWidget);
-    expect(find.byKey(const Key('url-field')), findsOneWidget);
-    expect(find.byKey(const Key('play-button')), findsOneWidget);
+    expect(find.byKey(const Key('shell-search')), findsOneWidget);
+    expect(find.byKey(const Key('rail-home')), findsOneWidget);
   });
 
-  testWidgets('rejects a non-http URL without opening the player',
-      (tester) async {
-    await tester.pumpWidget(_app());
+  testWidgets('the whole app is scaled and can show messages', (tester) async {
+    await tester.pumpWidget(testApp().app);
 
-    await tester.enterText(
-      find.byKey(const Key('url-field')),
-      'file:///C:/Windows/win.ini',
-    );
-    await tester.tap(find.byKey(const Key('play-button')));
-    await tester.pump();
-
+    final shell = find.byType(AppShell);
     expect(
-      find.text('Enter a full http:// or https:// video URL.'),
+      find.ancestor(of: shell, matching: find.byType(DharaScale)),
       findsOneWidget,
     );
-    expect(find.byKey(const Key('url-field')), findsOneWidget);
-  });
-
-  testWidgets('names the bad line when several URLs are pasted',
-      (tester) async {
-    await tester.pumpWidget(_app());
-
-    await tester.enterText(
-      find.byKey(const Key('url-field')),
-      'http://h.example/e01.mkv\nsmb://h.example/e02.mkv',
-    );
-    await tester.tap(find.byKey(const Key('play-button')));
-    await tester.pump();
-
     expect(
-      find.text('Line 2 is not a full http:// or https:// video URL.'),
+      find.ancestor(of: shell, matching: find.byType(ToastHost)),
       findsOneWidget,
     );
-    expect(find.byKey(const Key('url-field')), findsOneWidget);
   });
 }

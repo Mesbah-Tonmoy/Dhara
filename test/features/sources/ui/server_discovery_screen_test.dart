@@ -610,7 +610,7 @@ void main() {
     expect(find.text('ISP'), findsNothing);
   });
 
-  testWidgets('opens from the start screen and goes back', (tester) async {
+  testWidgets('opens from the rail and goes back to Home', (tester) async {
     tester.view.physicalSize = const Size(1600, 1000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -652,14 +652,14 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const Key('open-discovery')));
+    await tester.tap(find.byKey(const Key('rail-discovery')));
     await tester.pumpAndSettle();
     expect(find.text('Server Discovery'), findsOneWidget);
     expect(find.text('Server alpha'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('url-field')), findsOneWidget);
+    expect(find.byKey(const Key('app-title')), findsOneWidget);
   });
 
   group('uniqueSourceId', () {

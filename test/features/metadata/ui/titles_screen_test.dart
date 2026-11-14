@@ -401,7 +401,7 @@ void main() {
     expect(find.text('2 copies'), findsOneWidget);
   });
 
-  testWidgets('opens from the start screen and goes back', (tester) async {
+  testWidgets('opens from the rail and goes back to Home', (tester) async {
     final titles = await prepare(tester, library);
     final sources = titles.index.sources;
     final tests = SourceTestController(
@@ -423,14 +423,14 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const Key('open-titles')));
+    await tester.tap(find.byKey(const Key('rail-titles')));
     await tester.pumpAndSettle();
     expect(find.text('Films and shows'), findsOneWidget);
     expect(card(tester, 'titles-films'), contains('| 2 |'));
 
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('url-field')), findsOneWidget);
+    expect(find.byKey(const Key('app-title')), findsOneWidget);
   });
 
   testWidgets('the TMDB key is added from here', (tester) async {

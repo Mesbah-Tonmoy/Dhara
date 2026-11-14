@@ -56,7 +56,8 @@ class _IndexScreenState extends State<IndexScreen> {
   }
 
   void _play(FileHit hit) => unawaited(
-    Navigator.of(context).push(
+    // Above the shell: the player takes the whole window.
+    Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(builder: (_) => PlayerScreen(urls: [hit.url])),
     ),
   );

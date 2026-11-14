@@ -22,8 +22,10 @@ import 'package:flutter/material.dart';
 typedef PlayUrls = void Function(BuildContext context, List<Uri> urls);
 
 void _openPlayer(BuildContext context, List<Uri> urls) => unawaited(
+  // Above the shell: the player takes the whole window.
   Navigator.of(
     context,
+    rootNavigator: true,
   ).push(MaterialPageRoute<void>(builder: (_) => PlayerScreen(urls: urls))),
 );
 
@@ -34,7 +36,11 @@ void _openPlayer(BuildContext context, List<Uri> urls) => unawaited(
 /// Phase 6. Titles, file names and folder paths come from the servers and
 /// are shown through plain `Text` widgets only.
 class TitlesScreen extends StatefulWidget {
-  const TitlesScreen({super.key, this.onPlay = _openPlayer});
+  const TitlesScreen({super.key, this.onPlay = _openPlayer, this.initialQuery});
+
+  /// What to search for as soon as the screen opens: what was typed into
+  /// the search field of the title bar.
+  final String? initialQuery;
 
   /// What a tap on a copy does; the player by default.
   final PlayUrls onPlay;
@@ -67,8 +73,14 @@ class _TitlesScreenState extends State<TitlesScreen> {
     final titles = TitlesScope.of(context);
     if (titles == _titles) return;
     _titles?.removeListener(_onTitlesChanged);
+    final first = _titles == null;
     _titles = titles..addListener(_onTitlesChanged);
     _wasReading = titles.isReading;
+    final query = widget.initialQuery;
+    if (first && query != null && query.trim().isNotEmpty) {
+      _query.text = query;
+      unawaited(_search(query));
+    }
   }
 
   @override

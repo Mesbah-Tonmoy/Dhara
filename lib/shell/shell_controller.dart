@@ -1,0 +1,190 @@
+import 'dart:async';
+
+import 'package:dhara/widgets/icons.dart';
+import 'package:flutter/material.dart';
+
+/// The places the navigation rail leads to.
+///
+/// The list grows as Phase 6 builds the screens of the prototype; until
+/// then the working screens of the earlier phases stand in.
+enum ShellDestination {
+  home('Home', DharaIcons.home),
+  titles('Films and shows', DharaIcons.search),
+  anime('Anime', DharaIcons.anime),
+  library('Library index', DharaIcons.library, low: true),
+  discovery('Server Discovery', DharaIcons.servers, low: true);
+
+  const ShellDestination(this.label, this.icon, {this.low = false});
+
+  final String label;
+  final IconData icon;
+
+  /// Kept at the foot of the rail, with the tools rather than the content.
+  final bool low;
+}
+
+/// Where the app is, and how it moves: the pages inside the shell (title
+/// bar and rail stay, the page between them changes).
+///
+/// The pages live in a [Navigator] of their own, [navigatorKey]. Its first
+/// page is always Home; a place of the rail is opened on top of Home,
+/// replacing the place that was open, and pages opened from there (a
+/// title, a list of copies) go on top of that. So Back always leads toward
+/// Home, and at most one place of the rail is alive at a time.
+class ShellController extends ChangeNotifier {
+  ShellController({required this.pageFor});
+
+  /// Builds the page of a place of the rail. For [ShellDestination.titles],
+  /// [query] is what to search for at once.
+  final Widget Function(ShellDestination destination, String? query) pageFor;
+
+  final navigatorKey = GlobalKey<NavigatorState>();
+
+  /// The search field of the title bar.
+  final searchFocus = FocusNode(debugLabel: 'title-bar-search');
+  final searchText = TextEditingController();
+
+  late final NavigatorObserver observer = _StackObserver(this);
+
+  final _stack = <Route<dynamic>>[];
+
+  /// The place of the rail the page on screen belongs to.
+  ShellDestination get current {
+    for (final route in _stack.reversed) {
+      final place = _placeOf(route);
+      if (place != null) return place;
+    }
+    return ShellDestination.home;
+  }
+
+  /// False on Home, where there is nothing to go back to.
+  bool get canGoBack => _stack.length > 1;
+
+  /// Opens [destination], unless it is what is on screen already.
+  void open(ShellDestination destination, {String? query}) {
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) return;
+    if (destination == ShellDestination.home) {
+      navigator.popUntil((route) => route.isFirst);
+      return;
+    }
+    final onTop = _stack.isNotEmpty && _placeOf(_stack.last) == destination;
+    if (onTop && query == null) return;
+    unawaited(
+      navigator.pushAndRemoveUntil(
+        routeFor(destination, query: query),
+        (route) => route.isFirst,
+      ),
+    );
+  }
+
+  /// The route that shows [destination].
+  Route<void> routeFor(ShellDestination destination, {String? query}) =>
+      MaterialPageRoute<void>(
+        settings: RouteSettings(name: destination.name),
+        builder: (_) => pageFor(destination, query),
+      );
+
+  /// One page back, if there is one.
+  void back() => unawaited(navigatorKey.currentState?.maybePop());
+
+  /// Puts the keyboard into the search field, with its text selected.
+  void focusSearch() {
+    searchFocus.requestFocus();
+    searchText.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: searchText.text.length,
+    );
+  }
+
+  /// Searches the library for what the search field holds.
+  void submitSearch() {
+    final text = searchText.text.trim();
+    if (text.isEmpty) return;
+    searchFocus.unfocus();
+    open(ShellDestination.titles, query: text);
+  }
+
+  static ShellDestination? _placeOf(Route<dynamic> route) {
+    final name = route.settings.name;
+    for (final place in ShellDestination.values) {
+      if (place.name == name) return place;
+    }
+    return null;
+  }
+
+  void _changed() {
+    // Routes change while the navigator builds; listeners rebuild after.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed) notifyListeners();
+    });
+  }
+
+  var _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    searchFocus.dispose();
+    searchText.dispose();
+    super.dispose();
+  }
+}
+
+class _StackObserver extends NavigatorObserver {
+  _StackObserver(this._shell);
+
+  final ShellController _shell;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _shell._stack.add(route);
+    _shell._changed();
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _shell._stack.remove(route);
+    _shell._changed();
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _shell._stack.remove(route);
+    _shell._changed();
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    final at = oldRoute == null ? -1 : _shell._stack.indexOf(oldRoute);
+    if (at >= 0 && newRoute != null) {
+      _shell._stack[at] = newRoute;
+    } else if (newRoute != null) {
+      _shell._stack.add(newRoute);
+    }
+    _shell._changed();
+  }
+}
+
+/// Makes the [ShellController] available to the pages inside the shell.
+class ShellScope extends InheritedNotifier<ShellController> {
+  const ShellScope({
+    super.key,
+    required ShellController controller,
+    required super.child,
+  }) : super(notifier: controller);
+
+  /// The controller; the calling widget rebuilds when the page changes.
+  static ShellController of(BuildContext context) {
+    final scope = context.dependOnInheritedWidgetOfExactType<ShellScope>();
+    assert(scope != null, 'No ShellScope above this widget');
+    return scope!.notifier!;
+  }
+
+  /// The controller, without rebuilding on changes (for event handlers).
+  static ShellController read(BuildContext context) {
+    final scope = context.getInheritedWidgetOfExactType<ShellScope>();
+    assert(scope != null, 'No ShellScope above this widget');
+    return scope!.notifier!;
+  }
+}
