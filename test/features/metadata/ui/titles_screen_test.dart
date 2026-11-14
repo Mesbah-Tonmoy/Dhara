@@ -6,6 +6,7 @@ import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
+import 'package:dhara/features/metadata/anime_controller.dart';
 import 'package:dhara/features/metadata/match_controller.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/metadata/release_name.dart';
@@ -418,6 +419,7 @@ void main() {
         tmdbKey: tmdbKey,
         match: match,
         review: review,
+        anime: AnimeController(library: const NoLibrary()),
       ),
     );
 

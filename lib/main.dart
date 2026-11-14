@@ -10,6 +10,7 @@ import 'package:dhara/core/secrets/windows_credential_store.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
+import 'package:dhara/features/metadata/anime_controller.dart';
 import 'package:dhara/features/metadata/episodes_controller.dart';
 import 'package:dhara/features/metadata/match_controller.dart';
 import 'package:dhara/features/metadata/review_controller.dart';
@@ -95,6 +96,8 @@ Future<void> main() async {
       tmdbKey: tmdbKey,
       match: match,
       review: review,
+      // AniList is asked when its screen is opened, not at start-up.
+      anime: AnimeController(library: library),
       images: images,
     ),
   );

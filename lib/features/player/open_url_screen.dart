@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dhara/core/net/media_url.dart';
 import 'package:dhara/features/indexer/ui/index_screen.dart';
+import 'package:dhara/features/metadata/ui/anime_screen.dart';
 import 'package:dhara/features/metadata/ui/titles_screen.dart';
 import 'package:dhara/features/player/player_screen.dart';
 import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
@@ -156,6 +157,18 @@ class _OpenUrlScreenState extends State<OpenUrlScreen> {
                       ),
                       icon: const Icon(Icons.movie_outlined),
                       label: const Text('Films and shows'),
+                    ),
+                    TextButton.icon(
+                      key: const Key('open-anime'),
+                      onPressed: () => unawaited(
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const AnimeScreen(),
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.auto_awesome_outlined),
+                      label: const Text('Anime (AniList)'),
                     ),
                   ],
                 ),

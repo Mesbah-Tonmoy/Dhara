@@ -2,6 +2,7 @@ import 'package:dhara/core/images/image_store.dart';
 import 'package:dhara/core/images/remote_image.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
+import 'package:dhara/features/metadata/anime_controller.dart';
 import 'package:dhara/features/metadata/match_controller.dart';
 import 'package:dhara/features/metadata/review_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
@@ -24,6 +25,7 @@ class DharaApp extends StatelessWidget {
     required this.tmdbKey,
     required this.match,
     required this.review,
+    required this.anime,
     this.images,
   });
 
@@ -35,6 +37,7 @@ class DharaApp extends StatelessWidget {
   final TmdbKeyController tmdbKey;
   final MatchController match;
   final ReviewController review;
+  final AnimeController anime;
 
   /// Where posters are kept; without it, placeholders are shown.
   final RemoteImageStore? images;
@@ -57,13 +60,16 @@ class DharaApp extends StatelessWidget {
                   controller: match,
                   child: ReviewScope(
                     controller: review,
-                    child: ImageStoreScope(
-                      store: images,
-                      child: MaterialApp(
-                        title: 'Dhara',
-                        debugShowCheckedModeBanner: false,
-                        theme: buildDharaTheme(),
-                        home: const OpenUrlScreen(),
+                    child: AnimeScope(
+                      controller: anime,
+                      child: ImageStoreScope(
+                        store: images,
+                        child: MaterialApp(
+                          title: 'Dhara',
+                          debugShowCheckedModeBanner: false,
+                          theme: buildDharaTheme(),
+                          home: const OpenUrlScreen(),
+                        ),
                       ),
                     ),
                   ),
