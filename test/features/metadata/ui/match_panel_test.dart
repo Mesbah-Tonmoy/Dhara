@@ -155,6 +155,53 @@ void main() {
       text(tester, 'match-counts'),
       '1 matched  ·  0 unsure  ·  1 not found  ·  0 not looked up yet',
     );
+    expect(
+      text(tester, 'match-status'),
+      startsWith('Every title has been looked up. "Check again"'),
+    );
+    expect(find.text('Match now'), findsNothing);
+  });
+
+  testWidgets('with everything looked up it offers to check again', (
+    tester,
+  ) async {
+    await show(tester, names: ['A (2001).mkv', 'B (2002).mkv']);
+    tmdb.addFilm(1, 'A', 2001);
+    await tester.runAsync(match.start);
+    await tester.pump();
+    final asked = tmdb.asked.length;
+
+    expect(find.text('Check again'), findsOneWidget);
+    await tester.runAsync(
+      () => tester.tap(find.byKey(const Key('match-start-stop'))),
+    );
+    await tester.pump();
+
+    expect(match.isRunning, isTrue);
+    expect(find.text('Stop'), findsOneWidget);
+    expect(
+      text(tester, 'match-status'),
+      'Judging the unsure and not-found titles again …',
+    );
+
+    await tester.runAsync(match.start);
+    await tester.pump();
+    // The answers that were kept are enough for this.
+    expect(tmdb.asked, hasLength(asked));
+    expect(
+      text(tester, 'match-counts'),
+      '1 matched  ·  0 unsure  ·  1 not found  ·  0 not looked up yet',
+    );
+    expect(find.text('Check again'), findsOneWidget);
+  });
+
+  testWidgets('with every title matched there is no button', (tester) async {
+    await show(tester, names: ['A (2001).mkv']);
+    tmdb.addFilm(1, 'A', 2001);
+
+    await tester.runAsync(match.start);
+    await tester.pump();
+
     expect(text(tester, 'match-status'), 'Every title has been looked up.');
     expect(find.byKey(const Key('match-start-stop')), findsNothing);
   });
@@ -189,6 +236,9 @@ void main() {
     await tester.runAsync(match.start);
     await tester.pump();
     expect(find.text('Stop'), findsNothing);
-    expect(text(tester, 'match-status'), 'Every title has been looked up.');
+    expect(
+      text(tester, 'match-status'),
+      startsWith('Every title has been looked up.'),
+    );
   });
 }

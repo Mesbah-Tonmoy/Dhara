@@ -373,8 +373,10 @@ The run asks at most about 16 times a second (TMDB allows about 40), waits
 as long as TMDB asks when told to slow down, and can be stopped and carried
 on. What a search found is kept for 30 days, so nothing is asked twice;
 each run first judges unsure and not-found titles again from those kept
-answers, without a request. The first run starts when asked for; titles
-that later crawls add are looked up by themselves.
+answers, without a request. Once every title has been looked up the button
+reads "Check again" and starts a run that does only that. The first run
+starts when asked for; titles that later crawls add are looked up by
+themselves.
 
 After a run, the seasons and episodes of matched shows are fetched for the
 seasons the library has (`EpisodesController`), and again every 14 days.

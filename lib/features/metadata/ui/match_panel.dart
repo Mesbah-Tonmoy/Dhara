@@ -22,7 +22,11 @@ class MatchPanel extends StatelessWidget {
         final counts = match.counts;
         final running = match.isRunning;
         final (status, color) = _status();
-        final canStart = tmdbKey.hasKey && (counts?.pending ?? 0) > 0;
+        final pending = counts?.pending ?? 0;
+        // With nothing left to look up, a run still judges the unsure and
+        // not-found titles again, by the rules as they are now.
+        final canStart =
+            tmdbKey.hasKey && (pending > 0 || (counts?.toReview ?? 0) > 0);
 
         return Container(
           padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
@@ -67,7 +71,7 @@ class MatchPanel extends StatelessWidget {
                       ? Icons.stop_rounded
                       : Icons.travel_explore_rounded,
                   label: !running
-                      ? 'Match now'
+                      ? (pending > 0 ? 'Match now' : 'Check again')
                       : match.isStopping
                       ? 'Stopping …'
                       : 'Stop',
@@ -86,6 +90,8 @@ class MatchPanel extends StatelessWidget {
   /// What to say below the numbers, and in which colour.
   (String, Color) _status() {
     final progress = match.progress;
+    final pending = match.counts?.pending ?? 0;
+    final toReview = match.counts?.toReview ?? 0;
     if (match.isRunning) {
       // What is left, not what this run has done: a run that was stopped
       // and started again carries on, and its own count starts at nothing.
@@ -93,7 +99,9 @@ class MatchPanel extends StatelessWidget {
       final time = match.timeLeft;
       return (
         progress == null || progress.total == 0
-            ? 'Asking TMDB …'
+            ? (pending == 0 && toReview > 0
+                  ? 'Judging the unsure and not-found titles again …'
+                  : 'Asking TMDB …')
             : time == null
             ? 'Asking TMDB … $left titles to go'
             : 'Asking TMDB … $left titles to go, about ${_about(time)}',
@@ -123,7 +131,13 @@ class MatchPanel extends StatelessWidget {
           DharaColors.text2,
         );
       case MatchEnd.finished:
-        return ('Every title has been looked up.', DharaColors.good);
+        return (
+          toReview > 0
+              ? 'Every title has been looked up. "Check again" judges the '
+                    'unsure and not-found ones again.'
+              : 'Every title has been looked up.',
+          DharaColors.good,
+        );
       case MatchEnd.noKey || null:
         break;
     }
@@ -134,12 +148,14 @@ class MatchPanel extends StatelessWidget {
         DharaColors.text2,
       );
     }
-    final pending = match.counts?.pending ?? 0;
     return (
-      pending == 0
-          ? 'Nothing to look up.'
-          : 'Looking everything up takes a while the first time; it can be '
-                'stopped and carried on later.',
+      pending > 0
+          ? 'Looking everything up takes a while the first time; it can be '
+                'stopped and carried on later.'
+          : toReview > 0
+          ? 'Every title has been looked up. "Check again" judges the unsure '
+                'and not-found ones again.'
+          : 'Nothing to look up.',
       DharaColors.text2,
     );
   }
