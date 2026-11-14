@@ -20,6 +20,16 @@ class _ReadOnlyStore extends MemorySecretStore {
 }
 
 void main() {
+  // What the stand-in for TMDB says about a key, and the keys it was asked
+  // about.
+  late TmdbKeyCheck answer;
+  late List<String> asked;
+
+  setUp(() {
+    answer = TmdbKeyCheck.accepted;
+    asked = [];
+  });
+
   Future<TmdbKeyController> show(
     WidgetTester tester, {
     SecretStore? store,
@@ -27,7 +37,13 @@ void main() {
   }) async {
     final secrets = store ?? MemorySecretStore();
     if (saved != null) await secrets.write('tmdb', saved);
-    final controller = TmdbKeyController(secrets);
+    final controller = TmdbKeyController(
+      secrets,
+      check: (key, kind) async {
+        asked.add(key);
+        return answer;
+      },
+    );
     addTearDown(controller.dispose);
     await tester.pumpWidget(
       MaterialApp(
@@ -130,6 +146,78 @@ void main() {
     expect(status(tester), 'No key saved.');
     expect(controller.hasKey, isFalse);
     expect(find.byKey(const Key('tmdb-key-remove')), findsNothing);
+  });
+
+  String? check(WidgetTester tester) {
+    final line = find.byKey(const Key('tmdb-key-check'));
+    return line.evaluate().isEmpty ? null : tester.widget<Text>(line).data;
+  }
+
+  testWidgets('asks TMDB about a key as soon as it is saved', (tester) async {
+    final controller = await show(tester);
+    await controller.load();
+    await tester.pump();
+    expect(find.byKey(const Key('tmdb-key-test')), findsNothing);
+    expect(check(tester), isNull);
+
+    await tester.enterText(find.byKey(const Key('tmdb-key-field')), _token);
+    await tester.tap(find.byKey(const Key('tmdb-key-save')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(asked, [_token]);
+    expect(check(tester), 'TMDB accepts this key.');
+    expect(find.textContaining('eyJ'), findsNothing);
+  });
+
+  testWidgets('Test key says what TMDB makes of the saved key', (tester) async {
+    final controller = await show(tester, saved: _apiKey);
+    await controller.load();
+    await tester.pump();
+    expect(check(tester), isNull, reason: 'not asked yet');
+
+    answer = TmdbKeyCheck.refused;
+    await tester.tap(find.byKey(const Key('tmdb-key-test')));
+    await tester.pump();
+    await tester.pump();
+    expect(check(tester), startsWith('TMDB does not accept this key.'));
+
+    answer = TmdbKeyCheck.unreachable;
+    await tester.tap(find.byKey(const Key('tmdb-key-test')));
+    await tester.pump();
+    await tester.pump();
+    expect(check(tester), startsWith('TMDB could not be reached.'));
+    expect(asked, [_apiKey, _apiKey]);
+
+    // What TMDB said was about the key that is gone now.
+    await tester.tap(find.byKey(const Key('tmdb-key-remove')));
+    await tester.pump();
+    expect(check(tester), isNull);
+  });
+
+  testWidgets('opens as a dialog and closes again', (tester) async {
+    final controller = TmdbKeyController(MemorySecretStore());
+    addTearDown(controller.dispose);
+    await controller.load();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildDharaTheme(),
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showTmdbKeyDialog(context, controller),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('tmdb-key-field')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('tmdb-key-close')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('tmdb-key-field')), findsNothing);
   });
 
   testWidgets('says so when the key cannot be saved', (tester) async {

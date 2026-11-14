@@ -1,0 +1,49 @@
+{
+  "_id": "5a00000000000000000000a1",
+  "air_date": "2017-09-12",
+  "episodes": [
+    {
+      "air_date": "2017-09-12",
+      "episode_number": 1,
+      "episode_type": "standard",
+      "id": 710101,
+      "name": "Static",
+      "overview": "The first night shift.",
+      "production_code": "",
+      "runtime": 47,
+      "season_number": 1,
+      "show_id": 70001,
+      "still_path": "/sQuietSignal0101.jpg",
+      "vote_average": 7.9,
+      "vote_count": 60,
+      "crew": [
+        { "department": "Directing", "job": "Director", "name": "A. Person" }
+      ],
+      "guest_stars": [{ "character": "Caller", "name": "B. Person" }]
+    },
+    {
+      "air_date": "2017-09-19",
+      "episode_number": 2,
+      "episode_type": "standard",
+      "id": 710102,
+      "name": "Carrier Wave",
+      "overview": "",
+      "production_code": "",
+      "runtime": null,
+      "season_number": 1,
+      "show_id": 70001,
+      "still_path": null,
+      "vote_average": 8.1,
+      "vote_count": 52,
+      "crew": [],
+      "guest_stars": []
+    },
+    { "id": 710199, "name": "Without a number" }
+  ],
+  "name": "Season 1",
+  "overview": "The first message.",
+  "id": 7101,
+  "poster_path": "/pQuietSignalS1.jpg",
+  "season_number": 1,
+  "vote_average": 8.0
+}

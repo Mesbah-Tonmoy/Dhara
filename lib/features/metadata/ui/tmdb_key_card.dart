@@ -50,6 +50,8 @@ class _TmdbKeyCardState extends State<TmdbKeyCard> {
       };
       if (problem == null) _field.clear();
     });
+    // A key that is saved is asked about at once.
+    if (problem == null) unawaited(widget.controller.test());
   }
 
   Future<void> _remove() async {
@@ -107,6 +109,14 @@ class _TmdbKeyCardState extends State<TmdbKeyCard> {
                 key: const Key('tmdb-key-status'),
                 style: TextStyle(fontSize: 13, color: color),
               ),
+              if (_checkLine(controller) case (final text, final tint)?) ...[
+                const SizedBox(height: 4),
+                Text(
+                  text,
+                  key: const Key('tmdb-key-check'),
+                  style: TextStyle(fontSize: 13, color: tint),
+                ),
+              ],
               const SizedBox(height: 12),
               TextField(
                 key: const Key('tmdb-key-field'),
@@ -139,6 +149,13 @@ class _TmdbKeyCardState extends State<TmdbKeyCard> {
                   ),
                   if (kind != null)
                     DharaPillButton(
+                      key: const Key('tmdb-key-test'),
+                      icon: Icons.wifi_tethering_rounded,
+                      label: 'Test key',
+                      onPressed: () => unawaited(controller.test()),
+                    ),
+                  if (kind != null)
+                    DharaPillButton(
                       key: const Key('tmdb-key-remove'),
                       icon: Icons.delete_outline,
                       label: 'Remove key',
@@ -158,3 +175,55 @@ class _TmdbKeyCardState extends State<TmdbKeyCard> {
     );
   }
 }
+
+/// What TMDB said about the saved key, and the colour to say it in; `null`
+/// if it has not been asked.
+(String, Color)? _checkLine(TmdbKeyController controller) {
+  if (controller.isChecking) return ('Asking TMDB …', DharaColors.text3);
+  return switch (controller.lastCheck) {
+    null => null,
+    TmdbKeyCheck.accepted => ('TMDB accepts this key.', DharaColors.good),
+    TmdbKeyCheck.refused => (
+      'TMDB does not accept this key. Copy it again from your TMDB '
+          'account settings.',
+      DharaColors.bad,
+    ),
+    TmdbKeyCheck.unreachable => (
+      'TMDB could not be reached. Check the connection and test again.',
+      DharaColors.warn,
+    ),
+  };
+}
+
+/// Shows the [TmdbKeyCard] in a dialog.
+Future<void> showTmdbKeyDialog(
+  BuildContext context,
+  TmdbKeyController controller,
+) => showDialog<void>(
+  context: context,
+  builder: (context) => Dialog(
+    backgroundColor: DharaColors.glassStrong,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 560),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TmdbKeyCard(controller: controller),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                key: const Key('tmdb-key-close'),
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  ),
+);

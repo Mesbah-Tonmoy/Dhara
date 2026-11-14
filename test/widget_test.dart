@@ -1,10 +1,12 @@
 import 'package:dhara/app.dart';
 import 'package:dhara/core/db/library_db.dart';
 import 'package:dhara/core/db/library_isolate.dart';
+import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
+import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
@@ -30,6 +32,7 @@ Widget _app() {
     ),
     index: index,
     titles: TitlesController(library: library, index: index),
+    tmdbKey: TmdbKeyController(MemorySecretStore()),
   );
 }
 

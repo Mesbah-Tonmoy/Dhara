@@ -4,6 +4,8 @@ import 'package:dhara/core/net/media_url.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
+import 'package:dhara/features/metadata/tmdb_key.dart';
+import 'package:dhara/features/metadata/ui/tmdb_key_card.dart';
 import 'package:dhara/features/metadata/video_identity.dart';
 import 'package:dhara/features/player/player_screen.dart';
 import 'package:dhara/features/player/widgets/glass.dart';
@@ -100,6 +102,7 @@ class _TitlesScreenState extends State<TitlesScreen> {
   @override
   Widget build(BuildContext context) {
     final titles = TitlesScope.of(context);
+    final tmdbKey = TmdbKeyScope.of(context);
     final hits = _hits;
 
     return Scaffold(
@@ -115,12 +118,28 @@ class _TitlesScreenState extends State<TitlesScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const _Header(
-                        title: 'Films and shows',
-                        subtitle:
-                            'Every copy of a film, and every episode of a '
-                            'show, under one title: worked out from the '
-                            'names of the files and folders in the index.',
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.end,
+                        spacing: 16,
+                        runSpacing: 14,
+                        children: [
+                          const _Header(
+                            title: 'Films and shows',
+                            subtitle:
+                                'Every copy of a film, and every episode of '
+                                'a show, under one title: worked out from '
+                                'the names of the files and folders in the '
+                                'index.',
+                          ),
+                          DharaPillButton(
+                            key: const Key('titles-tmdb-key'),
+                            icon: Icons.key_outlined,
+                            label: tmdbKey.hasKey ? 'TMDB key' : 'Add TMDB key',
+                            onPressed: () =>
+                                unawaited(showTmdbKeyDialog(context, tmdbKey)),
+                          ),
+                        ],
                       ),
                       if (titles.failed) ...[
                         const SizedBox(height: 16),

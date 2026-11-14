@@ -1,12 +1,14 @@
 import 'package:dhara/app.dart';
 import 'package:dhara/core/db/library_db.dart';
 import 'package:dhara/core/db/library_isolate.dart';
+import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/metadata/release_name.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
+import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/metadata/ui/titles_screen.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/source.dart';
@@ -71,8 +73,32 @@ TitleCopy _copy(
   extra: extra,
 );
 
+/// Shaped like TMDB's, made up.
+final _token = 'eyJhbGciOiJIUzI1NiJ9.${'a' * 120}.${'b' * 43}';
+
 void main() {
   late List<List<Uri>> played;
+  late TmdbKeyController tmdbKey;
+
+  setUp(() {
+    tmdbKey = TmdbKeyController(
+      MemorySecretStore(),
+      check: (key, kind) async => TmdbKeyCheck.accepted,
+    );
+    addTearDown(tmdbKey.dispose);
+  });
+
+  /// [home] with the controllers it looks for above it.
+  Widget scoped(TitlesController titles, Widget home) => IndexScope(
+    controller: titles.index,
+    child: TitlesScope(
+      controller: titles,
+      child: TmdbKeyScope(
+        controller: tmdbKey,
+        child: MaterialApp(theme: buildDharaTheme(), home: home),
+      ),
+    ),
+  );
 
   /// The controllers over an index that [fill] has prepared, with the names
   /// already read. "flix" and "icc" are switched on; "media" is an Emby
@@ -122,16 +148,7 @@ void main() {
   ) async {
     final titles = await prepare(tester, fill);
     await tester.pumpWidget(
-      IndexScope(
-        controller: titles.index,
-        child: TitlesScope(
-          controller: titles,
-          child: MaterialApp(
-            theme: buildDharaTheme(),
-            home: TitlesScreen(onPlay: (_, urls) => played.add(urls)),
-          ),
-        ),
-      ),
+      scoped(titles, TitlesScreen(onPlay: (_, urls) => played.add(urls))),
     );
     return titles;
   }
@@ -213,18 +230,7 @@ void main() {
       titles.dispose();
       index.dispose();
     });
-    await tester.pumpWidget(
-      IndexScope(
-        controller: index,
-        child: TitlesScope(
-          controller: titles,
-          child: MaterialApp(
-            theme: buildDharaTheme(),
-            home: const TitlesScreen(),
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(scoped(titles, const TitlesScreen()));
     expect(card(tester, 'titles-films'), contains('| – |'));
 
     await index.load();
@@ -372,6 +378,7 @@ void main() {
         sourceTests: tests,
         index: titles.index,
         titles: titles,
+        tmdbKey: tmdbKey,
       ),
     );
 
@@ -383,6 +390,26 @@ void main() {
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('url-field')), findsOneWidget);
+  });
+
+  testWidgets('the TMDB key is added from here', (tester) async {
+    await show(tester, library);
+    await tester.runAsync(tmdbKey.load);
+    await tester.pump();
+    expect(find.text('Add TMDB key'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('titles-tmdb-key')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('tmdb-key-field')), _token);
+    await tester.tap(find.byKey(const Key('tmdb-key-save')));
+    await tester.pumpAndSettle();
+    expect(find.text('TMDB accepts this key.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('tmdb-key-close')));
+    await tester.pumpAndSettle();
+    expect(find.text('TMDB key'), findsOneWidget);
+    expect(find.text('Add TMDB key'), findsNothing);
+    expect(tmdbKey.hasKey, isTrue);
   });
 
   group('episodesFrom', () {

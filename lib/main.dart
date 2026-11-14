@@ -4,10 +4,13 @@ import 'dart:io';
 import 'package:dhara/app.dart';
 import 'package:dhara/core/db/library_db.dart';
 import 'package:dhara/core/db/library_isolate.dart';
+import 'package:dhara/core/secrets/secret_store.dart';
+import 'package:dhara/core/secrets/windows_credential_store.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
+import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/device_id.dart';
 import 'package:dhara/features/sources/source.dart';
@@ -45,6 +48,12 @@ Future<void> main() async {
   // Reads the names of the indexed videos whenever the index has changed;
   // the first time is when the index is loaded below.
   final titles = TitlesController(library: library, index: index);
+  // The TMDB key lives in the secure storage of the system. Other systems
+  // than Windows have none the app can use yet: there it lasts for this run.
+  final tmdbKey = TmdbKeyController(
+    Platform.isWindows ? const WindowsCredentialStore() : MemorySecretStore(),
+  );
+  unawaited(tmdbKey.load());
   // Positions go to the database only if it is the one on disk; with a
   // stand-in for this run they stay in the settings file, where they were.
   final resumeStore = ResumeStore(librarySaved ? library : null);
@@ -56,6 +65,7 @@ Future<void> main() async {
       sourceTests: sourceTests,
       index: index,
       titles: titles,
+      tmdbKey: tmdbKey,
     ),
   );
   // Notice enabled servers that died since they were last tested.

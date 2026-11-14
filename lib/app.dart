@@ -1,6 +1,7 @@
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
+import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/player/open_url_screen.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
@@ -16,6 +17,7 @@ class DharaApp extends StatelessWidget {
     required this.sourceTests,
     required this.index,
     required this.titles,
+    required this.tmdbKey,
   });
 
   final SettingsController settings;
@@ -23,6 +25,7 @@ class DharaApp extends StatelessWidget {
   final SourceTestController sourceTests;
   final IndexController index;
   final TitlesController titles;
+  final TmdbKeyController tmdbKey;
 
   @override
   Widget build(BuildContext context) {
@@ -36,11 +39,14 @@ class DharaApp extends StatelessWidget {
             controller: index,
             child: TitlesScope(
               controller: titles,
-              child: MaterialApp(
-                title: 'Dhara',
-                debugShowCheckedModeBanner: false,
-                theme: buildDharaTheme(),
-                home: const OpenUrlScreen(),
+              child: TmdbKeyScope(
+                controller: tmdbKey,
+                child: MaterialApp(
+                  title: 'Dhara',
+                  debugShowCheckedModeBanner: false,
+                  theme: buildDharaTheme(),
+                  home: const OpenUrlScreen(),
+                ),
               ),
             ),
           ),

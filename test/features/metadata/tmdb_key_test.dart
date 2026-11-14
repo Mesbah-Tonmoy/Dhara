@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -148,6 +151,104 @@ void main() {
 
       expect(controller.hasKey, isFalse);
       expect(changes, 1);
+    });
+
+    group('test', () {
+      late List<(String, TmdbKeyKind)> asked;
+      late TmdbKeyCheck answer;
+
+      TmdbKeyController checking({TmdbKeyChecker? check}) {
+        final made = TmdbKeyController(
+          store,
+          check:
+              check ??
+              (key, kind) async {
+                asked.add((key, kind));
+                return answer;
+              },
+        );
+        addTearDown(made.dispose);
+        return made;
+      }
+
+      setUp(() {
+        asked = [];
+        answer = TmdbKeyCheck.accepted;
+      });
+
+      test('asks TMDB about the saved key and keeps the answer', () async {
+        final keys = checking();
+        await keys.load();
+        await keys.save(_token);
+        expect(keys.lastCheck, isNull);
+
+        final states = <bool>[];
+        keys.addListener(() => states.add(keys.isChecking));
+        expect(await keys.test(), TmdbKeyCheck.accepted);
+
+        expect(asked, [(_token, TmdbKeyKind.accessToken)]);
+        expect(keys.lastCheck, TmdbKeyCheck.accepted);
+        expect(keys.isChecking, isFalse);
+        expect(states, [true, false]);
+
+        answer = TmdbKeyCheck.refused;
+        expect(await keys.test(), TmdbKeyCheck.refused);
+        expect(keys.lastCheck, TmdbKeyCheck.refused);
+      });
+
+      test('has nothing to ask without a key', () async {
+        final keys = checking();
+        await keys.load();
+
+        expect(await keys.test(), isNull);
+
+        expect(asked, isEmpty);
+        expect(keys.lastCheck, isNull);
+        expect(keys.isChecking, isFalse);
+      });
+
+      test('counts a check that breaks down as not reached', () async {
+        final keys = checking(
+          check: (key, kind) => throw const SocketException('offline'),
+        );
+        await keys.load();
+        await keys.save(_apiKey);
+
+        expect(await keys.test(), TmdbKeyCheck.unreachable);
+        expect(keys.lastCheck, TmdbKeyCheck.unreachable);
+      });
+
+      test('forgets the answer when the key changes or goes', () async {
+        final keys = checking();
+        await keys.load();
+        await keys.save(_token);
+        await keys.test();
+
+        await keys.save(_apiKey);
+        expect(keys.lastCheck, isNull);
+
+        await keys.test();
+        await keys.remove();
+        expect(keys.lastCheck, isNull);
+      });
+
+      test('drops an answer that is about a key since replaced', () async {
+        final slow = Completer<TmdbKeyCheck>();
+        final keys = checking(check: (key, kind) => slow.future);
+        await keys.load();
+        await keys.save(_token);
+
+        final old = keys.test();
+        await pumpEventQueue();
+        expect(keys.isChecking, isTrue);
+        await keys.save(_apiKey);
+        expect(keys.isChecking, isFalse);
+        slow.complete(TmdbKeyCheck.refused);
+        await old;
+
+        expect(keys.lastCheck, isNull);
+        expect(keys.isChecking, isFalse);
+      });
     });
 
     test('says so when the secure storage is out of order', () async {

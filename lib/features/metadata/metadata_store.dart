@@ -249,6 +249,45 @@ class MetadataStore {
     return title;
   }
 
+  /// The answer of [provider] kept under [key], unless it is older than
+  /// [maxAge].
+  String? cachedAnswer(
+    String provider,
+    String key, {
+    required Duration maxAge,
+  }) {
+    final rows = _db.select(
+      'SELECT body, fetched_at FROM metadata_cache '
+      'WHERE provider = ? AND key = ?',
+      [provider, key],
+    );
+    if (rows.isEmpty) return null;
+    final age =
+        _clock().millisecondsSinceEpoch - (rows.first['fetched_at'] as int);
+    // An answer from the future (the clock was set back) is not trusted
+    // either.
+    if (age < 0 || age > maxAge.inMilliseconds) return null;
+    return rows.first['body'] as String;
+  }
+
+  /// Keeps [body] as the answer of [provider] to [key], replacing an older
+  /// one.
+  void cacheAnswer(String provider, String key, String body) => _db.execute(
+    'INSERT OR REPLACE INTO metadata_cache '
+    '(provider, key, body, fetched_at) VALUES (?, ?, ?, ?)',
+    [provider, key, body, _clock().millisecondsSinceEpoch],
+  );
+
+  /// Drops the kept answers of [provider] that are older than [maxAge] and
+  /// returns how many.
+  int forgetAnswers(String provider, {required Duration maxAge}) {
+    _db.execute(
+      'DELETE FROM metadata_cache WHERE provider = ? AND fetched_at < ?',
+      [provider, _clock().millisecondsSinceEpoch - maxAge.inMilliseconds],
+    );
+    return _db.updatedRows;
+  }
+
   /// Removes the titles no video belongs to any more and returns how many.
   /// A title tied to its name by hand stays: its files may come back.
   int removeTitlesWithoutFiles() {
