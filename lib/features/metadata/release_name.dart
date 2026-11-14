@@ -39,6 +39,9 @@ enum MultiAudio {
   final String label;
 }
 
+/// A video that goes with a film without being the film.
+enum ExtraKind { trailer, sample }
+
 /// What the name of a video file or of its folder says about it.
 ///
 /// Every text in here comes from a server-controlled name: show it only
@@ -48,6 +51,12 @@ class ReleaseName {
   const ReleaseName({
     required this.title,
     this.year,
+    this.season,
+    this.episode,
+    this.episodeEnd,
+    this.episodeTitle,
+    this.part,
+    this.extra,
     this.height,
     this.source,
     this.codec,
@@ -58,8 +67,24 @@ class ReleaseName {
   });
 
   /// The name of the film or show, as written, without the release tags.
+  /// Empty if the name starts with the episode ("S01E02.mkv", "Season 1").
   final String title;
   final int? year;
+
+  /// "S01", "Season 1"; `null` with an [episode] means the episodes are
+  /// numbered straight through, as anime releases do.
+  final int? season;
+  final int? episode;
+
+  /// The last episode, if the file holds several ("S01E01-E03").
+  final int? episodeEnd;
+
+  /// The words after the episode number, if any.
+  final String? episodeTitle;
+
+  /// "CD1", "Disc 2": one piece of a film that comes in several files.
+  final int? part;
+  final ExtraKind? extra;
 
   /// Picture height in lines: 720, 1080, 2160.
   final int? height;
@@ -76,24 +101,29 @@ class ReleaseName {
 
   @override
   String toString() =>
-      'ReleaseName("$title", $year, $height, ${source?.label}, '
-      '${codec?.label}, ${audio?.label}, $languages, 3D: $is3d, $group)';
+      'ReleaseName("$title", $year, S$season E$episode-$episodeEnd '
+      '"$episodeTitle", part $part, ${extra?.name}, $height, '
+      '${source?.label}, ${codec?.label}, ${audio?.label}, $languages, '
+      '3D: $is3d, $group)';
 }
 
 /// Reads a release-style [name]: of a video file (the extension is dropped)
 /// or of a folder.
 ///
 /// The title ends at the year, or else at the first tag that cannot be part
-/// of a title (`720p`, `BluRay`, `x264`, a `[tag]`). A year is a number from
-/// 1900 to [latestYear] (next year by default) with something in front of
-/// it, so `1917.2019.1080p` is the film "1917" from 2019.
+/// of a title (`720p`, `BluRay`, `x264`, `S01E02`, a `[tag]`). A year is a
+/// number from 1900 to [latestYear] (next year by default) with something in
+/// front of it, so `1917.2019.1080p` is the film "1917" from 2019.
+///
+/// Episodes are read from `S01E02`, `S01E01-E03`, `1x02`, `Season-01
+/// Episode-09`, `Episode 02`, `EP01` and, for anime, `Show - 05`.
 ///
 /// Never throws, whatever the name looks like.
 ReleaseName parseReleaseName(String name, {int? latestYear}) {
-  final stem = _stemOf(name);
+  final (stem, isFile) = _stemOf(name);
   final dotted = _dotsSeparate(stem);
   final tokens = _scan(stem, dotted: dotted);
-  final tags = _classify([for (final token in tokens) token.key]);
+  final tags = _classify([for (final token in tokens) token.key], tokens);
   final maxYear = latestYear ?? DateTime.now().year + 1;
 
   int? yearAt(int index) {
@@ -108,6 +138,24 @@ ReleaseName parseReleaseName(String name, {int? latestYear}) {
   var start = 0;
   while (start < tokens.length && tokens[start].kind == _Kind.bracket) {
     start++;
+  }
+  final groupsInFront = start;
+
+  // "Sample Vikingdom 2013", "Trailer - See No Evil 2", "Trailer #2 Need
+  // for Speed": not the film itself. "Trailer Park Boys" is one.
+  ExtraKind? extra;
+  if (tokens.length - start > 1 && tokens[start].kind == _Kind.word) {
+    final first = tokens[start].key;
+    final second = tokens[start + 1];
+    final numbered = _hashNumber.hasMatch(second.text);
+    if (first == 'sample') {
+      extra = ExtraKind.sample;
+      start++;
+    } else if (_trailerWords.contains(first) && (second.dash || numbered)) {
+      extra = ExtraKind.trailer;
+      start++;
+      if (numbered && tokens.length - start > 1) start++;
+    }
   }
 
   // "(1973) Ashani Sanket": the year comes first and the title follows.
@@ -125,13 +173,94 @@ ReleaseName parseReleaseName(String name, {int? latestYear}) {
     }
   }
 
-  // What ends the title for certain: a tag no title contains, or a "[tag]".
-  // The first word is never one ("Cam.2018.1080p").
-  var marker = tokens.length;
-  for (var i = start + 1; i < tokens.length; i++) {
-    if (tokens[i].kind == _Kind.bracket || (tags[i]?.strong ?? false)) {
-      marker = i;
+  // "1930 - Juno and the Paycock": a bare year in front, set off by a dash.
+  if (year == null &&
+      !titleless &&
+      tokens.length - start > 1 &&
+      tokens[start].kind == _Kind.word &&
+      tokens[start + 1].dash &&
+      tokens[start + 1].attached.isEmpty) {
+    year = yearAt(start);
+    if (year != null) start++;
+  }
+
+  // Words that only sometimes number an episode.
+  final hasSeason = tags.any((tag) => tag?.season != null);
+  for (var i = start; i < tokens.length; i++) {
+    final tag = tags[i];
+    if (tag == null || i + 1 >= tokens.length || tags[i + 1] != tag) continue;
+    var keep = true;
+    if (tag.episodeWord && !hasSeason) {
+      // "Star Wars Episode 1 The Phantom Menace (1999)" is a film.
+      for (var k = i + 2; k < tokens.length && keep; k++) {
+        if (yearAt(k) != null) keep = false;
+      }
+    } else if (tag.seasonWord) {
+      // "Open Season 2 (2008) 720p" is a film; "Archer Season 3", "Season 01
+      // (2019)", "Season-03 Episode-17" and "(2019) Season 1 Complete" are
+      // not.
+      final after = i + 2;
+      keep =
+          (after >= tokens.length && !isFile) ||
+          tokens[i + 1].text.startsWith('0') ||
+          (after < tokens.length && tags[after]?.episode != null);
+      for (var k = start; k < i && !keep; k++) {
+        keep = tokens[k].kind != _Kind.word && yearAt(k) != null;
+      }
+      for (var k = after; k < tokens.length && !keep; k++) {
+        final word = tokens[k].kind == _Kind.word
+            ? tokens[k].key
+            : tokens[k].text.toLowerCase();
+        keep = _completeWords.contains(word);
+      }
+    }
+    if (!keep) {
+      tags[i] = null;
+      tags[i + 1] = null;
+    }
+    i++;
+  }
+
+  // "[Group] Show - 05 [1080p]", "Show - 137": episodes numbered straight
+  // through, as anime releases do. Without a group in front it takes two
+  // digits and no year, so that "Rocky - 2 (1979)" stays a film.
+  if (!tags.any((tag) => tag?.episode != null)) {
+    var hasYear = false;
+    for (var i = 0; i < tokens.length && !hasYear; i++) {
+      hasYear = yearAt(i) != null;
+    }
+    for (var i = start + 1; i < tokens.length; i++) {
+      final token = tokens[i];
+      final number = token.kind == _Kind.word
+          ? _countedEpisode.firstMatch(token.key)?.group(1)
+          : null;
+      if (number == null || !token.dash || token.attached.isNotEmpty) continue;
+      if (yearAt(i) != null) continue;
+      if (tags[i] != null && tags[i]!.height == null) continue;
+      if (groupsInFront == 0 && (hasYear || number.length < 2)) continue;
+      final ends =
+          i + 1 >= tokens.length ||
+          tokens[i + 1].kind != _Kind.word ||
+          (tags[i + 1]?.strong ?? false);
+      if (!ends) continue;
+      tags[i] = _Tag(strong: true, episode: int.parse(number));
       break;
+    }
+  }
+
+  // What ends the title for certain: a tag no title contains, or a "[tag]".
+  // The first word is never one ("Cam.2018.1080p", "10x10 (2018)"), unless
+  // it numbers an episode ("S01E02.mkv", "Season 1").
+  var marker = tokens.length;
+  final leads = start < tokens.length && (tags[start]?.leads ?? false);
+  if (leads) {
+    marker = start;
+  } else {
+    for (var i = start + 1; i < tokens.length; i++) {
+      if (tokens[i].kind == _Kind.bracket || (tags[i]?.strong ?? false)) {
+        marker = i;
+        break;
+      }
     }
   }
 
@@ -151,7 +280,7 @@ ReleaseName parseReleaseName(String name, {int? latestYear}) {
       if (tokens[i].kind == _Kind.word && yearAt(i) != null) position = i;
     }
     // Or a "[2014]" in front of the title.
-    for (var i = 0; i < start && position == null; i++) {
+    for (var i = 0; i < groupsInFront && position == null; i++) {
       if (yearAt(i) != null) position = i;
     }
     if (position != null) {
@@ -170,6 +299,33 @@ ReleaseName parseReleaseName(String name, {int? latestYear}) {
       end--;
     }
   }
+  // "Bones The Complete Season 2".
+  if (marker < tokens.length && tags[marker]?.season != null) {
+    while (end - start > 1 && _completeWords.contains(tokens[end - 1].key)) {
+      end--;
+    }
+    if (end < marker &&
+        end - start > 1 &&
+        _completeWords.contains(tokens[end].key) &&
+        tokens[end - 1].key == 'the') {
+      end--;
+    }
+  }
+  // "HALKa Trailer", "Man of Steel Official Trailer 3".
+  if (end - start > 1) {
+    var last = end - 1;
+    if (last - start > 1 && _smallNumber.hasMatch(tokens[last].key)) last--;
+    final trailer = tags[last]?.extra;
+    if (trailer != null && last > start) {
+      extra ??= trailer;
+      end = last;
+      while (end - start > 1 && _trailerKinds.contains(tokens[end - 1].key)) {
+        end--;
+      }
+    }
+  } else if (end - start == 1 && tokens[start].key == 'sample') {
+    extra ??= ExtraKind.sample;
+  }
   // "Reindeer Games Directors Cut (2000)".
   while (end - start > 1) {
     final last = tokens[end - 1].key;
@@ -185,18 +341,44 @@ ReleaseName parseReleaseName(String name, {int? latestYear}) {
   }
 
   var title = _titleOf(tokens.sublist(start, end), dotted: dotted);
-  if (title.isEmpty) {
+  var titleFromTag = false;
+  if (title.isEmpty && !leads) {
     // "[REC] (2007)": the tag in front was the title after all.
-    final fallback = tokens.isNotEmpty && tokens.first.kind == _Kind.bracket
-        ? tokens.first.text
-        : stem;
+    titleFromTag = tokens.isNotEmpty && tokens.first.kind == _Kind.bracket;
+    final fallback = titleFromTag ? tokens.first.text : stem;
     title = fallback.replaceAll(_spaces, ' ').trim();
   }
 
-  // Everything outside the title is searched for tags.
+  // "S01E06_The Spider and the Web": the words after the episode number, up
+  // to the next certain tag. If tags follow, loose ones are not part of it
+  // ("S01E02 Hindi 720p").
+  String? episodeTitle;
+  var tail = end;
+  var wordsFrom = tokens.length;
+  final episodeAt = tags.lastIndexWhere((tag) => tag?.episode != null);
+  if (episodeAt >= end) {
+    wordsFrom = episodeAt + 1;
+    var stop = wordsFrom;
+    while (stop < tokens.length &&
+        tokens[stop].kind == _Kind.word &&
+        !(tags[stop]?.strong ?? false) &&
+        yearAt(stop) == null) {
+      stop++;
+    }
+    if (stop < tokens.length) {
+      while (stop > wordsFrom && tags[stop - 1] != null) {
+        stop--;
+      }
+    }
+    tail = stop;
+    final words = _titleOf(tokens.sublist(wordsFrom, stop), dotted: dotted);
+    if (words.isNotEmpty) episodeTitle = words;
+  }
+
+  // Everything outside the title and those words is searched for tags.
   final found = _Found();
   for (var i = 0; i < tokens.length; i++) {
-    if (i >= start && i < end) continue;
+    if ((i >= start && i < end) || (i >= wordsFrom && i < tail)) continue;
     final token = tokens[i];
     if (token.kind == _Kind.word) {
       final tag = tags[i];
@@ -205,32 +387,55 @@ ReleaseName parseReleaseName(String name, {int? latestYear}) {
       final keys = [
         for (final part in token.text.split(_innerSeparators)) _keyOf(part),
       ];
-      _classify(keys).nonNulls.forEach(found.add);
+      // A pair of words has one tag between them.
+      final inside = _classify(keys).nonNulls.toSet();
+      // "(EP01-EP06)" says what a folder holds, not which episode this is.
+      final range = inside.where((tag) => tag.episode != null).length > 1;
+      for (final tag in inside) {
+        if (!range || tag.episode == null) found.add(tag);
+      }
     }
+  }
+
+  var group = found.release ? _groupOf(tokens, tags, tail) : null;
+  if (group == null &&
+      groupsInFront > 0 &&
+      !titleFromTag &&
+      yearAt(0) == null) {
+    // "[SubsPlease] Show - 05": anime releases name the group in front.
+    final name = tokens.first.text.replaceFirst(_siteEnding, '');
+    if (_groupName.hasMatch(name) && _tagOf(_keyOf(name)) == null) group = name;
   }
 
   return ReleaseName(
     title: title,
     year: year,
+    season: found.season,
+    episode: found.episode,
+    episodeEnd: found.episodeEnd,
+    episodeTitle: episodeTitle,
+    part: found.part,
+    extra: extra ?? found.extra,
     height: found.height ?? found.looseHeight,
     source: found.source ?? found.looseSource,
     codec: found.codec,
     audio: found.audio,
     languages: List.unmodifiable(found.languages),
     is3d: found.is3d,
-    group: found.any ? _groupOf(tokens, tags, end) : null,
+    group: group,
   );
 }
 
-/// The name without invisible characters and without a video extension.
-String _stemOf(String name) {
+/// The name without invisible characters and without a video extension, and
+/// whether it had one.
+(String, bool) _stemOf(String name) {
   final clean = name.replaceAll(_invisible, '').trim();
   final dot = clean.lastIndexOf('.');
   if (dot > 0 &&
       videoFileExtensions.contains(clean.substring(dot + 1).toLowerCase())) {
-    return clean.substring(0, dot);
+    return (clean.substring(0, dot), true);
   }
-  return clean;
+  return (clean, false);
 }
 
 /// Whether the dots of [stem] stand for spaces ("The.Movie.2019") instead of
@@ -433,6 +638,14 @@ class _Tag {
     this.audio,
     this.language,
     this.is3d = false,
+    this.season,
+    this.episode,
+    this.episodeEnd,
+    this.part,
+    this.extra,
+    this.leads = false,
+    this.seasonWord = false,
+    this.episodeWord = false,
   });
 
   /// No title contains this word, so the title ends in front of it.
@@ -446,11 +659,33 @@ class _Tag {
   final MultiAudio? audio;
   final String? language;
   final bool is3d;
+  final int? season;
+  final int? episode;
+  final int? episodeEnd;
+  final int? part;
+  final ExtraKind? extra;
+
+  /// A name may start with it ("S01E02.mkv"), leaving no title.
+  final bool leads;
+
+  /// Spelled "Season 2" or "Episode 1", which a film title can hold too.
+  final bool seasonWord;
+  final bool episodeWord;
+
+  /// Says which piece this is, not how good the copy is.
+  bool get numbers =>
+      season != null || episode != null || part != null || extra != null;
 }
 
 /// The tags collected from one name.
 class _Found {
-  var any = false;
+  /// A tag about the copy itself was among them.
+  var release = false;
+  int? season;
+  int? episode;
+  int? episodeEnd;
+  int? part;
+  ExtraKind? extra;
   int? height;
   int? looseHeight;
   VideoSource? source;
@@ -461,7 +696,12 @@ class _Found {
   var is3d = false;
 
   void add(_Tag tag) {
-    any = true;
+    if (!tag.numbers) release = true;
+    season ??= tag.season;
+    episode ??= tag.episode;
+    episodeEnd ??= tag.episodeEnd;
+    part ??= tag.part;
+    extra ??= tag.extra;
     // "1080p" and "BluRay" count for more than a bare "1080" or "BD".
     if (tag.strong) {
       height ??= tag.height;
@@ -481,13 +721,17 @@ class _Found {
 }
 
 /// One entry per key: its tag, or `null`. Two words that make one tag
-/// ("WEB-DL", "Dual Audio", "H.264" cut at the dot) both get it.
-List<_Tag?> _classify(List<String> keys) {
+/// ("WEB-DL", "Dual Audio", "Season 2", "H.264" cut at the dot) both get
+/// the same one.
+///
+/// With the [tokens] the keys come from, "S01E01-E03" is read as a range.
+List<_Tag?> _classify(List<String> keys, [List<_Token>? tokens]) {
   final tags = List<_Tag?>.filled(keys.length, null);
   for (var i = 0; i < keys.length; i++) {
     final key = keys[i];
     if (key.isEmpty) continue;
-    final pair = i + 1 < keys.length ? _pairs['$key ${keys[i + 1]}'] : null;
+    final next = i + 1 < keys.length ? keys[i + 1] : '';
+    final pair = _pairs['$key $next'] ?? _numberedPair(key, next);
     if (pair != null) {
       tags[i] = pair;
       tags[i + 1] = pair;
@@ -496,7 +740,63 @@ List<_Tag?> _classify(List<String> keys) {
       tags[i] = _tagOf(key);
     }
   }
+  if (tokens == null) return tags;
+
+  for (var i = 0; i + 1 < keys.length; i++) {
+    final first = tags[i]?.episode;
+    if (first == null) continue;
+    // "-E03" reads as an episode of its own; "-03" as nothing.
+    final second = tags[i + 1];
+    if (second != null && (second.season != null || second.episode == null)) {
+      continue;
+    }
+    if (tokens[i + 1].attached != '-') continue;
+    final last = _rangeEnd.firstMatch(keys[i + 1])?.group(1);
+    if (last == null || int.parse(last) <= first) continue;
+    final range = _Tag(
+      strong: true,
+      season: tags[i]!.season,
+      episode: first,
+      episodeEnd: int.parse(last),
+    );
+    tags[i] = range;
+    tags[i + 1] = range;
+  }
   return tags;
+}
+
+/// "Season 2", "Episode 05", "S01 E02", "CD 1": a word and its number.
+_Tag? _numberedPair(String key, String next) {
+  if (key == 'season' && _smallNumber.hasMatch(next)) {
+    return _Tag(
+      strong: true,
+      leads: true,
+      seasonWord: true,
+      season: int.parse(next),
+    );
+  }
+  if (_episodeWords.contains(key) && _episodeNumber.hasMatch(next)) {
+    return _Tag(
+      strong: true,
+      leads: true,
+      episodeWord: true,
+      episode: int.parse(next),
+    );
+  }
+  final season = _seasonOnly.firstMatch(key)?.group(1);
+  final episode = _episodeOnly.firstMatch(next)?.group(1);
+  if (season != null && episode != null) {
+    return _Tag(
+      strong: true,
+      leads: true,
+      season: int.parse(season),
+      episode: int.parse(episode),
+    );
+  }
+  if (_partWords.contains(key) && _oneDigit.hasMatch(next)) {
+    return _Tag(strong: true, part: int.parse(next));
+  }
+  return null;
 }
 
 _Tag? _tagOf(String key) {
@@ -504,6 +804,38 @@ _Tag? _tagOf(String key) {
   final flat = key.replaceAll('.', '');
   final known = _words[flat];
   if (known != null) return known;
+
+  final numbered = _seasonEpisode.firstMatch(key);
+  if (numbered != null) {
+    final last = numbered.group(3);
+    return _Tag(
+      strong: true,
+      leads: true,
+      season: int.parse(numbered.group(1)!),
+      episode: int.parse(numbered.group(2)!),
+      episodeEnd: last == null ? null : int.parse(last),
+    );
+  }
+  final crossed = _crossed.firstMatch(key);
+  if (crossed != null) {
+    return _Tag(
+      strong: true,
+      season: int.parse(crossed.group(1)!),
+      episode: int.parse(crossed.group(2)!),
+    );
+  }
+  final season = _seasonOnly.firstMatch(key)?.group(1);
+  if (season != null) {
+    return _Tag(strong: true, leads: true, season: int.parse(season));
+  }
+  final episode =
+      _episodeOnly.firstMatch(key)?.group(1) ??
+      _episodeJoined.firstMatch(key)?.group(1);
+  if (episode != null) {
+    return _Tag(strong: true, leads: true, episode: int.parse(episode));
+  }
+  final part = _partJoined.firstMatch(key)?.group(1);
+  if (part != null) return _Tag(strong: true, part: int.parse(part));
 
   final lines = _resolution.firstMatch(key)?.group(1);
   if (lines != null && _heights.contains(lines)) {
@@ -577,6 +909,11 @@ const _words = <String, _Tag>{
   'sbs': _threeD,
   'hsbs': _threeD,
   'hou': _threeD,
+  'trailer': _Tag(extra: ExtraKind.trailer),
+  'teaser': _Tag(extra: ExtraKind.trailer),
+  'sample': _Tag(extra: ExtraKind.sample),
+  'complete': _noise,
+  'completed': _noise,
   'esub': _strongNoise,
   'esubs': _strongNoise,
   'msub': _strongNoise,
@@ -675,6 +1012,14 @@ const _languages = <String, String>{
 
 const _heights = {'360', '480', '540', '576', '720', '1080', '1440', '2160'};
 
+const _episodeWords = {'episode', 'epi', 'ep'};
+const _partWords = {'cd', 'disc', 'disk'};
+const _trailerWords = {'trailer', 'teaser'};
+
+/// "Official Trailer", "Theatrical Trailer".
+const _trailerKinds = {'official', 'theatrical', 'teaser', 'final'};
+const _completeWords = {'complete', 'completed'};
+
 /// "Extended", and "Directors Cut" as kind and noun, at the end of a title.
 const _editionWords = {'extended', 'unrated', 'remastered', 'uncut'};
 const _editionNouns = {'cut', 'edition', 'version'};
@@ -712,6 +1057,20 @@ final _siteEnding = RegExp(
   caseSensitive: false,
 );
 final _fourDigits = RegExp(r'^\d{4}$');
+final _oneDigit = RegExp(r'^\d$');
+final _smallNumber = RegExp(r'^\d{1,2}$');
+final _episodeNumber = RegExp(r'^\d{1,3}$');
+final _hashNumber = RegExp(r'^#\d+$');
+final _seasonEpisode = RegExp(r'^s(\d{1,2})e(\d{1,3})(?:e(\d{1,3}))?$');
+final _seasonOnly = RegExp(r'^s(\d{1,2})$');
+final _episodeOnly = RegExp(r'^e(\d{2,3})$');
+final _episodeJoined = RegExp(r'^(?:episode|epi|ep)(\d{1,3})$');
+final _crossed = RegExp(r'^(\d{1,2})x(\d{2,3})$');
+final _partJoined = RegExp(r'^(?:cd|disc|disk)(\d)$');
+final _rangeEnd = RegExp(r'^e?(\d{1,3})$');
+
+/// "05", "137", "05v2" after a dash.
+final _countedEpisode = RegExp(r'^(\d{1,4})(?:v\d)?$');
 final _resolution = RegExp(r'^(\d{3,4})[pi]$');
 final _fileSize = RegExp(r'^\d+(\.\d+)?[mg]b$');
 final _channels = RegExp(r'^\d\.\d$');

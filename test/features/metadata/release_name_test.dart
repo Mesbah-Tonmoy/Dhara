@@ -253,6 +253,9 @@ void main() {
     test('the year in front, as some folders have it', () {
       expectTitles({
         '(1973) Ashani Sanket (Distant Thunder)': ('Ashani Sanket', 1973),
+        '1930 - Juno and the Paycock.avi': ('Juno and the Paycock', 1930),
+        // No dash: the number is the title.
+        '1917 Behind the Scenes.mkv': ('1917 Behind the Scenes', null),
         '(2019)': ('(2019)', 2019),
         '(1960-1994)': ('(1960-1994)', null),
       });
@@ -540,6 +543,357 @@ void main() {
         'MacGruber (2010).avi',
       ]) {
         expect(parse(name).group, isNull, reason: name);
+      }
+    });
+  });
+
+  group('episodes', () {
+    /// Title, season, episode and the words after the episode number.
+    void expectEpisodes(Map<String, (String, int?, int?, String?)> expected) {
+      for (final MapEntry(key: name, value: (title, season, episode, words))
+          in expected.entries) {
+        final parsed = parse(name);
+        expect(parsed.title, title, reason: name);
+        expect(parsed.season, season, reason: name);
+        expect(parsed.episode, episode, reason: name);
+        expect(parsed.episodeTitle, words, reason: name);
+      }
+    }
+
+    test('S01E02', () {
+      expectEpisodes({
+        'The Bay (2019) S01E02 1080p WEBDL.mkv': ('The Bay', 1, 2, null),
+        'Marvels Agents of S.H.I.E.L.D S06E02 1080p WEBRip.mkv': (
+          'Marvels Agents of S.H.I.E.L.D',
+          6,
+          2,
+          null,
+        ),
+        'The Widow S01E06_The Spider and the Web.mkv': (
+          'The Widow',
+          1,
+          6,
+          'The Spider and the Web',
+        ),
+        'Baywatch S10E18 Big Island Heat DVDRip.avi': (
+          'Baywatch',
+          10,
+          18,
+          'Big Island Heat',
+        ),
+        'Archer S03E07 Drift Problem.m4v': ('Archer', 3, 7, 'Drift Problem'),
+        'Show.Name.S02E10.Episode.Name.720p.WEB.x264-GRP.mkv': (
+          'Show Name',
+          2,
+          10,
+          'Episode Name',
+        ),
+        '12 Monkeys S01E05.mkv': ('12 Monkeys', 1, 5, null),
+        'show.s1e2.mkv': ('show', 1, 2, null),
+        'Show S01 E02 720p.mkv': ('Show', 1, 2, null),
+        'Show.S01.E02.Pilot.mkv': ('Show', 1, 2, 'Pilot'),
+      });
+    });
+
+    test('keeps the year and the tags apart from the episode', () {
+      final bay = parse('The Bay (2019) S01E02 1080p WEBDL.mkv');
+      expect(bay.year, 2019);
+      expect(bay.height, 1080);
+      expect(bay.source, VideoSource.webDl);
+
+      final web = parse(
+        'Morichika S01E05 2021 720P[FreeDriveMovie.com]WEBDL h264.mp4',
+      );
+      expect(web.title, 'Morichika');
+      expect(web.year, 2021);
+      expect((web.season, web.episode), (1, 5));
+      expect(web.episodeTitle, isNull);
+      expect(web.height, 720);
+      expect(web.group, isNull);
+    });
+
+    test('the words of an episode are not a release group', () {
+      expect(parse('Archer S03E07 Drift Problem.m4v').group, isNull);
+      expect(parse('Baywatch S10E18 Big Island Heat DVDRip.avi').group, isNull);
+      expect(
+        parse('Show.Name.S02E10.Episode.Name.720p.WEB.x264-GRP.mkv').group,
+        'GRP',
+      );
+    });
+
+    test('several episodes in one file', () {
+      final expected = {
+        'Show.S01E01-E03.720p.mkv': (1, 3),
+        'Show S01E01E02.mkv': (1, 2),
+        'Show.S01E01-03.mkv': (1, 3),
+        'Show S01E05.mkv': (5, null),
+        // Not a later episode, so not a range.
+        'Show.S01E05-GRP.mkv': (5, null),
+        'Show.S01E05-02.mkv': (5, null),
+      };
+      for (final MapEntry(key: name, value: (first, last))
+          in expected.entries) {
+        final parsed = parse(name);
+        expect(parsed.episode, first, reason: name);
+        expect(parsed.episodeEnd, last, reason: name);
+      }
+    });
+
+    test('spelled out', () {
+      expectEpisodes({
+        'Grimm Season-03 Episode-17 Synchronicity.mp4': (
+          'Grimm',
+          3,
+          17,
+          'Synchronicity',
+        ),
+        'Bones Season-01 Episode-09 The Man In The Fallout Shelter.mkv': (
+          'Bones',
+          1,
+          9,
+          'The Man In The Fallout Shelter',
+        ),
+        'Neel Dorja Episode - 01.mkv': ('Neel Dorja', null, 1, null),
+        'Nine And A Half Episode 2.MKV': ('Nine And A Half', null, 2, null),
+        'Show EP05 720p.mkv': ('Show', null, 5, null),
+        'Show Episode12.mkv': ('Show', null, 12, null),
+        'Show E05.mkv': ('Show', null, 5, null),
+      });
+    });
+
+    test('1x02', () {
+      expectEpisodes({
+        'Show 1x02 The Name.avi': ('Show', 1, 2, 'The Name'),
+        // A film: the first word is never an episode number of this kind.
+        '10x10 (2018) 720p BluRay x264 ESub [Dual Audio]'
+            '[Hindi 2.0+English 5.1] -MsMod.mkv': (
+          '10x10',
+          null,
+          null,
+          null,
+        ),
+      });
+    });
+
+    test('a name that starts with the episode has no title', () {
+      expectEpisodes({
+        'S01E02.mkv': ('', 1, 2, null),
+        'Episode 5.mkv': ('', null, 5, null),
+        'E05 - Pilot.mkv': ('', null, 5, 'Pilot'),
+        'Season 1': ('', 1, null, null),
+        'S02': ('', 2, null, null),
+      });
+    });
+
+    test('films with "Season" or "Episode" in the title', () {
+      expectEpisodes({
+        'Open Season 2 (2008) 720p BluRay.mkv': (
+          'Open Season 2',
+          null,
+          null,
+          null,
+        ),
+        'Open Season 3.mkv': ('Open Season 3', null, null, null),
+        'Star Wars Episode 1 The Phantom Menace (1999) 720p.mkv': (
+          'Star Wars Episode 1 The Phantom Menace',
+          null,
+          null,
+          null,
+        ),
+        'Killing.Season.2013.720p.BluRay.x264.YIFY.mp4': (
+          'Killing Season',
+          null,
+          null,
+          null,
+        ),
+      });
+    });
+
+    test('season folders', () {
+      final expected = {
+        'The Bay (2019) Season 1 Complete': ('The Bay', 2019, 1),
+        'Wu Assassins Season 01 (2019) Complete': ('Wu Assassins', 2019, 1),
+        'Marvels Agents of S H I E L D Season 06 (2019) Completed': (
+          'Marvels Agents of S H I E L D',
+          2019,
+          6,
+        ),
+        'Archer Season 3': ('Archer', null, 3),
+        'Bones The Complete Season 2': ('Bones', null, 2),
+        'Supernatural Season 10 Complete': ('Supernatural', null, 10),
+        'Baywatch S10': ('Baywatch', null, 10),
+        'The Strain S01 Season 1 Complete': ('The Strain', null, 1),
+        'Sherwood (2019) S01 Completed': ('Sherwood', 2019, 1),
+        'Neel Doorja Season 01 (2019)  Complete (EP01-EP06)': (
+          'Neel Doorja',
+          2019,
+          1,
+        ),
+      };
+      for (final MapEntry(key: name, value: (title, year, season))
+          in expected.entries) {
+        final parsed = parse(name);
+        expect(parsed.title, title, reason: name);
+        expect(parsed.year, year, reason: name);
+        expect(parsed.season, season, reason: name);
+        // "(EP01-EP06)" is what the folder holds.
+        expect(parsed.episode, isNull, reason: name);
+      }
+      expect(
+        parse(
+          'Mushishi Season 01 (2005) (Japanese & English) Completed',
+        ).languages,
+        ['Japanese', 'English'],
+      );
+    });
+
+    test('anime: numbered straight through after a dash', () {
+      expectEpisodes({
+        '[SubsPlease] Sousou no Frieren - 05 (1080p) [ABCD1234].mkv': (
+          'Sousou no Frieren',
+          null,
+          5,
+          null,
+        ),
+        '[Group] Show - 137 [720p].mkv': ('Show', null, 137, null),
+        '[Group]_Show_Name_-_05v2_[720p].mkv': ('Show Name', null, 5, null),
+        '[Group] Show - 5 [720p].mkv': ('Show', null, 5, null),
+        '[Group] Show S2 - 05 [1080p].mkv': ('Show', 2, 5, null),
+        'One Piece - 1071 [1080p].mkv': ('One Piece', null, 1071, null),
+        'Naruto Shippuden - 137.mkv': ('Naruto Shippuden', null, 137, null),
+      });
+      final parsed = parse(
+        '[SubsPlease] Sousou no Frieren - 05 (1080p) [ABCD1234].mkv',
+      );
+      expect(parsed.height, 1080);
+      expect(parsed.group, 'SubsPlease');
+    });
+
+    test('a number after a dash is not always an episode', () {
+      expectEpisodes({
+        // One digit and no group in front.
+        'Rocky - 2.mkv': ('Rocky - 2', null, null, null),
+        // A year says it is a film.
+        'Catch - 22 (1970) 720p.mkv': ('Catch - 22', null, null, null),
+        // Words follow.
+        'Movie - 10 Years Later.mkv': (
+          'Movie - 10 Years Later',
+          null,
+          null,
+          null,
+        ),
+        'The Twilight Saga-Breaking Dawn - Part 1 (2011) 720p BluRay.mkv': (
+          'The Twilight Saga-Breaking Dawn - Part 1',
+          null,
+          null,
+          null,
+        ),
+      });
+      final year = parse('Movie - 2019.mkv');
+      expect((year.title, year.year, year.episode), ('Movie', 2019, null));
+    });
+  });
+
+  group('films in several files', () {
+    test('CD and disc numbers', () {
+      final expected = {
+        'Koizora (2007) CD1.mp4': ('Koizora', 1),
+        'Ashani Sanket AKA Distant Thunder-CD2(1973).avi': (
+          'Ashani Sanket AKA Distant Thunder',
+          2,
+        ),
+        'house.of.tolerance.2011.dvdrip.CD-1.avi': ('house of tolerance', 1),
+        'Please Teach Me English (2003) DVDrip  DISC-1.avi': (
+          'Please Teach Me English',
+          1,
+        ),
+        'White.White.World.2010.DVDRip.XviD.CD1-REACTOR.avi': (
+          'White White World',
+          1,
+        ),
+        'Las.maletas.de.Tulse.Luper.Dual.CD1.avi': (
+          'Las maletas de Tulse Luper Dual',
+          1,
+        ),
+        '(1973) Ashani Sanket (Distant Thunder)-CD2': ('Ashani Sanket', 2),
+        // "Part" belongs to the title.
+        'The Witch Part 2 The Other One (2022) 1080p BluRay.mkv': (
+          'The Witch Part 2 The Other One',
+          null,
+        ),
+        'Vivarium (2019) 720p BluRay.mkv': ('Vivarium', null),
+      };
+      for (final MapEntry(key: name, value: (title, part))
+          in expected.entries) {
+        final parsed = parse(name);
+        expect(parsed.title, title, reason: name);
+        expect(parsed.part, part, reason: name);
+      }
+      expect(
+        parse('Ashani Sanket AKA Distant Thunder-CD2(1973).avi').year,
+        1973,
+      );
+      expect(
+        parse('White.White.World.2010.DVDRip.XviD.CD1-REACTOR.avi').group,
+        'REACTOR',
+      );
+      expect(parse('house.of.tolerance.2011.dvdrip.CD-1.avi').group, isNull);
+    });
+  });
+
+  group('trailers and samples', () {
+    test('are told apart from the film', () {
+      final expected = {
+        'Trailer - See No Evil 2 (2014).mp4': (
+          'See No Evil 2',
+          2014,
+          ExtraKind.trailer,
+        ),
+        'Trailer #2 Need for Speed (2014).mp4': (
+          'Need for Speed',
+          2014,
+          ExtraKind.trailer,
+        ),
+        'Trailer - Trip to Italy.mp4': (
+          'Trip to Italy',
+          null,
+          ExtraKind.trailer,
+        ),
+        'United 93 (2006) Trailer.mp4': ('United 93', 2006, ExtraKind.trailer),
+        'Man of Steel (2013) Official Trailer 3.mp4': (
+          'Man of Steel',
+          2013,
+          ExtraKind.trailer,
+        ),
+        'HALKa Trailer.mkv': ('HALKa', null, ExtraKind.trailer),
+        'Don 2 - Theatrical Trailer [Funmaza.com].mp4': (
+          'Don 2',
+          null,
+          ExtraKind.trailer,
+        ),
+        'Movie Official Trailer 2 (2019).mp4': (
+          'Movie',
+          2019,
+          ExtraKind.trailer,
+        ),
+        'Sample Vikingdom 2013.mp4': ('Vikingdom', 2013, ExtraKind.sample),
+        'sample.mkv': ('sample', null, ExtraKind.sample),
+        'Movie.2019.720p.BluRay.x264-GRP.sample.mkv': (
+          'Movie',
+          2019,
+          ExtraKind.sample,
+        ),
+        // Films.
+        'Trailer Park Boys (2006) 720p.mkv': ('Trailer Park Boys', 2006, null),
+        'Trailer.mkv': ('Trailer', null, null),
+        'Vivarium (2019) 720p BluRay.mkv': ('Vivarium', 2019, null),
+      };
+      for (final MapEntry(key: name, value: (title, year, extra))
+          in expected.entries) {
+        final parsed = parse(name);
+        expect(parsed.title, title, reason: name);
+        expect(parsed.year, year, reason: name);
+        expect(parsed.extra, extra, reason: name);
       }
     });
   });
