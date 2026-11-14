@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dhara/core/net/media_url.dart';
+import 'package:dhara/features/details/ui/details_screen.dart';
 import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/home/home_store.dart';
 import 'package:dhara/features/home/ui/card_row.dart';
@@ -8,10 +9,8 @@ import 'package:dhara/features/home/ui/hero_banner.dart';
 import 'package:dhara/features/home/ui/poster_card.dart';
 import 'package:dhara/features/home/ui/wide_card.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
-import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
-import 'package:dhara/features/metadata/ui/titles_screen.dart';
 import 'package:dhara/features/playback/play.dart';
 import 'package:dhara/features/player/open_url_dialog.dart';
 import 'package:dhara/shell/page_bleed.dart';
@@ -27,25 +26,6 @@ import 'package:flutter/material.dart';
 /// Opens a film or show from its card.
 typedef OpenTitle = void Function(BuildContext context, TitleCard title);
 
-/// Until the details screen is built (the next increments of Phase 6), a
-/// card opens the working list of the title's copies.
-void _openCopies(BuildContext context, TitleCard title) => unawaited(
-  Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => TitleCopiesScreen(
-        title: TitleHit(
-          id: title.id,
-          kind: title.kind,
-          name: title.name,
-          year: title.year,
-          posterPath: title.posterPath,
-          copies: title.videos,
-        ),
-      ),
-    ),
-  ),
-);
-
 /// Home: a banner of featured titles, what was left unfinished, and the
 /// library as rows of posters (Recently Added, Movies, Series, Anime, Top
 /// Rated), all read by the `HomeController` above it.
@@ -58,7 +38,7 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({
     super.key,
     this.contentLeft = PageInsets.contentLeft,
-    this.onOpenTitle = _openCopies,
+    this.onOpenTitle = openDetails,
   });
 
   /// How far the content starts from the left edge of the page.

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dhara/core/db/library_db.dart';
 import 'package:dhara/core/db/library_isolate.dart';
 import 'package:dhara/core/secrets/secret_store.dart';
+import 'package:dhara/features/details/ui/details_screen.dart';
 import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/home/home_store.dart';
 import 'package:dhara/features/home/ui/card_row.dart';
@@ -228,13 +229,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(TitleCopiesScreen), findsOneWidget);
+      expect(find.byType(DetailsScreen), findsOneWidget);
       expect(
-        tester
-            .widget<TitleCopiesScreen>(find.byType(TitleCopiesScreen))
-            .title
-            .id,
+        tester.widget<DetailsScreen>(find.byType(DetailsScreen)).titleId,
         2,
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const Key('details-title'))).data,
+        'Film 2',
       );
       // And Back leads to Home again.
       await tester.tap(find.byKey(const Key('shell-back')));
@@ -341,13 +343,19 @@ void main() {
         'way back', (tester) async {
       await _boot(tester, db: _library(backdrops: true), settle: false);
 
-      await tester.tap(find.byKey(const Key('hero-more')));
+      await tester.tap(find.byKey(const Key('rail-discovery')));
       await _run(tester);
       expect(find.byType(HeroBanner), findsNothing);
       expect(ground(tester).color, DharaColors.glass);
 
       await tester.tap(find.byKey(const Key('shell-back')));
       await _run(tester);
+      expect(ground(tester).color!.a, 0);
+
+      // The page of a title has artwork under the bar as well.
+      await tester.tap(find.byKey(const Key('hero-more')));
+      await _run(tester);
+      expect(find.byType(DetailsScreen), findsOneWidget);
       expect(ground(tester).color!.a, 0);
     });
 

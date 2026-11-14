@@ -20,8 +20,10 @@ abstract final class PageInsets {
 ///
 /// [height] is that of the artwork, measured from the window's top edge;
 /// the page gets a box [PageInsets.top] shorter, with [child] laid out in
-/// it. While the artwork is at the top of [scroll] the title bar is told to
-/// be clear glass over it (see `ShellController.setArtUnderBar`).
+/// it. With [behind], the artwork is only a ground: the box is as tall as
+/// [child] needs, which may be more or less than the artwork. While the
+/// artwork is at the top of [scroll] the title bar is told to be clear
+/// glass over it (see `ShellController.setArtUnderBar`).
 ///
 /// The page's scroll view must not clip (`Clip.none`), and nothing in the
 /// overhang can be clicked: it lies under the title bar and the rail.
@@ -33,7 +35,20 @@ class ArtUnderShell extends StatefulWidget {
     required this.child,
     this.scroll,
     this.overhangBelow = 0,
-  });
+  }) : behind = false;
+
+  /// Artwork [height] high behind a [child] that takes the room it needs.
+  const ArtUnderShell.behind({
+    super.key,
+    required this.height,
+    required this.art,
+    required this.child,
+    this.scroll,
+  }) : behind = true,
+       overhangBelow = 0;
+
+  /// See [ArtUnderShell.behind].
+  final bool behind;
 
   final double height;
 
@@ -98,7 +113,26 @@ class _ArtUnderShellState extends State<ArtUnderShell> {
   }
 
   @override
-  Widget build(BuildContext context) => SizedBox(
+  Widget build(BuildContext context) {
+    if (widget.behind) {
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: -PageInsets.left,
+            top: -PageInsets.top,
+            right: 0,
+            height: widget.height,
+            child: IgnorePointer(child: widget.art),
+          ),
+          widget.child,
+        ],
+      );
+    }
+    return _fixed();
+  }
+
+  Widget _fixed() => SizedBox(
     height: widget.height - PageInsets.top - widget.overhangBelow,
     child: Stack(
       clipBehavior: Clip.none,

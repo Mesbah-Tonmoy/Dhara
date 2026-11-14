@@ -1,10 +1,8 @@
 import 'dart:async';
 
+import 'package:dhara/features/details/ui/details_screen.dart';
 import 'package:dhara/features/metadata/anime_controller.dart';
 import 'package:dhara/features/metadata/anime_store.dart';
-import 'package:dhara/features/metadata/metadata_store.dart';
-import 'package:dhara/features/metadata/ui/titles_screen.dart';
-import 'package:dhara/features/metadata/video_identity.dart';
 import 'package:dhara/features/player/widgets/glass.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:flutter/material.dart';
@@ -38,16 +36,7 @@ class _AnimeScreenState extends State<AnimeScreen> {
     if (id == null) return;
     unawaited(
       Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => TitleCopiesScreen(
-            title: TitleHit(
-              id: id,
-              kind: row.titleKind ?? TitleKind.series,
-              name: row.anime.name,
-              copies: 0,
-            ),
-          ),
-        ),
+        MaterialPageRoute<void>(builder: (_) => DetailsScreen(titleId: id)),
       ),
     );
   }

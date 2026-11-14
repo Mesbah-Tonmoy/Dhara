@@ -229,6 +229,16 @@ class _ItemRow extends StatelessWidget {
   }
 }
 
+/// Asks which film or show [item] is: what TMDB offered for it, a search
+/// by another name, or "leave it as it is". Completes when it is closed.
+Future<void> showReviewDialog(BuildContext context, ReviewItem item) {
+  final review = ReviewScope.read(context);
+  return showDialog<void>(
+    context: context,
+    builder: (_) => _ReviewDialog(item: item, review: review),
+  );
+}
+
 /// What TMDB offers for one title, and the search by another name.
 class _ReviewDialog extends StatefulWidget {
   const _ReviewDialog({required this.item, required this.review});

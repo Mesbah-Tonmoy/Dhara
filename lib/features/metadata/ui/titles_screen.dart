@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:dhara/core/images/remote_image.dart';
-import 'package:dhara/core/net/media_url.dart';
-import 'package:dhara/features/indexer/index_controller.dart';
+import 'package:dhara/features/details/ui/details_screen.dart';
+import 'package:dhara/features/home/home_store.dart';
 import 'package:dhara/features/metadata/match_controller.dart';
 import 'package:dhara/features/metadata/match_store.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
@@ -12,22 +12,9 @@ import 'package:dhara/features/metadata/ui/match_panel.dart';
 import 'package:dhara/features/metadata/ui/needs_review_screen.dart';
 import 'package:dhara/features/metadata/ui/tmdb_key_card.dart';
 import 'package:dhara/features/metadata/video_identity.dart';
-import 'package:dhara/features/player/player_screen.dart';
 import 'package:dhara/features/player/widgets/glass.dart';
-import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:flutter/material.dart';
-
-/// Plays these addresses one after the other.
-typedef PlayUrls = void Function(BuildContext context, List<Uri> urls);
-
-void _openPlayer(BuildContext context, List<Uri> urls) => unawaited(
-  // Above the shell: the player takes the whole window.
-  Navigator.of(
-    context,
-    rootNavigator: true,
-  ).push(MaterialPageRoute<void>(builder: (_) => PlayerScreen(urls: urls))),
-);
 
 /// The films and shows the indexed videos are copies of: how many there
 /// are, and a search by title.
@@ -36,14 +23,11 @@ void _openPlayer(BuildContext context, List<Uri> urls) => unawaited(
 /// Phase 6. Titles, file names and folder paths come from the servers and
 /// are shown through plain `Text` widgets only.
 class TitlesScreen extends StatefulWidget {
-  const TitlesScreen({super.key, this.onPlay = _openPlayer, this.initialQuery});
+  const TitlesScreen({super.key, this.initialQuery});
 
   /// What to search for as soon as the screen opens: what was typed into
   /// the search field of the title bar.
   final String? initialQuery;
-
-  /// What a tap on a copy does; the player by default.
-  final PlayUrls onPlay;
 
   @override
   State<TitlesScreen> createState() => _TitlesScreenState();
@@ -126,11 +110,15 @@ class _TitlesScreenState extends State<TitlesScreen> {
     setState(() => _hits = hits);
   }
 
-  void _open(TitleHit hit) => unawaited(
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => TitleCopiesScreen(title: hit, onPlay: widget.onPlay),
-      ),
+  void _open(TitleHit hit) => openDetails(
+    context,
+    TitleCard(
+      id: hit.id,
+      kind: hit.kind,
+      name: hit.name,
+      year: hit.year,
+      posterPath: hit.posterPath,
+      videos: hit.copies,
     ),
   );
 
@@ -375,314 +363,11 @@ String _copiesLabel(int copies, {required bool isShow}) {
   return copies == 1 ? '1 copy' : '$copies copies';
 }
 
-/// The videos of one title: the copies of a film, or the episodes of a
-/// show by season. A tap plays one; for a show, the episodes after it
-/// follow.
-class TitleCopiesScreen extends StatefulWidget {
-  const TitleCopiesScreen({
-    super.key,
-    required this.title,
-    this.onPlay = _openPlayer,
-  });
-
-  final TitleHit title;
-  final PlayUrls onPlay;
-
-  @override
-  State<TitleCopiesScreen> createState() => _TitleCopiesScreenState();
-}
-
-class _TitleCopiesScreenState extends State<TitleCopiesScreen> {
-  /// `null` until they have been read.
-  List<TitleCopy>? _copies;
-  var _asked = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_asked) return;
-    _asked = true;
-    unawaited(_load(TitlesScope.read(context)));
-  }
-
-  Future<void> _load(TitlesController titles) async {
-    final copies = await titles.copiesOf(widget.title.id);
-    if (mounted) setState(() => _copies = copies);
-  }
-
-  void _play(TitleCopy copy, List<TitleCopy> copies, IndexController index) {
-    final queue = widget.title.kind == TitleKind.series
-        ? episodesFrom(
-            copies,
-            copy,
-            playable: (other) => _isPlayable(other, index),
-          )
-        : [copy];
-    widget.onPlay(context, [for (final entry in queue) entry.url]);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final index = IndexScope.of(context);
-    final title = widget.title;
-    final copies = _copies;
-    final year = title.year;
-    final rows = copies == null ? const <_Entry>[] : _entriesOf(title, copies);
-
-    return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, box) {
-          final gutter = box.maxWidth >= 900 ? 40.0 : 20.0;
-          final sides = EdgeInsets.symmetric(horizontal: gutter);
-          return CustomScrollView(
-            slivers: [
-              SliverPadding(
-                padding: sides.copyWith(top: 28, bottom: 18),
-                sliver: SliverToBoxAdapter(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.topLeft,
-                          child: _Header(
-                            title: year == null
-                                ? title.name
-                                : '${title.name} ($year)',
-                            subtitle: copies == null
-                                ? 'Reading …'
-                                : copies.isEmpty
-                                ? 'No video of it is on an enabled server any '
-                                      'more.'
-                                : title.kind == TitleKind.series
-                                ? 'A tap plays an episode; the ones after it '
-                                      'follow.'
-                                : 'A tap plays a copy.',
-                          ),
-                        ),
-                      ),
-                      if (title.posterPath case final poster?) ...[
-                        const SizedBox(width: 16),
-                        TmdbPicture(
-                          key: const Key('title-poster'),
-                          path: poster,
-                          size: 'w342',
-                          width: 92,
-                          height: 138,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              SliverPadding(
-                padding: sides,
-                sliver: SliverList.builder(
-                  itemCount: rows.length,
-                  itemBuilder: (context, i) => switch (rows[i]) {
-                    _Heading(:final text) => Padding(
-                      padding: EdgeInsets.only(top: i == 0 ? 0 : 14, bottom: 8),
-                      child: PanelHeading(text),
-                    ),
-                    _Copy(:final copy) => _CopyRow(
-                      copy: copy,
-                      isEpisode: title.kind == TitleKind.series,
-                      source: _sourceOf(index, copy.sourceId),
-                      playable: _isPlayable(copy, index),
-                      onPlay: () => _play(copy, copies!, index),
-                    ),
-                  },
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 36)),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// The episodes to play when [start] is tapped: [start] itself, then one
-/// copy of each episode after it, in the order of [copies]. A copy on the
-/// same server as [start] is taken if there is one. Trailers and samples
-/// are left out, and so is what [playable] refuses.
-List<TitleCopy> episodesFrom(
-  List<TitleCopy> copies,
-  TitleCopy start, {
-  required bool Function(TitleCopy copy) playable,
-  int limit = 50,
-}) {
-  final at = copies.indexOf(start);
-  if (at < 0 || start.episode == null) return [start];
-  final own = (start.season, start.episode);
-  final next = <(int?, int?), TitleCopy>{};
-  for (final copy in copies.skip(at + 1)) {
-    if (copy.extra != null || copy.episode == null || !playable(copy)) continue;
-    final episode = (copy.season, copy.episode);
-    if (episode == own) continue;
-    final chosen = next[episode];
-    if (chosen == null) {
-      if (next.length >= limit - 1) break;
-      next[episode] = copy;
-    } else if (chosen.sourceId != start.sourceId &&
-        copy.sourceId == start.sourceId) {
-      next[episode] = copy;
-    }
-  }
-  return [start, ...next.values];
-}
-
-/// What the name of a copy says about it, for one line: "1080p · BluRay ·
-/// HEVC · Dual Audio · Hindi, English · 3D".
-String describeCopy(TitleCopy copy) {
-  final height = copy.height;
-  return [
-    if (height != null) '${height}p',
-    if (copy.source case final source?) source.label,
-    if (copy.codec case final codec?) codec.label,
-    if (copy.audio case final audio?) audio.label,
-    if (copy.languages.isNotEmpty) copy.languages.join(', '),
-    if (copy.is3d) '3D',
-  ].join(' · ');
-}
-
-/// A line of the list of a title's videos.
-sealed class _Entry {
-  const _Entry();
-}
-
-class _Heading extends _Entry {
-  const _Heading(this.text);
-
-  final String text;
-}
-
-class _Copy extends _Entry {
-  const _Copy(this.copy);
-
-  final TitleCopy copy;
-}
-
-/// The copies with a heading wherever a new group starts. They come in
-/// order: by season and episode, trailers and samples last.
-List<_Entry> _entriesOf(TitleHit title, List<TitleCopy> copies) {
-  final entries = <_Entry>[];
-  String? group;
-  for (final copy in copies) {
-    final season = copy.season;
-    final heading = copy.extra != null
-        ? 'Trailers and samples'
-        : title.kind != TitleKind.series
-        ? (copies.length == 1 ? '1 copy' : 'Copies')
-        : season == null
-        ? 'Episodes'
-        : 'Season $season';
-    if (heading != group) entries.add(_Heading(group = heading));
-    entries.add(_Copy(copy));
-  }
-  return entries;
-}
-
-class _CopyRow extends StatelessWidget {
-  const _CopyRow({
-    required this.copy,
-    required this.isEpisode,
-    required this.source,
-    required this.playable,
-    required this.onPlay,
-  });
-
-  final TitleCopy copy;
-  final bool isEpisode;
-  final Source? source;
-  final bool playable;
-  final VoidCallback onPlay;
-
-  @override
-  Widget build(BuildContext context) {
-    final quality = describeCopy(copy);
-    final size = copy.size;
-    final part = copy.part;
-    final details = [
-      source?.name ?? copy.sourceId,
-      if (isEpisode && quality.isNotEmpty) quality,
-      if (size != null) _size(size),
-      if (copy.group case final group?) group,
-      if (!playable) 'cannot be played yet',
-    ].join('  ·  ');
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          key: Key('copy-${copy.fileId}'),
-          borderRadius: BorderRadius.circular(DharaRadii.md),
-          onTap: playable ? onPlay : null,
-          child: Ink(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-            decoration: _rowDecoration,
-            child: Row(
-              children: [
-                Icon(
-                  playable ? Icons.play_arrow_rounded : Icons.lock_outline,
-                  size: 20,
-                  color: playable ? DharaColors.text2 : DharaColors.text3,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        [
-                          if (isEpisode)
-                            _episodeLabel(copy)
-                          else if (copy.extra != null)
-                            copy.name
-                          else
-                            quality.isEmpty ? copy.name : quality,
-                          if (part != null) 'CD $part',
-                        ].join('  ·  '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        details,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          color: DharaColors.text3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// "Episode 2 · The Name", "Episodes 1–3"; the file name for a trailer.
-String _episodeLabel(TitleCopy copy) {
-  final episode = copy.episode;
-  if (episode == null || copy.extra != null) return copy.name;
-  final last = copy.episodeEnd;
-  return [
-    last == null ? 'Episode $episode' : 'Episodes $episode–$last',
-    if (copy.episodeName case final name?) name,
-  ].join('  ·  ');
-}
+final _rowDecoration = BoxDecoration(
+  color: DharaColors.surface,
+  borderRadius: BorderRadius.circular(DharaRadii.md),
+  border: Border.all(color: DharaColors.stroke),
+);
 
 class _Header extends StatelessWidget {
   const _Header({required this.title, required this.subtitle});
@@ -753,39 +438,4 @@ class _Notice extends StatelessWidget {
       ),
     );
   }
-}
-
-Source? _sourceOf(IndexController index, String id) {
-  for (final source in index.sources.sources) {
-    if (source.id == id) return source;
-  }
-  return null;
-}
-
-/// Whether the player can open this copy: an ordinary web address, and not
-/// on a media server, which wants its session token with every request
-/// (the player cannot send that yet).
-bool _isPlayable(TitleCopy copy, IndexController index) {
-  final url = copy.url;
-  final type = _sourceOf(index, copy.sourceId)?.type;
-  return allowedUrlSchemes.contains(url.scheme) &&
-      url.host.isNotEmpty &&
-      url.userInfo.isEmpty &&
-      type != SourceType.emby &&
-      type != SourceType.jellyfin;
-}
-
-final _rowDecoration = BoxDecoration(
-  color: DharaColors.surface,
-  borderRadius: BorderRadius.circular(DharaRadii.md),
-  border: Border.all(color: DharaColors.stroke),
-);
-
-/// A file size the way people say it: "1.6 GB", "700 MB".
-String _size(int bytes) {
-  const mb = 1024 * 1024;
-  const gb = 1024 * mb;
-  if (bytes >= gb) return '${(bytes / gb).toStringAsFixed(1)} GB';
-  if (bytes >= mb) return '${(bytes / mb).round()} MB';
-  return '${(bytes / 1024).ceil()} KB';
 }

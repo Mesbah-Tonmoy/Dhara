@@ -73,9 +73,13 @@ class ReviewStore {
   /// The titles to review that have a video on one of the sources in
   /// [sourceIds]: the unsure matches first, then what was not found, each
   /// by name.
+  ///
+  /// With [only], the title with that id alone, whatever its state: to put
+  /// right a match nobody doubted.
   List<ReviewItem> items({
     required Iterable<String> sourceIds,
     int limit = 500,
+    int? only,
   }) {
     final ids = sourceIds.toList();
     if (ids.isEmpty) return const [];
@@ -95,13 +99,14 @@ class ReviewStore {
         // The first of its spellings stands for the title.
         'LEFT JOIN title_keys k ON k.key = (SELECT min(key) FROM title_keys '
         'WHERE title = t.id) '
-        'WHERE t.match_state IN (2, 3) AND EXISTS ('
+        'WHERE ${only == null ? 't.match_state IN (2, 3)' : 't.id = ?'} '
+        'AND EXISTS ('
         'SELECT 1 FROM file_meta m JOIN files f ON f.id = m.file '
         'JOIN folders d ON d.id = f.folder JOIN sources s ON s.id = d.source '
         'WHERE m.title = t.id '
         'AND s.source_id IN (${List.filled(ids.length, '?').join(', ')})) '
         'ORDER BY t.match_state, t.name COLLATE NOCASE, t.id LIMIT ?',
-        [...ids, limit],
+        [?only, ...ids, limit],
       ))
         ReviewItem(
           id: row['id'] as int,

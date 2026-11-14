@@ -9,8 +9,6 @@ import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/anime_controller.dart';
 import 'package:dhara/features/metadata/match_controller.dart';
-import 'package:dhara/features/metadata/metadata_store.dart';
-import 'package:dhara/features/metadata/release_name.dart';
 import 'package:dhara/features/metadata/review_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
@@ -63,23 +61,6 @@ void _put(
   }
 }
 
-TitleCopy _copy(
-  int id,
-  String source, {
-  int? season,
-  int? episode,
-  ExtraKind? extra,
-}) => TitleCopy(
-  fileId: id,
-  sourceId: source,
-  name: 'file$id.mkv',
-  path: '',
-  url: Uri.parse('http://$source.test/$id.mkv'),
-  season: season,
-  episode: episode,
-  extra: extra,
-);
-
 /// Shaped like TMDB's, made up.
 final _token = 'eyJhbGciOiJIUzI1NiJ9.${'a' * 120}.${'b' * 43}';
 
@@ -91,7 +72,6 @@ Future<int> titleId(LibraryDb library, String name) async =>
         as int;
 
 void main() {
-  late List<List<Uri>> played;
   late TmdbKeyController tmdbKey;
   late MatchController match;
   late ReviewController review;
@@ -147,7 +127,6 @@ void main() {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    played = [];
 
     final db = LibraryDb.inMemory();
     addTearDown(db.close);
@@ -186,9 +165,7 @@ void main() {
     void Function(LibraryDb db) fill,
   ) async {
     final titles = await prepare(tester, fill);
-    await tester.pumpWidget(
-      scoped(titles, TitlesScreen(onPlay: (_, urls) => played.add(urls))),
-    );
+    await tester.pumpWidget(scoped(titles, const TitlesScreen()));
     return titles;
   }
 
@@ -197,11 +174,6 @@ void main() {
     // The search waits until typing pauses.
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump();
-  }
-
-  Future<void> open(WidgetTester tester, String title) async {
-    await tester.tap(find.text(title));
-    await tester.pumpAndSettle();
   }
 
   String card(WidgetTester tester, String key) => tester
@@ -302,83 +274,6 @@ void main() {
     await search(tester, '');
     expect(find.text('TYPE A TITLE TO SEARCH'), findsOneWidget);
     expect(find.text('Some Show (2019)'), findsNothing);
-  });
-
-  testWidgets('lists the copies of a film, the sharpest first', (tester) async {
-    await show(tester, library);
-    await search(tester, 'viva');
-    await open(tester, 'Vivarium (2019)');
-
-    expect(find.text('COPIES'), findsOneWidget);
-    expect(find.text('TRAILERS AND SAMPLES'), findsOneWidget);
-    final sharp = find.text('1080p · WEBRip');
-    final dual = find.text(
-      '720p · BluRay · H.264 · Dual Audio · Hindi, English',
-    );
-    final trailer = find.text('Trailer - Vivarium (2019).mp4');
-    expect(sharp, findsOneWidget);
-    expect(dual, findsOneWidget);
-    expect(trailer, findsOneWidget);
-    expect(tester.getTopLeft(sharp).dy, lessThan(tester.getTopLeft(dual).dy));
-    expect(tester.getTopLeft(dual).dy, lessThan(tester.getTopLeft(trailer).dy));
-    expect(find.text('Server flix  ·  1.0 GB  ·  mkvC'), findsOneWidget);
-
-    await tester.tap(dual);
-    expect(played.single.single.path, endsWith('-mkvC.mkv'));
-
-    await tester.tap(find.byTooltip('Back'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('titles-search')), findsOneWidget);
-  });
-
-  testWidgets('lists the episodes of a show by season', (tester) async {
-    await show(tester, library);
-    await search(tester, 'some show');
-    await open(tester, 'Some Show (2019)');
-
-    expect(find.text('SEASON 1'), findsOneWidget);
-    expect(find.text('SEASON 2'), findsOneWidget);
-    expect(find.text('Episode 1  ·  The Start'), findsOneWidget);
-    expect(find.text('Episode 2'), findsNWidgets(2));
-    expect(find.text('Episode 3'), findsOneWidget);
-    expect(
-      find.text('Server flix  ·  720p · WEB-DL · H.264  ·  300 MB  ·  GRP'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('a tap on an episode plays it and the ones after it', (
-    tester,
-  ) async {
-    await show(tester, library);
-    await search(tester, 'some show');
-    await open(tester, 'Some Show (2019)');
-
-    await tester.tap(find.text('Episode 1  ·  The Start'));
-
-    expect(
-      [for (final url in played.single) url.pathSegments.last],
-      [
-        'Some Show S01E01_The Start.mkv',
-        // The copy on the same server.
-        'Some Show S01E02.mkv',
-        'Some.Show.S01E03.720p.WEB.x264-GRP.mkv',
-        'Some.Show.S02E01.720p.WEB.x264-GRP.mkv',
-      ],
-    );
-  });
-
-  testWidgets('a video on a media server cannot be played yet', (tester) async {
-    await show(tester, (db) {
-      _put(db, 'media', 'Movies', {'Stillwater (2018) 1080p.mkv': null});
-    });
-    await search(tester, 'still');
-    await open(tester, 'Stillwater (2018)');
-
-    final row = find.textContaining('cannot be played yet');
-    expect(row, findsOneWidget);
-    await tester.tap(row);
-    expect(played, isEmpty);
   });
 
   testWidgets('searches again when names have been read meanwhile', (
@@ -499,93 +394,10 @@ void main() {
     );
     expect(poster.path, '/pViva.jpg');
 
-    await open(tester, 'Vivarium (2019)');
-    expect(find.byKey(const Key('title-poster')), findsOneWidget);
-    await tester.tap(find.byTooltip('Back'));
-    await tester.pumpAndSettle();
-
     await tester.tap(find.text('Needs review (2)'));
     await tester.runAsync(review.load);
     await tester.pumpAndSettle();
     expect(find.byType(NeedsReviewScreen), findsOneWidget);
     expect(find.text('2 TITLES'), findsOneWidget);
-  });
-
-  group('episodesFrom', () {
-    bool any(TitleCopy copy) => true;
-
-    test('queues one copy of each later episode, in order', () {
-      final copies = [
-        _copy(1, 'a', season: 1, episode: 1),
-        _copy(2, 'a', season: 1, episode: 2),
-        _copy(3, 'b', season: 1, episode: 2),
-        _copy(4, 'b', season: 1, episode: 3),
-        _copy(5, 'a', season: 1, episode: 3),
-        _copy(6, 'b', season: 2, episode: 1),
-        _copy(7, 'a', extra: ExtraKind.trailer),
-      ];
-
-      List<int> from(int id) => [
-        for (final copy in episodesFrom(
-          copies,
-          copies.singleWhere((copy) => copy.fileId == id),
-          playable: any,
-        ))
-          copy.fileId,
-      ];
-
-      // The copy on the same server is taken where there is one.
-      expect(from(1), [1, 2, 5, 6]);
-      expect(from(3), [3, 4, 6]);
-      expect(from(6), [6]);
-      // A trailer is played alone.
-      expect(from(7), [7]);
-    });
-
-    test('leaves out what cannot be played, and stops at the limit', () {
-      final copies = [
-        for (var episode = 1; episode <= 80; episode++)
-          _copy(episode, episode.isEven ? 'locked' : 'a', episode: episode),
-      ];
-
-      final queue = episodesFrom(
-        copies,
-        copies.first,
-        playable: (copy) => copy.sourceId != 'locked',
-        limit: 10,
-      );
-
-      expect(
-        [for (final copy in queue) copy.fileId],
-        [1, 3, 5, 7, 9, 11, 13, 15, 17, 19],
-      );
-    });
-
-    test('plays a copy that is not in the list alone', () {
-      final stray = _copy(9, 'a', season: 1, episode: 1);
-      expect(episodesFrom([_copy(1, 'a')], stray, playable: any), [stray]);
-    });
-  });
-
-  test('describeCopy puts what is known of a copy on one line', () {
-    expect(describeCopy(_copy(1, 'a')), '');
-    expect(
-      describeCopy(
-        TitleCopy(
-          fileId: 1,
-          sourceId: 'a',
-          name: 'n',
-          path: '',
-          url: Uri.parse('http://a.test/n'),
-          height: 2160,
-          source: VideoSource.bluRay,
-          codec: VideoCodec.hevc,
-          audio: MultiAudio.multi,
-          languages: const ['Hindi', 'English', 'Korean'],
-          is3d: true,
-        ),
-      ),
-      '2160p · BluRay · HEVC · Multi Audio · Hindi, English, Korean · 3D',
-    );
   });
 }

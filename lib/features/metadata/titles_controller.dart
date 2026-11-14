@@ -3,6 +3,7 @@ import 'dart:isolate';
 
 import 'package:dhara/core/db/library_db.dart';
 import 'package:dhara/core/db/library_isolate.dart';
+import 'package:dhara/features/details/details_store.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/metadata/video_identity.dart';
@@ -73,6 +74,16 @@ class TitlesController extends ChangeNotifier {
       return await _library.run(_copiesOf, (title, _enabledIds()));
     } on LibraryWorkException {
       return const [];
+    }
+  }
+
+  /// Everything the page of [title] shows about it; `null` if the title
+  /// is gone, or the library does not answer.
+  Future<TitlePage?> page(int title) async {
+    try {
+      return await _library.run(_readPage, (title, _enabledIds()));
+    } on LibraryWorkException {
+      return null;
     }
   }
 
@@ -204,6 +215,11 @@ List<TitleHit> _searchTitles(
   return MetadataStore(
     db,
   ).searchTitles(text, sourceIds: sourceIds, limit: limit);
+}
+
+TitlePage? _readPage(LibraryDb db, (int, List<String>) request) {
+  final (title, sourceIds) = request;
+  return DetailsStore(db, sourceIds: sourceIds).page(title);
 }
 
 List<TitleCopy> _copiesOf(LibraryDb db, (int, List<String>) request) {

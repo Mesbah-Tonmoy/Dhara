@@ -222,7 +222,7 @@ class HomeStore {
           final title = cursor.current['title'] as int;
           if (seen.add(title)) batch.add(title);
         }
-        cards.addAll(_cards(batch));
+        cards.addAll(this.cards(batch));
       }
       return cards.length > limit ? cards.sublist(0, limit) : cards;
     } finally {
@@ -299,7 +299,7 @@ class HomeStore {
       if (kept.length == limit) break;
     }
     final titles = {
-      for (final card in _cards([
+      for (final card in cards([
         for (final row in kept)
           if (row['title'] case final int title) title,
       ], whateverItsState: true))
@@ -365,14 +365,21 @@ class HomeStore {
     }
   }
 
-  /// The titles with these [ids], in that order, as far as they are shown
-  /// on Home ([whateverItsState]: also what TMDB does not know) and have a
-  /// video on an enabled source.
-  List<TitleCard> _cards(List<int> ids, {bool whateverItsState = false}) {
+  /// The titles with these [ids], in that order, as cards: as far as they
+  /// are shown on Home ([whateverItsState]: also what TMDB does not know)
+  /// and have a video on an enabled source ([evenWithoutVideos]: also
+  /// those that have none, with a count of 0). [withOverview] reads the
+  /// description as well.
+  List<TitleCard> cards(
+    List<int> ids, {
+    bool whateverItsState = false,
+    bool evenWithoutVideos = false,
+    bool withOverview = false,
+  }) {
     if (ids.isEmpty) return const [];
     final rows = {
       for (final row in _db.select(
-        'SELECT $_columns FROM titles t '
+        'SELECT $_columns${withOverview ? ', t.overview' : ''} FROM titles t '
         'WHERE t.id IN (${_placeholders(ids.length)}) '
         'AND ${whateverItsState ? 't.set_aside = 0' : _shown}',
         ids,
@@ -382,13 +389,23 @@ class HomeStore {
     return _available([
       for (final id in ids)
         if (rows[id] case final row?) row,
-    ]);
+    ], keepAll: evenWithoutVideos);
   }
 
+  /// The first [limit] titles [sql] lists (a query over `titles t` that
+  /// selects [cardColumns]) that have a video on an enabled source.
+  List<TitleCard> fill(String sql, List<Object?> parameters, int limit) =>
+      _fill(sql, parameters, limit);
+
+  /// The columns a query handed to [fill] must select, and the condition
+  /// that leaves out what Home does not show.
+  static const cardColumns = _columns;
+  static const shownOnly = _shown;
+
   /// Cards for the titles in [rows] that have a video on an enabled
-  /// source, in the same order.
-  List<TitleCard> _available(List<Row> rows) {
-    if (rows.isEmpty) return const [];
+  /// source, in the same order; with [keepAll], for every one of them.
+  List<TitleCard> _available(List<Row> rows, {bool keepAll = false}) {
+    if (rows.isEmpty || (_sources.isEmpty && !keepAll)) return const [];
     final videos = {
       for (final row in _db.select(
         'SELECT m.title, count(*) AS videos, max(m.height) AS height, '
@@ -399,15 +416,16 @@ class HomeStore {
         'CROSS JOIN folders d ON d.id = f.folder '
         'WHERE m.title IN (${_placeholders(rows.length)}) '
         'AND m.extra IS NULL '
-        'AND d.source IN (${_placeholders(_sources.length)}) '
+        // No source is switched on: nothing is counted.
+        'AND d.source IN (${_placeholders(_sources.length + 1)}) '
         'GROUP BY m.title',
-        [for (final row in rows) row['id'], ..._sources],
+        [for (final row in rows) row['id'], -1, ..._sources],
       ))
         row['title'] as int: row,
     };
     return [
       for (final row in rows)
-        if (videos[row['id']] case final found?)
+        if (videos[row['id']] ?? (keepAll ? _noVideos : null) case final found?)
           TitleCard(
             id: row['id'] as int,
             kind: row['kind'] == 1 ? TitleKind.series : TitleKind.movie,
@@ -432,6 +450,9 @@ class HomeStore {
     ];
   }
 }
+
+/// What a title without a video on an enabled source counts.
+const _noVideos = <String, Object?>{'videos': 0, 'episodes': 0, 'height': null};
 
 const _columns =
     't.id, t.kind, t.name, t.year, t.poster_path, t.backdrop_path, '

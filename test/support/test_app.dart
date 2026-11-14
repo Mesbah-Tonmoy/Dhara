@@ -64,7 +64,8 @@ import 'package:flutter/widgets.dart';
     ),
     anime: AnimeController(library: library),
     home: HomeController(library: library, titles: titles, match: match),
-    myList: MyListController(library: library),
+    // Read as the app starts, like `main` does.
+    myList: MyListController(library: library)..load().ignore(),
   );
   return (
     app: window == null ? app : WindowScope(controller: window, child: app),

@@ -73,6 +73,22 @@ class ReviewController extends ChangeNotifier {
     _notify();
   }
 
+  /// The title with the id [title] as something to review, whatever its
+  /// state: to put right a match from its own page. `null` if it is gone
+  /// or has no video on an enabled source.
+  Future<ReviewItem?> itemFor(int title) async {
+    final ids = [
+      for (final source in _titles.index.sources.sources)
+        if (_titles.index.sources.isEnabled(source.id)) source.id,
+    ];
+    try {
+      final found = await _library.run(_readItem, (ids, title));
+      return found.isEmpty ? null : found.single;
+    } on LibraryWorkException {
+      return null;
+    }
+  }
+
   /// What TMDB said about [item] when it was last asked, best fit first.
   /// Makes no request.
   Future<List<ScoredCandidate>> candidatesOf(ReviewItem item) async {
@@ -174,12 +190,22 @@ class ReviewScope extends InheritedNotifier<ReviewController> {
     assert(scope != null, 'No ReviewScope above this widget');
     return scope!.notifier!;
   }
+
+  /// The controller, without rebuilding on changes (for event handlers).
+  static ReviewController read(BuildContext context) {
+    final scope = context.getInheritedWidgetOfExactType<ReviewScope>();
+    assert(scope != null, 'No ReviewScope above this widget');
+    return scope!.notifier!;
+  }
 }
 
 // What follows runs in the library isolate.
 
 List<ReviewItem> _readItems(LibraryDb db, List<String> sourceIds) =>
     ReviewStore(db).items(sourceIds: sourceIds);
+
+List<ReviewItem> _readItem(LibraryDb db, (List<String>, int) request) =>
+    ReviewStore(db).items(sourceIds: request.$1, only: request.$2);
 
 List<TmdbCandidate> _keptCandidates(LibraryDb db, ReviewItem item) =>
     ReviewStore(db).keptCandidates(item);
