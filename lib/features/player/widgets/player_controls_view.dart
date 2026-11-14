@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:dhara/core/format/duration_format.dart';
+import 'package:dhara/core/window/window_controller.dart';
+import 'package:dhara/core/window/window_widgets.dart';
 import 'package:dhara/features/player/track_options.dart';
 import 'package:dhara/features/player/widgets/glass.dart';
 import 'package:dhara/features/player/widgets/seek_bar.dart';
@@ -293,7 +295,8 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
     // ↑ / ↓ mean nothing in a one-line number field, so they are dropped
     // rather than passed on to Flutter's multi-line caret handling.
     if (_isEditingText) {
-      final vertical = key == LogicalKeyboardKey.arrowUp ||
+      final vertical =
+          key == LogicalKeyboardKey.arrowUp ||
           key == LogicalKeyboardKey.arrowDown;
       return vertical ? KeyEventResult.handled : KeyEventResult.ignored;
     }
@@ -386,6 +389,9 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
   Widget build(BuildContext context) {
     final shown = _shown;
     _reportShown(shown);
+    final window = WindowScope.maybeOf(context);
+    final ownWindowFrame =
+        window != null && window.hasCustomFrame && !window.isFullscreen;
     return Focus(
       focusNode: _keyFocus,
       autofocus: true,
@@ -441,34 +447,53 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                 shown: shown,
                 hiddenOffset: const Offset(0, -.25),
                 onPointer: _setPointerOnControls,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 14, 32, 8),
-                  child: Row(
-                    children: [
-                      _ControlButton(
-                        key: const Key('back-button'),
-                        tooltip: 'Back (Esc)',
-                        icon: Icons.arrow_back_rounded,
-                        onPressed: widget.onBack,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Text(
-                          widget.title,
-                          key: const Key('player-title'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: DharaFonts.display,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            height: 1.2,
-                            color: DharaColors.text,
+                // With the app's own window frame this strip is the title
+                // bar while the player is open: it moves the window and
+                // carries the window buttons.
+                child: Stack(
+                  children: [
+                    const Positioned.fill(
+                      child: WindowDragArea(child: SizedBox.expand()),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 14, 32, 8),
+                      child: Row(
+                        children: [
+                          _ControlButton(
+                            key: const Key('back-button'),
+                            tooltip: 'Back (Esc)',
+                            icon: Icons.arrow_back_rounded,
+                            onPressed: widget.onBack,
                           ),
-                        ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Text(
+                              widget.title,
+                              key: const Key('player-title'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: DharaFonts.display,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                height: 1.2,
+                                color: DharaColors.text,
+                              ),
+                            ),
+                          ),
+                          // Room for the window buttons.
+                          if (ownWindowFrame) const SizedBox(width: 6.5 * rem),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const Positioned(top: 0, right: 0, child: WindowButtons()),
+                    const Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: WindowTopResizeEdge(),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -613,8 +638,9 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
               Positioned(
                 left: _panel == null ? null : 32,
                 right: _panel == null ? 32 : null,
-                bottom:
-                    widget.resumedFrom != null && _panel != null ? 172 : 112,
+                bottom: widget.resumedFrom != null && _panel != null
+                    ? 172
+                    : 112,
                 child: _UpNextCard(
                   upNext: upNext,
                   onPlayNow: widget.onPlayNext,
@@ -1111,8 +1137,8 @@ class _VolumeControlState extends State<_VolumeControl> {
             icon: silent
                 ? Icons.volume_off_rounded
                 : widget.volume < 50
-                    ? Icons.volume_down_rounded
-                    : Icons.volume_up_rounded,
+                ? Icons.volume_down_rounded
+                : Icons.volume_up_rounded,
             onPressed: widget.onToggleMute,
           ),
           AnimatedContainer(

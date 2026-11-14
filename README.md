@@ -19,7 +19,7 @@ A Bangla + English README is written in Phase 8.
 | 3. Sources and server discovery | Done: starter list of 38 checked servers, Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet |
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
-| 6. Real UI | Under way: the design tokens and the window scale are in; see [Design tokens and scale](#design-tokens-and-scale) |
+| 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail) and the frameless window are in; see [Shell and window](#shell-and-window). The pages inside the shell are still the working screens of the earlier phases |
 | 7–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -96,7 +96,8 @@ Known gaps, tracked for later phases:
 - The position of each video is saved every few seconds and when you leave;
   opening it again resumes there ("Start over" jumps back to the beginning).
   Positions in the first moments or the last 5% are not kept.
-- Paste several URLs (one per line) to play them in order. In the last 15
+- "Play a URL" (on Home, or Ctrl+O) takes several URLs, one per line, and
+  plays them in order. In the last 15
   seconds a countdown offers "Play now" / "Cancel"; otherwise the next video
   starts when the current one ends.
 - Positions are kept for the 2,000 most recently watched videos in the
@@ -137,6 +138,68 @@ to 1280, about 118% at 1920, about 172% at 3840. Widths are in logical
 pixels, so with Windows display scaling at 125% a 1920-pixel screen counts
 as 1536 (107%). Text, artwork and spacing grow together; widgets never ask
 for the window size to pick a font size.
+
+## Shared widgets
+
+`lib/widgets` holds the building blocks of the prototype, each drawn from
+the tokens: `DharaButton` and `DharaIconButton`, `PillChip`,
+`SegmentedPills`, `DharaBadge`, `DharaSwitch`, `GlassCard`, `Skeleton`
+(the loading shimmer), `EmptyState`, `ToastHost` (short messages at the
+bottom of the window) and `DharaLogo`.
+
+Everything clickable is built on `Pressable`: it reacts to the mouse, is
+reached by Tab and the arrow keys, is pressed by Enter or Space, and shows
+the focus outline only while the keyboard is in use. Animations take no
+time when the system asks for reduced motion.
+
+`PlaceholderArt` draws a picture from a title's name, for titles without a
+poster: a port of the prototype's generator, so the same name always gives
+the same picture and nothing is downloaded. Icons are the rounded Material
+icons that ship with Flutter, named in one place (`lib/widgets/icons.dart`).
+
+## Shell and window
+
+`AppShell` (`lib/shell`) is the frame every page sits in: the app's own
+title bar (Back, brand, search field, state of the servers, window
+buttons), the navigation rail on the left, and the page between them. The
+pages have a navigator of their own; no routing package is used. Home is
+always the first page, a place of the rail opens on top of it and replaces
+the place that was open, so Back always leads toward Home. The player is
+not a page of the shell: it opens above it and takes the whole window.
+
+| Key | Action |
+|---|---|
+| Ctrl+K or / | Put the keyboard into the search field (Enter searches the library) |
+| Ctrl+O | Play a URL |
+| Alt+← , the mouse's back button | Back |
+| Esc | Leave a text field, otherwise Back |
+| Tab, arrow keys, Enter / Space | Move between and press buttons |
+
+On Windows the app draws the title bar itself. The runner
+(`windows/runner/flutter_window.cpp`) takes the caption out of the window
+frame when the app asks for it over the `dhara/window` channel and keeps
+the system's left, right and bottom borders, so resizing, snapping, the
+shadow and the rounded corners stay the system's. Moving the window, the
+top resize edge and the three window buttons are the app's
+(`lib/core/window`); while the player is open, its top strip takes that
+role. No window package is used. If the runner does not answer (another
+system, or a failure), the system's title bar stays and the app draws no
+window buttons. The window cannot be made smaller than 940 by 560.
+
+Not done: the snap layouts fly-out of Windows 11 over the maximize button
+(Win+Z and dragging to a screen edge work), and the window cannot be moved
+while a dialog is open.
+
+### Trying a build without touching the real data
+
+A build made with `--dart-define=DHARA_DATA_DIR=<folder>` keeps its
+library, sources and pictures in that folder, its settings in memory, and
+neither reads nor writes the TMDB key in Windows Credential Manager. A
+build made without it has no such switch.
+
+```powershell
+flutter run -d windows --dart-define=DHARA_DATA_DIR=D:	mpdhara-test
+```
 
 ## Sources
 
@@ -196,7 +259,7 @@ The sample pages are in `test/fixtures` (see
 
 ### Server Discovery (BDIX Tester)
 
-Open it from the start screen. It lists every source with what the last
+Open it from the rail, or by a click on the server count in the title bar. It lists every source with what the last
 test found and offers:
 
 - **Test all** (or "Test now" on one row), and **Enable all reachable**,
@@ -298,7 +361,7 @@ enabled sources through their adapters and keeps the index in step
 
 ### Library index screen
 
-Open it from the start screen. It lists the enabled servers with what the
+Open it from the rail. It lists the enabled servers with what the
 index holds of each, shows the progress of a crawl, and offers **Update
 index**, **Stop** and **Full re-check** (reads every folder again, also
 those that look unchanged). The search box searches file names and folder
@@ -472,6 +535,10 @@ the TMDB key is in Windows Credential Manager (see [TMDB key](#tmdb-key)).
 
 ```
 lib/                 app code
+lib/theme/           design tokens, theme, window scale
+lib/widgets/         shared widgets of the prototype
+lib/shell/           title bar, navigation rail, navigation
+windows/runner/      the Windows window (frameless title bar support)
 test/                automated tests (run anywhere)
 test/fixtures/       saved server answers the adapter tests run against
 design/prototype/    Phase 1 clickable HTML prototype (no network calls)

@@ -1,10 +1,13 @@
 import 'dart:ui';
 
+import 'package:dhara/core/window/window_controller.dart';
 import 'package:dhara/features/player/track_options.dart';
 import 'package:dhara/features/player/widgets/player_controls_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../support/test_app.dart';
 
 /// Records what the controls reported.
 class _Calls {
@@ -63,10 +66,13 @@ Future<_Calls> _pump(
   UpNext? upNext,
   Duration? resumedFrom,
   _Calls? calls,
+  WindowController? window,
 }) async {
   final recorded = calls ?? _Calls();
+  Widget inWindow(Widget app) =>
+      window == null ? app : WindowScope(controller: window, child: app);
   await tester.pumpWidget(
-    MaterialApp(
+    inWindow(MaterialApp(
       home: Scaffold(
         backgroundColor: Colors.black,
         body: PlayerControlsView(
@@ -114,7 +120,7 @@ Future<_Calls> _pump(
           notice: notice,
         ),
       ),
-    ),
+    )),
   );
   return recorded;
 }
@@ -964,6 +970,56 @@ void main() {
       await tester.pump();
 
       expect(_hidden(tester), isFalse);
+    });
+  });
+
+  group('with the app\'s own window frame', () {
+    testWidgets('the top strip carries the window buttons and moves the '
+        'window', (tester) async {
+      final window = FakeWindow();
+      await _pump(tester, window: window);
+      final top = find.byKey(const Key('top-controls'));
+
+      expect(
+        find.descendant(
+          of: top,
+          matching: find.byKey(const Key('window-close')),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const Key('window-minimize')));
+      expect(window.calls, ['minimize']);
+
+      // Between the title and the window buttons.
+      final strip = tester.getRect(top);
+      await tester.dragFrom(
+        Offset(strip.center.dx, strip.top + 20),
+        const Offset(40, 30),
+      );
+      expect(window.calls, ['minimize', 'drag']);
+      await tester.pump(const Duration(milliseconds: 500));
+    });
+
+    testWidgets('a click on the top strip does not pause the video', (
+      tester,
+    ) async {
+      final window = FakeWindow();
+      final calls = await _pump(tester, playing: true, window: window);
+      final strip = tester.getRect(find.byKey(const Key('top-controls')));
+
+      await tester.tapAt(Offset(strip.center.dx, strip.top + 20));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(calls.togglePlay, 0);
+    });
+
+    testWidgets('in fullscreen, and with the system\'s title bar, there are '
+        'no window buttons', (tester) async {
+      await _pump(tester, window: FakeWindow(isFullscreen: true));
+      expect(find.byKey(const Key('window-close')), findsNothing);
+
+      await _pump(tester);
+      expect(find.byKey(const Key('window-close')), findsNothing);
     });
   });
 }

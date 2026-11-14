@@ -9,6 +9,8 @@ import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/core/secrets/windows_credential_store.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
+import 'package:dhara/core/window/native_window.dart';
+import 'package:dhara/core/window/window_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/anime_controller.dart';
 import 'package:dhara/features/metadata/episodes_controller.dart';
@@ -33,6 +35,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Loads the bundled libmpv; no external player install is needed.
   MediaKit.ensureInitialized();
+  // On Windows the app draws its own title bar. Asked for before the first
+  // frame, so the window never shows with the system's one. Elsewhere, and if
+  // this fails, the system's title bar stays and the app draws none.
+  final window = NativeWindowController();
+  if (Platform.isWindows) await window.useCustomFrame();
   final folder = await _appDataPath();
   final (store, sources, (library, libraryNotice, librarySaved)) = await (
     _openSettingsStore(),
@@ -56,7 +63,9 @@ Future<void> main() async {
   // The TMDB key lives in the secure storage of the system. Other systems
   // than Windows have none the app can use yet: there it lasts for this run.
   final tmdbKey = TmdbKeyController(
-    Platform.isWindows ? const WindowsCredentialStore() : MemorySecretStore(),
+    Platform.isWindows && _dataFolderOverride.isEmpty
+        ? const WindowsCredentialStore()
+        : MemorySecretStore(),
   );
   unawaited(tmdbKey.load());
   // Looks titles up on TMDB: the first time when asked, later by itself
@@ -87,18 +96,21 @@ Future<void> main() async {
   final resumeStore = ResumeStore(librarySaved ? library : null);
   await resumeStore.load(legacy: store);
   runApp(
-    DharaApp(
-      settings: SettingsController(store),
-      resumeStore: resumeStore,
-      sourceTests: sourceTests,
-      index: index,
-      titles: titles,
-      tmdbKey: tmdbKey,
-      match: match,
-      review: review,
-      // AniList is asked when its screen is opened, not at start-up.
-      anime: AnimeController(library: library),
-      images: images,
+    WindowScope(
+      controller: window,
+      child: DharaApp(
+        settings: SettingsController(store),
+        resumeStore: resumeStore,
+        sourceTests: sourceTests,
+        index: index,
+        titles: titles,
+        tmdbKey: tmdbKey,
+        match: match,
+        review: review,
+        // AniList is asked when its screen is opened, not at start-up.
+        anime: AnimeController(library: library),
+        images: images,
+      ),
     ),
   );
   // Notice enabled servers that died since they were last tested.
@@ -123,6 +135,9 @@ Future<void> _keepIndexFresh(IndexController index) async {
 /// Opens the on-disk settings. If that fails (unreadable profile folder,
 /// broken file) the app still starts, with defaults that last for this run.
 Future<KeyValueStore> _openSettingsStore() async {
+  // A development build with its own data folder keeps its hands off the
+  // real settings too.
+  if (_dataFolderOverride.isNotEmpty) return MemoryKeyValueStore();
   try {
     return await SharedPrefsStore.open();
   } on Exception {
@@ -205,6 +220,13 @@ Future<(LibraryWorker, String?, bool)> _openLibrary(String? folder) async {
   }
 }
 
+/// For development only: another folder for the app's data, so that a test
+/// build never touches the real library. Set when building, with
+/// `--dart-define=DHARA_DATA_DIR=<folder>`; a build made without it has no
+/// way to move its data. Such a build also keeps its settings in memory and
+/// neither reads nor writes the TMDB key in Windows Credential Manager.
+const _dataFolderOverride = String.fromEnvironment('DHARA_DATA_DIR');
+
 /// The per-user application data folder (on Windows
 /// `%APPDATA%\com.dhara\dhara`), or `null` if it cannot be found.
 ///
@@ -212,6 +234,15 @@ Future<(LibraryWorker, String?, bool)> _openLibrary(String? folder) async {
 /// brings along for Windows and Linux; the `path_provider` front package
 /// would add a dozen packages for platforms this app does not target.
 Future<String?> _appDataPath() async {
+  if (_dataFolderOverride.isNotEmpty) {
+    try {
+      return (await Directory(
+        _dataFolderOverride,
+      ).create(recursive: true)).path;
+    } on FileSystemException {
+      return null;
+    }
+  }
   try {
     return await PathProviderPlatform.instance.getApplicationSupportPath();
   } on Exception {
