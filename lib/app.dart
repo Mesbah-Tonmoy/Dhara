@@ -10,6 +10,7 @@ import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/player/open_url_screen.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
+import 'package:dhara/theme/scale.dart';
 import 'package:dhara/theme/theme.dart';
 import 'package:flutter/material.dart';
 
@@ -68,6 +69,10 @@ class DharaApp extends StatelessWidget {
                           title: 'Dhara',
                           debugShowCheckedModeBanner: false,
                           theme: buildDharaTheme(),
+                          // Above the Navigator, so that dialogs and menus
+                          // grow with the window as well.
+                          builder: (context, child) =>
+                              DharaScale(child: child!),
                           home: const OpenUrlScreen(),
                         ),
                       ),

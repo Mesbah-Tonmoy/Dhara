@@ -19,7 +19,8 @@ A Bangla + English README is written in Phase 8.
 | 3. Sources and server discovery | Done: starter list of 38 checked servers, Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet |
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
-| 6–9 | Not started |
+| 6. Real UI | Under way: the design tokens and the window scale are in; see [Design tokens and scale](#design-tokens-and-scale) |
+| 7–9 | Not started |
 
 ## Prerequisites (Windows)
 
@@ -121,6 +122,21 @@ fetched at runtime. Sources, licences (OFL 1.1) and checksums are in
 [assets/fonts/README.md](assets/fonts/README.md). In code use
 `DharaFonts.ui` / `DharaFonts.display`; a button `textStyle` replaces the
 theme's, so name the family there explicitly.
+
+## Design tokens and scale
+
+`lib/theme/tokens.dart` holds every token of the approved prototype
+(colours, text sizes, spacing, radii, shadows, motion, layout measures).
+Sizes are written once, for a window 1280 wide, where one `rem` of the
+prototype is 15 pixels. `test/theme/tokens_test.dart` reads the prototype's
+token block and fails if a value differs or a token is missing.
+
+`DharaScale` (`lib/theme/scale.dart`) sits above the app's navigator and
+draws everything larger on wider windows, by the prototype's rule: 100% up
+to 1280, about 118% at 1920, about 172% at 3840. Widths are in logical
+pixels, so with Windows display scaling at 125% a 1920-pixel screen counts
+as 1536 (107%). Text, artwork and spacing grow together; widgets never ask
+for the window size to pick a font size.
 
 ## Sources
 
