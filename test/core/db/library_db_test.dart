@@ -77,6 +77,7 @@ void main() {
         'files_fts',
         'folders',
         'metadata_cache',
+        'my_list',
         'playback',
         'seasons',
         'sources',
@@ -84,7 +85,103 @@ void main() {
         'title_keys',
         'titles',
         'titles_fts',
+        'watch_history',
       ]);
+    });
+
+    test('a title is anime if AniList knows it or it is animation from '
+        'Japan', () {
+      void add(int id, {String? genres, String? language, int? anilist}) =>
+          db.execute(
+            'INSERT INTO titles (id, kind, name, genres, language, '
+            "anilist_id, added_at) VALUES (?, 1, 'T', ?, ?, ?, 0)",
+            [id, genres, language, anilist],
+          );
+      add(1, genres: 'Animation, Drama', language: 'ja');
+      add(2, genres: 'Animation, Family', language: 'en');
+      add(3, genres: 'Drama', language: 'ja');
+      add(4, anilist: 21);
+      add(5);
+
+      expect(
+        [
+          for (final row in db.select(
+            'SELECT id FROM titles WHERE is_anime = 1 ORDER BY id',
+          ))
+            row['id'],
+        ],
+        [1, 4],
+      );
+      expect(
+        db.select('SELECT count(*) FROM titles WHERE is_anime = 0').single
+            .values,
+        [3],
+        reason: 'never unknown',
+      );
+
+      // It follows what is known about the title.
+      db.execute("UPDATE titles SET language = 'ja' WHERE id = 2");
+      expect(
+        db.select('SELECT is_anime FROM titles WHERE id = 2').single.values,
+        [1],
+      );
+    });
+
+    test('a title is on My List once, and leaves it when it is removed', () {
+      db.execute(
+        "INSERT INTO titles (id, kind, name, added_at) VALUES (1, 0, 'A', 0)",
+      );
+      db.execute('INSERT INTO my_list (title, added_at) VALUES (1, 5)');
+
+      expect(
+        () => db.execute('INSERT INTO my_list (title, added_at) VALUES (1, 6)'),
+        throwsA(isA<SqliteException>()),
+      );
+      expect(
+        () => db.execute('INSERT INTO my_list (title, added_at) VALUES (9, 6)'),
+        throwsA(isA<SqliteException>()),
+        reason: 'no such title',
+      );
+
+      db.execute('DELETE FROM titles WHERE id = 1');
+      expect(count('my_list'), 0);
+    });
+
+    test('the newest videos are found through an index', () {
+      final plan = db.select(
+        'EXPLAIN QUERY PLAN SELECT id FROM files INDEXED BY files_recent '
+        'ORDER BY min(ifnull(modified, added_at), added_at) DESC LIMIT 5',
+      );
+      expect('${plan.first['detail']}', contains('files_recent'));
+      expect(
+        [for (final row in plan) '${row['detail']}'],
+        isNot(contains(contains('TEMP B-TREE'))),
+        reason: 'no sorting',
+      );
+    });
+
+    test('a video dated after the app first saw it counts from then', () {
+      final folder = addFolder();
+      void add(String name, {int? modified, required int addedAt}) =>
+          db.execute(
+            'INSERT INTO files (folder, name, url, modified, added_at) '
+            'VALUES (?, ?, ?, ?, ?)',
+            [folder, name, 'http://a.test/$name', modified, addedAt],
+          );
+      add('old.mkv', modified: 100, addedAt: 500);
+      add('undated.mkv', addedAt: 300);
+      add('from-the-future.mkv', modified: 9000, addedAt: 400);
+
+      expect(
+        [
+          for (final row in db.select(
+            'SELECT name FROM files '
+            'ORDER BY min(ifnull(modified, added_at), added_at) DESC',
+          ))
+            row['name'],
+        ],
+        ['from-the-future.mkv', 'undated.mkv', 'old.mkv'],
+      );
     });
 
     test('a file must belong to a known folder', () {
@@ -310,6 +407,105 @@ void main() {
           reason: table,
         );
       }
+    });
+
+    test('made by version 2 is upgraded and keeps what it held', () {
+      final old = LibraryDb.openAt(path, 2);
+      old.db
+        ..execute("INSERT INTO sources (id, source_id) VALUES (1, 'a')")
+        ..execute(
+          'INSERT INTO folders (id, source, url, path, depth, state) '
+          "VALUES (1, 1, 'http://a.test/', 'Movies', 0, 1)",
+        )
+        ..execute(
+          'INSERT INTO files (id, folder, name, url, modified, added_at) '
+          "VALUES (7, 1, 'Tenet.2020.mkv', 'http://a.test/Tenet.2020.mkv', "
+          '5, 9)',
+        )
+        ..execute(
+          'INSERT INTO titles (id, kind, name, year, tmdb_id, match_state, '
+          'rating, votes, genres, language, added_at) '
+          "VALUES (3, 0, 'Tenet', 2020, 577922, 1, 7.2, 9000, "
+          "'Action, Science Fiction', 'en', 9)",
+        )
+        ..execute(
+          'INSERT INTO titles (id, kind, name, genres, language, added_at) '
+          "VALUES (4, 1, 'Mushishi', 'Animation, Mystery', 'ja', 9)",
+        )
+        ..execute(
+          'INSERT INTO file_meta (file, parser, kind, title, height) '
+          'VALUES (7, 1, 0, 3, 1080)',
+        )
+        ..execute(
+          'INSERT INTO playback (url, position_ms, duration_ms, updated_at) '
+          "VALUES ('http://a.test/Tenet.2020.mkv', 1000, 5000, 77)",
+        );
+      expect(old.db.userVersion, 2);
+      expect(
+        old.db.select("SELECT 1 FROM sqlite_schema WHERE name = 'my_list'"),
+        isEmpty,
+      );
+      old.close();
+
+      final upgraded = LibraryDb.open(path);
+      addTearDown(upgraded.close);
+      final db = upgraded.db;
+
+      expect(db.userVersion, LibraryDb.schemaVersion);
+      expect(
+        db
+            .select(
+              'SELECT name, year, tmdb_id, rating, votes, genres, runtime, '
+              'set_aside, is_anime FROM titles WHERE id = 3',
+            )
+            .single
+            .values,
+        ['Tenet', 2020, 577922, 7.2, 9000, 'Action, Science Fiction', null, 0, 0],
+      );
+      expect(
+        db.select('SELECT is_anime FROM titles WHERE id = 4').single.values,
+        [1],
+      );
+      expect(db.select('SELECT title, height FROM file_meta').single.values, [
+        3,
+        1080,
+      ]);
+      expect(db.select('SELECT position_ms FROM playback').single.values, [
+        1000,
+      ]);
+      expect(
+        db.select('SELECT * FROM watch_history').single.values,
+        ['http://a.test/Tenet.2020.mkv', 77, 1000, 5000, 0],
+        reason: 'what was left unfinished starts the history',
+      );
+      expect(db.select('SELECT count(*) FROM my_list').single.values, [0]);
+      expect(
+        db.select("SELECT rowid FROM titles_fts WHERE titles_fts MATCH 'tenet'")
+            .single
+            .values,
+        [3],
+      );
+      // The new indexes hold what was there before.
+      expect(
+        db
+            .select(
+              'SELECT id FROM files INDEXED BY files_url WHERE url = ?',
+              ['http://a.test/Tenet.2020.mkv'],
+            )
+            .single
+            .values,
+        [7],
+      );
+      expect(
+        db
+            .select(
+              'SELECT id FROM titles INDEXED BY titles_newest '
+              'WHERE kind = 0 ORDER BY year DESC, votes DESC',
+            )
+            .single
+            .values,
+        [3],
+      );
     });
 
     test('made by a newer app is refused and left alone', () {

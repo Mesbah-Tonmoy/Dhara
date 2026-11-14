@@ -4,16 +4,23 @@ import 'dart:convert';
 import 'package:dhara/core/db/library_db.dart';
 import 'package:dhara/core/db/library_isolate.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
+import 'package:dhara/features/history/history_store.dart';
 import 'package:dhara/features/player/playback_progress.dart';
 import 'package:flutter/widgets.dart';
 
-/// Remembers where each video was left, so it can be resumed.
+/// Remembers where each video was left, so it can be resumed, and notes
+/// what was watched in the watch history.
 ///
 /// The positions live in the library database (table `playback`), for the
 /// [maxEntries] most recently watched videos. They are also held in
 /// memory, so asking for one never waits; changes are written behind.
 ///
-/// Without a library the positions last for this run only.
+/// The history (table `watch_history`, read through [HistoryStore]) is
+/// written along with them: a video is in it once it was watched far
+/// enough to be resumed, or to the end.
+///
+/// Without a library the positions last for this run only, and there is no
+/// history.
 class ResumeStore {
   ResumeStore([this._library, this._clock = DateTime.now]);
 
@@ -78,13 +85,20 @@ class ResumeStore {
   }
 
   /// Records the current [position] of [url]. Positions not worth resuming
-  /// (see [isResumable]) remove the entry instead.
+  /// (see [isResumable]) remove the entry instead; one in the credits also
+  /// counts as watched to the end (see [finish]).
   void save(Uri url, {required Duration position, required Duration duration}) {
     // Unknown duration: nothing can be judged yet.
     if (duration <= Duration.zero) return;
     final key = _keyFor(url);
     if (!isResumable(position, duration)) {
-      if (_entries.remove(key) != null) _write(_deletePosition, key);
+      if (isWatched(position, duration)) {
+        finish(url, duration: duration);
+      } else if (_entries.remove(key) != null) {
+        // Back in the first moments: the history keeps the last time it
+        // was really watched.
+        _write(_deletePosition, key);
+      }
       return;
     }
     final entry = (position.inMilliseconds, duration.inMilliseconds);
@@ -104,7 +118,20 @@ class ResumeStore {
     }
   }
 
-  /// Forgets [url], e.g. after it was watched to the end.
+  /// Notes that [url] was watched to the end: next time it starts from the
+  /// beginning, and the history shows it as watched. Without a known
+  /// [duration] only the position is forgotten.
+  void finish(Uri url, {required Duration duration}) {
+    final key = _keyFor(url);
+    _entries.remove(key);
+    _write(_finishVideo, (
+      key,
+      duration.inMilliseconds,
+      _clock().millisecondsSinceEpoch,
+    ));
+  }
+
+  /// Forgets where [url] was left. The history is not touched.
   void clear(Uri url) {
     final key = _keyFor(url);
     if (_entries.remove(key) != null) _write(_deletePosition, key);
@@ -152,13 +179,15 @@ typedef _Row = (String, int, int);
 // What follows runs in the library isolate.
 
 /// The saved positions, least recently watched first. Rows beyond the
-/// [keep] most recent ones are dropped for good.
+/// [keep] most recent ones are dropped for good, and so is the far end of
+/// the history.
 List<_Row> _readPositions(LibraryDb db, int keep) {
   db.db.execute(
     'DELETE FROM playback WHERE url NOT IN '
     '(SELECT url FROM playback ORDER BY updated_at DESC LIMIT ?)',
     [keep],
   );
+  HistoryStore(db).trim();
   return [
     for (final row in db.db.select(
       'SELECT url, position_ms, duration_ms FROM playback ORDER BY updated_at',
@@ -171,27 +200,64 @@ List<_Row> _readPositions(LibraryDb db, int keep) {
   ];
 }
 
-void _writePosition(LibraryDb db, (String, int, int, int) row) => db.db.execute(
-  'INSERT INTO playback (url, position_ms, duration_ms, updated_at) '
-  'VALUES (?, ?, ?, ?) ON CONFLICT (url) DO UPDATE SET '
-  'position_ms = excluded.position_ms, '
-  'duration_ms = excluded.duration_ms, updated_at = excluded.updated_at',
-  [row.$1, row.$2, row.$3, row.$4],
-);
+/// Keeps a position, and the same in the history.
+void _writePosition(LibraryDb db, (String, int, int, int) row) {
+  final (url, position, duration, at) = row;
+  db.transaction(() {
+    db.db.execute(
+      'INSERT INTO playback (url, position_ms, duration_ms, updated_at) '
+      'VALUES (?, ?, ?, ?) ON CONFLICT (url) DO UPDATE SET '
+      'position_ms = excluded.position_ms, '
+      'duration_ms = excluded.duration_ms, updated_at = excluded.updated_at',
+      [url, position, duration, at],
+    );
+    HistoryStore(db).record(
+      url,
+      positionMs: position,
+      durationMs: duration,
+      finished: false,
+      at: at,
+    );
+  });
+}
+
+/// Forgets the position of a video (URL, duration, time) that was watched
+/// to the end and notes it in the history as watched.
+void _finishVideo(LibraryDb db, (String, int, int) row) {
+  final (url, duration, at) = row;
+  db.transaction(() {
+    db.db.execute('DELETE FROM playback WHERE url = ?', [url]);
+    // A video whose length never became known is not worth a row.
+    if (duration <= 0) return;
+    HistoryStore(db).record(
+      url,
+      positionMs: duration,
+      durationMs: duration,
+      finished: true,
+      at: at,
+    );
+  });
+}
 
 void _deletePosition(LibraryDb db, String url) =>
     db.db.execute('DELETE FROM playback WHERE url = ?', [url]);
 
-/// Adds positions from before the database; a video the database already
-/// knows keeps its newer position.
+/// Adds positions from before the database, to the history as well; a
+/// video the database already knows keeps what it has.
 void _importPositions(LibraryDb db, List<(String, int, int, int)> rows) =>
     db.transaction(() {
       for (final (url, position, duration, updatedAt) in rows) {
-        db.db.execute(
-          'INSERT OR IGNORE INTO playback '
-          '(url, position_ms, duration_ms, updated_at) VALUES (?, ?, ?, ?)',
-          [url, position, duration, updatedAt],
-        );
+        db.db
+          ..execute(
+            'INSERT OR IGNORE INTO playback '
+            '(url, position_ms, duration_ms, updated_at) VALUES (?, ?, ?, ?)',
+            [url, position, duration, updatedAt],
+          )
+          ..execute(
+            'INSERT OR IGNORE INTO watch_history '
+            '(url, watched_at, position_ms, duration_ms) VALUES (?, ?, ?, ?)',
+            [url, updatedAt, position, duration],
+          );
       }
     });
 

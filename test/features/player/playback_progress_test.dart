@@ -21,6 +21,15 @@ void main() {
       expect(isResumable(movie, movie), isFalse);
     });
 
+    test('what is past resuming at the end counts as watched', () {
+      expect(isWatched(const Duration(minutes: 113), movie), isFalse);
+      expect(isWatched(const Duration(minutes: 114), movie), isTrue);
+      expect(isWatched(movie, movie), isTrue);
+      // The first moments cannot be resumed either, but are not the end.
+      expect(isWatched(const Duration(seconds: 3), movie), isFalse);
+      expect(isWatched(Duration.zero, Duration.zero), isFalse);
+    });
+
     test('uses 5% instead of ten seconds for short clips', () {
       const clip = Duration(seconds: 60);
       expect(isResumable(const Duration(seconds: 2), clip), isFalse);

@@ -326,6 +326,22 @@ void main() {
       expect(count('titles'), 0);
     });
 
+    test('keeps a title that is on My List', () {
+      final file = add('flix', 'Movies', 'A (2001).mkv');
+      add('flix', 'Movies', 'B (2002).mkv');
+      readNames();
+      db.execute(
+        'INSERT INTO my_list (title, added_at) SELECT id, 0 FROM titles '
+        "WHERE name = 'A'",
+      );
+      db.execute('DELETE FROM files');
+      expect(file, isPositive);
+
+      expect(store.removeTitlesWithoutFiles(), 1);
+      expect(db.select('SELECT name FROM titles').single.values, ['A']);
+      expect(count('my_list'), 1);
+    });
+
     test('keeps a title that was tied to its name by hand', () {
       final file = add('flix', 'Movies', 'A (2001).mkv');
       readNames();

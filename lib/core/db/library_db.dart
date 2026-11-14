@@ -26,7 +26,8 @@ class LibraryDbException implements Exception {
 
 /// The app's one SQLite database: every video found on the sources, their
 /// subtitles, how far each source has been crawled, where each video was
-/// left, and the films and shows those videos are copies of.
+/// left, the films and shows those videos are copies of, and what the user
+/// watched and put on My List.
 ///
 /// `package:sqlite3` is synchronous, so outside tests this is used from the
 /// library isolate only, never from the UI.
@@ -105,7 +106,7 @@ class LibraryDb {
 
   /// The schema this version of the app reads and writes. Raise it together
   /// with a new entry in [_migrations].
-  static const schemaVersion = 2;
+  static const schemaVersion = 3;
 
   final Database db;
 
@@ -133,7 +134,7 @@ const _damagedCodes = {11, 26};
 /// One script per schema version, in order: `_migrations[n]` takes a
 /// database from version n to n + 1. Never edit a script that has shipped;
 /// add a new one.
-const _migrations = [_schemaV1, _schemaV2];
+const _migrations = [_schemaV1, _schemaV2, _schemaV3];
 
 const _schemaV1 = '''
 -- Crawl state of one source. The source itself (name, URLs, type) lives in
@@ -333,4 +334,51 @@ BEGIN
   INSERT INTO titles_fts (rowid, name, original_name)
   VALUES (new.id, new.name, new.original_name);
 END;
+''';
+
+/// My List, the watch history, and what Home sorts and filters by.
+const _schemaV3 = '''
+-- The films and shows the user put on My List.
+CREATE TABLE my_list (
+  title INTEGER PRIMARY KEY REFERENCES titles (id) ON DELETE CASCADE,
+  added_at INTEGER NOT NULL
+) STRICT;
+
+-- What was watched: one row per video, by URL like playback, for the last
+-- time it was watched. playback holds only what can be resumed; this also
+-- keeps what was watched to the end.
+CREATE TABLE watch_history (
+  url TEXT PRIMARY KEY,
+  watched_at INTEGER NOT NULL,
+  position_ms INTEGER NOT NULL,     -- where it was left that time
+  duration_ms INTEGER NOT NULL,
+  finished INTEGER NOT NULL DEFAULT 0 CHECK (finished IN (0, 1))
+) STRICT, WITHOUT ROWID;
+CREATE INDEX watch_history_recent ON watch_history (watched_at);
+
+-- What was left unfinished before there was a history.
+INSERT INTO watch_history (url, watched_at, position_ms, duration_ms)
+SELECT url, updated_at, position_ms, duration_ms FROM playback;
+
+-- From a watched URL to its video, and so to its title.
+CREATE INDEX files_url ON files (url);
+
+-- Newest videos first: by the date the server gives, or else by when the
+-- app first saw the file. A date later than that is a server's mistake.
+CREATE INDEX files_recent
+  ON files (min(ifnull(modified, added_at), added_at));
+
+ALTER TABLE titles ADD COLUMN runtime INTEGER;   -- minutes
+-- Set by hand: not a film or a show after all. Left out everywhere.
+ALTER TABLE titles ADD COLUMN set_aside INTEGER NOT NULL DEFAULT 0
+  CHECK (set_aside IN (0, 1));
+-- Anime: AniList knows it, or it is animation from Japan.
+ALTER TABLE titles ADD COLUMN is_anime INTEGER GENERATED ALWAYS AS (
+  anilist_id IS NOT NULL
+  OR (ifnull(language, '') = 'ja' AND instr(ifnull(genres, ''), 'Animation') > 0)
+) VIRTUAL;
+
+-- The rows of Home: the newest films or shows, and the best rated titles.
+CREATE INDEX titles_newest ON titles (kind, year, votes);
+CREATE INDEX titles_rated ON titles (rating, votes);
 ''';

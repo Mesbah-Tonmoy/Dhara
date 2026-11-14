@@ -289,13 +289,15 @@ class MetadataStore {
   }
 
   /// Removes the titles no video belongs to any more and returns how many.
-  /// A title tied to its name by hand stays: its files may come back.
+  /// A title tied to its name by hand stays, and so does one on My List:
+  /// its files may come back.
   int removeTitlesWithoutFiles() {
     _db.execute(
       'DELETE FROM titles WHERE '
       'NOT EXISTS (SELECT 1 FROM file_meta m WHERE m.title = titles.id) '
       'AND NOT EXISTS (SELECT 1 FROM title_keys k '
-      'WHERE k.title = titles.id AND k.fixed = 1)',
+      'WHERE k.title = titles.id AND k.fixed = 1) '
+      'AND NOT EXISTS (SELECT 1 FROM my_list l WHERE l.title = titles.id)',
     );
     return _db.updatedRows;
   }

@@ -140,6 +140,119 @@ void main() {
     expect(again.positionFor(_url('b.mkv')), const Duration(minutes: 5));
   });
 
+  group('watch history', () {
+    List<List<Object?>> history() => db.db
+        .select(
+          'SELECT url, position_ms, duration_ms, finished FROM watch_history '
+          'ORDER BY watched_at',
+        )
+        .rows;
+
+    test('a video watched far enough to resume is in it', () async {
+      final resume = await open();
+      watch(resume, 'a.mkv');
+      watch(resume, 'a.mkv', minutes: 9);
+      await written();
+
+      expect(history(), [
+        [
+          '${_url('a.mkv')}',
+          const Duration(minutes: 9).inMilliseconds,
+          _movie.inMilliseconds,
+          0,
+        ],
+      ]);
+      expect(
+        db.db.select('SELECT watched_at FROM watch_history').single.values,
+        [now.millisecondsSinceEpoch],
+      );
+    });
+
+    test('a video left in its first moments is not', () async {
+      final resume = await open();
+      resume.save(
+        _url('a.mkv'),
+        position: const Duration(seconds: 4),
+        duration: _movie,
+      );
+      await written();
+
+      expect(history(), isEmpty);
+    });
+
+    test('one that ended is kept as watched, and starts over', () async {
+      final resume = await open();
+      watch(resume, 'a.mkv', minutes: 100);
+      now = now.add(const Duration(minutes: 20));
+      resume.finish(_url('a.mkv'), duration: _movie);
+      await written();
+
+      expect(resume.positionFor(_url('a.mkv')), isNull);
+      expect(savedUrls(), isEmpty);
+      expect(history(), [
+        ['${_url('a.mkv')}', _movie.inMilliseconds, _movie.inMilliseconds, 1],
+      ]);
+      expect((await open()).positionFor(_url('a.mkv')), isNull);
+    });
+
+    test('one left during the credits counts as watched too', () async {
+      final resume = await open();
+      watch(resume, 'a.mkv', minutes: 60);
+      watch(resume, 'a.mkv', minutes: 117);
+      await written();
+
+      expect(resume.positionFor(_url('a.mkv')), isNull);
+      expect(history().single.last, 1);
+    });
+
+    test('going back to the start forgets the position, not that it was '
+        'watched', () async {
+      final resume = await open();
+      watch(resume, 'a.mkv', minutes: 60);
+      resume.save(_url('a.mkv'), position: Duration.zero, duration: _movie);
+      await written();
+
+      expect(resume.positionFor(_url('a.mkv')), isNull);
+      expect(history().single, [
+        '${_url('a.mkv')}',
+        const Duration(minutes: 60).inMilliseconds,
+        _movie.inMilliseconds,
+        0,
+      ]);
+    });
+
+    test(
+      'a video that ended before its length was known leaves no row',
+      () async {
+        final resume = await open();
+        resume.finish(_url('a.mkv'), duration: Duration.zero);
+        await written();
+
+        expect(history(), isEmpty);
+      },
+    );
+
+    test('clear forgets the position only', () async {
+      final resume = await open();
+      watch(resume, 'a.mkv');
+      resume.clear(_url('a.mkv'));
+      await written();
+
+      expect(history(), hasLength(1));
+    });
+
+    test('outlives the positions, up to its own limit', () async {
+      final resume = await open();
+      for (var i = 0; i < ResumeStore.maxEntries + 5; i++) {
+        watch(resume, '$i.mkv');
+      }
+      await written();
+
+      expect(savedUrls(), hasLength(ResumeStore.maxEntries));
+      expect(history(), hasLength(ResumeStore.maxEntries + 5));
+    });
+  });
+
   test('keeps only the most recently watched videos', () async {
     final resume = await open();
     for (var i = 0; i < ResumeStore.maxEntries + 5; i++) {

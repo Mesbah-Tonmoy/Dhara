@@ -14,6 +14,11 @@ bool isResumable(Duration position, Duration duration) {
   return position >= earliest && position < duration - fivePercent;
 }
 
+/// Whether a video left at [position] counts as watched to the end: only
+/// the last 5% (the credits) were left.
+bool isWatched(Duration position, Duration duration) =>
+    duration > Duration.zero && position >= duration - duration * 0.05;
+
 /// Seconds left until the next video starts, or `null` while the countdown
 /// should not be showing (too early, already over, or duration unknown).
 int? upNextSecondsLeft(Duration position, Duration duration) {

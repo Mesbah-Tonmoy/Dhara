@@ -210,6 +210,12 @@ class MatchStore {
           other,
           title,
         ])
+        // On My List under either name: the film stays on it.
+        ..execute(
+          'INSERT OR IGNORE INTO my_list (title, added_at) '
+          'SELECT ?, added_at FROM my_list WHERE title = ?',
+          [other, title],
+        )
         ..execute('DELETE FROM titles WHERE id = ?', [title]);
       if (byHand) {
         _db

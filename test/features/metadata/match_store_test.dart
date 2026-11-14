@@ -225,6 +225,37 @@ void main() {
       expect(count('file_meta'), 2);
     });
 
+    test('a title on My List stays on it when it becomes another one', () {
+      final first = add('Movies/English', 'Boyka Undisputed (2016) 1080p.mkv');
+      final second = add('Movies', 'boyka undisputed iv 2016.mkv');
+      final third = add('Movies', 'Boyka 4 (2016).mkv');
+      final film = _film(5, 'Boyka: Undisputed IV', 2016);
+      store.apply(first, film, confidence: 89);
+      db
+        ..execute('INSERT INTO my_list (title, added_at) VALUES (?, 11)', [
+          second,
+        ])
+        ..execute('INSERT INTO my_list (title, added_at) VALUES (?, 12)', [
+          first,
+        ])
+        ..execute('INSERT INTO my_list (title, added_at) VALUES (?, 13)', [
+          third,
+        ]);
+
+      // The one it becomes is on the list already: once is enough.
+      store.apply(second, film, confidence: 100);
+      expect(db.select('SELECT title, added_at FROM my_list').rows, [
+        [first, 12],
+        [third, 13],
+      ]);
+
+      db.execute('DELETE FROM my_list WHERE title = ?', [first]);
+      store.apply(third, film, confidence: 100);
+      expect(db.select('SELECT title, added_at FROM my_list').rows, [
+        [first, 13],
+      ]);
+    });
+
     test('a sure match settles what was unsure about the other title', () {
       final first = add('Movies', 'Hell.mkv');
       final second = add('Movies', 'Hell (2011) 720p.mkv');

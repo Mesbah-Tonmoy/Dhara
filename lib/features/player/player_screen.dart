@@ -188,7 +188,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _onCompleted() {
     if (!_progressReady) return;
     // Watched to the end: next time it starts from the beginning.
-    _resume.clear(_url);
+    _resume.finish(_url, duration: _player.state.duration);
     if (!_autoNextCancelled) _playNext();
   }
 
