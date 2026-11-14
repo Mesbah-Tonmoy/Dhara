@@ -369,13 +369,17 @@ class MetadataStore {
     return [
       for (final row in _db.select(
         'SELECT f.id, f.name, f.url, f.size, d.path, s.source_id, m.season, '
-        'm.episode, m.episode_end, m.episode_name, m.part, m.extra, '
+        // The name TMDB gives the episode, or else the one in the file name.
+        'm.episode, m.episode_end, '
+        'coalesce(e.name, m.episode_name) AS episode_name, m.part, m.extra, '
         'm.height, m.source, m.codec, m.audio, m.languages, m.is_3d, '
         'm.release_group '
         'FROM file_meta m '
         'JOIN files f ON f.id = m.file '
         'JOIN folders d ON d.id = f.folder '
         'JOIN sources s ON s.id = d.source '
+        'LEFT JOIN episodes e ON e.title = m.title AND e.season = m.season '
+        'AND e.episode = m.episode '
         'WHERE m.title = ? AND s.source_id IN (${_placeholders(ids.length)}) '
         'ORDER BY m.extra IS NOT NULL, m.season IS NULL, m.season, '
         'm.episode, m.part, m.height DESC, f.id',
