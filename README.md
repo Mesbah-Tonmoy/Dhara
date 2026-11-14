@@ -17,8 +17,9 @@ A Bangla + English README is written in Phase 8.
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
 | 2. Player | Done and tested on real BDIX links. Not yet tried: HEVC / 4K files and `https://` links (none found so far) |
 | 3. Sources and server discovery | Done: starter list of 38 checked servers, Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet |
-| 4. Indexer | Done in code and in automated tests: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. Tried on real servers only briefly (2026-11-13: 40 folders each of DhakaFlix 7 and ICC FTP S10). **A full crawl of all enabled servers has not been run yet** |
-| 5–9 | Not started |
+| 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
+| 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
+| 6–9 | Not started |
 
 ## Prerequisites (Windows)
 
@@ -226,8 +227,10 @@ search is instant and nothing has to be asked of a server while browsing.
 `%APPDATA%\com.dhara\dhara\library.db` is one SQLite file
 (`lib/core/db/library_db.dart`): the crawl state of each source, every
 folder (which is also the crawl queue), the video files, their subtitles, a
-full-text index (FTS5) over file names and folder paths, and the playback
-positions. The schema carries a version; a file made by a newer version of
+full-text index (FTS5) over file names and folder paths, the playback
+positions, and, since schema version 2, the titles those videos are copies
+of (see [Titles and metadata](#titles-and-metadata)). A database of version
+1 is upgraded in place and keeps its index. The schema carries a version; a file made by a newer version of
 the app is refused and left untouched, and a damaged file is set aside as
 `library.db.bad` and replaced, since the index can be crawled again. If no
 database can be opened at all (the file is not reachable, or SQLite itself
@@ -303,18 +306,149 @@ Known gaps:
   by a full re-check.
 - Subtitles kept in one folder per episode (`Subs/<episode>/English.srt`)
   are not linked to their videos.
-- The same file on two servers is two entries; merging them into one title
-  is Phase 5. The Emby server at `146.196.48.9` holds the same files as the
-  folder-listing source `146.196.48.10`, and its files cannot be played yet
-  (see the Emby gap above), so it is best left disabled for now.
+- In this screen's search the same file on two servers is two entries; the
+  Films and shows screen has them under one title. The Emby server at
+  `146.196.48.9` holds the same files as the folder-listing source
+  `146.196.48.10`, and its files cannot be played yet (see the Emby gap
+  above), so it is best left disabled for now.
 - The 20 custom websites in the starter list have no adapter and are not
   indexed.
+
+## Titles and metadata
+
+The index is a list of files. This part works out which film or show each
+file is a copy of, puts all copies under one title, and fetches posters and
+descriptions for the titles. Everything but the pictures happens in the
+library isolate.
+
+### From file names to titles
+
+`parseReleaseName` (`lib/features/metadata/release_name.dart`) reads a
+file or folder name: title, year, season and episode (`S01E02`,
+`S01E01-E03`, `1x02`, `Season-01 Episode-09`, `Episode 02`, `EP01`, and
+`Show - 05` for anime), CD parts, trailers and samples, resolution, source,
+codec, audio and release group. `identifyVideo` (`video_identity.dart`)
+adds the folders: a folder named like a film names the one video in it,
+season folders name the show, and folders like "Movies" or "TV Shows"
+decide between film, show and "other" (clips, songs, tutorials). Every
+video gets a key (`m|vivarium|2019`, `s|the bay`); videos with the same
+key are copies of one title.
+
+The names are read by themselves whenever the index has changed and no
+crawl is running. `test/fixtures/names/library_names.tsv` holds 156 real
+paths and names with the expected result.
+
+### TMDB key
+
+Posters and descriptions come from The Movie Database, with your own key:
+Films and shows, "Add TMDB key". Paste the *API Read Access Token* (or the
+v3 API key) from your TMDB account settings. The key is kept in **Windows
+Credential Manager** (entry `Dhara/tmdb`), through `win32` and `ffi`
+directly; it is never written to the settings file, the database or a log,
+and never shown again. The app checks it with TMDB when it is saved.
+Without a key everything else works; titles simply have no pictures.
+
+This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+### Matching
+
+"Match now" on the Films and shows screen looks every title up
+(`MatchController`, `title_matcher.dart`): by name and year, then without
+the year, then by the name the file gives it. Candidates get up to 70
+points for the name, 20 for the year and 10 for standing clear of the
+runner-up:
+
+- **85 and above:** the title takes TMDB's name, poster and description.
+  Two spellings that turn out to be one film become one title.
+- **60 to 84:** it takes them too, but is listed under Needs review.
+- **below 60:** not found; tried again after 30 days.
+
+A film two years off is never a sure match, nor is a name that only ends
+like the one asked for. If the search by name and year comes back with
+exactly one film of that year, it is taken as an unsure match even if the
+names differ: TMDB also searches the other titles a film goes by, which is
+how Hindi dub titles find their originals.
+
+The run asks at most about 16 times a second (TMDB allows about 40), waits
+as long as TMDB asks when told to slow down, and can be stopped and carried
+on. What a search found is kept for 30 days, so nothing is asked twice;
+each run first judges unsure and not-found titles again from those kept
+answers, without a request. The first run starts when asked for; titles
+that later crawls add are looked up by themselves.
+
+After a run, the seasons and episodes of matched shows are fetched for the
+seasons the library has (`EpisodesController`), and again every 14 days.
+
+### Needs review
+
+Lists the unsure and not-found titles. A title opens with the candidates
+TMDB offered (no new request); pick one, search by another name and year,
+or leave the title as its files name it. A decision made by hand is final:
+no later run changes it.
+
+### Pictures
+
+`RemoteImageStore` (`lib/core/images`) downloads a poster once and keeps it
+in `%APPDATA%\com.dhara\dhara\images`. Only `image.tmdb.org` over https,
+a fixed set of sizes and paths of the shape TMDB uses are asked for; a
+download is at most 3 MB and is kept only if it starts like a JPEG, PNG or
+WebP file. The folder is held below 300 MB by removing what was not looked
+at for the longest.
+
+### Anime
+
+The Anime screen shows AniList's trending list and the season under way,
+each anime marked with whether the library has it (a season of a show
+finds its show). AniList needs no key; the two lists are fetched when the
+screen is opened, twice a day at most, and nothing about the library is
+sent.
+
+### What the app contacts for this
+
+| Host | For | When |
+|---|---|---|
+| `api.themoviedb.org` | search, show and season details, key check | only with a key, during a match run or a search in Needs review |
+| `image.tmdb.org` | posters | when a matched title is shown |
+| `graphql.anilist.co` | two lists of anime | when the Anime screen is opened |
+
+All over https, each through its own client that knows no other host. Only
+titles and years are sent.
+
+### Measured
+
+On the real library of 2026-11-14 (three servers, 23,389 videos):
+
+- Upgrading the database from version 1 and reading every name: 6 s, in
+  the background. Result: 19,854 films, 72 shows, 631 other videos; 874
+  films are on more than one server.
+- A search by title: 2 to 7 ms.
+- The first matching run, under the first version of the rules and before
+  the run was made faster: about 258 titles a minute. The pace of the run
+  as it is now has not been measured against TMDB. Of 10,587 titles looked
+  up by then, 9,349 were matched, 621 unsure and 617 not found. Judged
+  again by the rules as they are now (from the kept answers), 382 of the
+  unsure became sure and 171 of the not found became matches.
+
+### Known gaps
+
+- Bangla dramas whose episodes are numbered at the end of the name
+  (`Uccho_Maddhomik_Shomadhan_02`) are not recognised as episodes unless
+  the folder has the same name. Dated shows (`WWE Main Event
+  (2018.12.06)`) come out as films without a year.
+- Many Bangla natok and telefilms are not on TMDB and stay "not found".
+- A title cannot yet be marked "not a film or show", nor changed from film
+  to show; "Leave it as it is" takes it off the review list.
+- Episodes numbered straight through (anime) get no episode names. Films
+  get no genres. AniList covers are not shown.
+- The anime parts were tested with made-up names and a real AniList
+  answer: none of the three servers tried so far has an anime folder.
 
 ## Settings
 
 User settings (skip steps, volume, subtitle size) are saved by `shared_preferences` in
 `%APPDATA%\com.dhara\dhara\shared_preferences.json`. Values are validated on
-load, so a broken file falls back to defaults. No secrets are stored there.
+load, so a broken file falls back to defaults. No secrets are stored there:
+the TMDB key is in Windows Credential Manager (see [TMDB key](#tmdb-key)).
 
 ## Layout
 
