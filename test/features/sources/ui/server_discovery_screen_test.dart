@@ -6,6 +6,7 @@ import 'package:dhara/core/db/library_isolate.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
+import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_list.dart';
@@ -614,16 +615,19 @@ void main() {
       tester: SourceTester(deviceId: 'dhara-test'),
     );
     addTearDown(controller.dispose);
+    final library = LocalLibrary(LibraryDb.inMemory());
+    final index = IndexController(
+      library: library,
+      sources: controller.store,
+      deviceId: 'dhara-test',
+    );
     await tester.pumpWidget(
       DharaApp(
         settings: SettingsController(store),
         resumeStore: ResumeStore(),
         sourceTests: controller,
-        index: IndexController(
-          library: LocalLibrary(LibraryDb.inMemory()),
-          sources: controller.store,
-          deviceId: 'dhara-test',
-        ),
+        index: index,
+        titles: TitlesController(library: library, index: index),
       ),
     );
 

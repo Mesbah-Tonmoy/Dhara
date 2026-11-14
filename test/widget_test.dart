@@ -4,6 +4,7 @@ import 'package:dhara/core/db/library_isolate.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
+import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
@@ -14,6 +15,12 @@ import 'package:flutter_test/flutter_test.dart';
 Widget _app() {
   final store = MemoryKeyValueStore();
   final sources = SourceStore(starter: const []);
+  final library = LocalLibrary(LibraryDb.inMemory());
+  final index = IndexController(
+    library: library,
+    sources: sources,
+    deviceId: 'dhara-test',
+  );
   return DharaApp(
     settings: SettingsController(store),
     resumeStore: ResumeStore(),
@@ -21,11 +28,8 @@ Widget _app() {
       store: sources,
       tester: SourceTester(deviceId: 'dhara-test'),
     ),
-    index: IndexController(
-      library: LocalLibrary(LibraryDb.inMemory()),
-      sources: sources,
-      deviceId: 'dhara-test',
-    ),
+    index: index,
+    titles: TitlesController(library: library, index: index),
   );
 }
 

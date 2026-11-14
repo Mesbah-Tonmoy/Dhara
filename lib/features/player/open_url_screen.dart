@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dhara/core/net/media_url.dart';
 import 'package:dhara/features/indexer/ui/index_screen.dart';
+import 'package:dhara/features/metadata/ui/titles_screen.dart';
 import 'package:dhara/features/player/player_screen.dart';
 import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
 import 'package:flutter/material.dart';
@@ -143,6 +144,18 @@ class _OpenUrlScreenState extends State<OpenUrlScreen> {
                       ),
                       icon: const Icon(Icons.video_library_outlined),
                       label: const Text('Library index and search'),
+                    ),
+                    TextButton.icon(
+                      key: const Key('open-titles'),
+                      onPressed: () => unawaited(
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const TitlesScreen(),
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.movie_outlined),
+                      label: const Text('Films and shows'),
                     ),
                   ],
                 ),
