@@ -65,14 +65,26 @@ void main() {
       final tables = [
         for (final row in db.select(
           "SELECT name FROM sqlite_schema WHERE type = 'table' "
-          "AND name NOT LIKE 'files_fts_%' ORDER BY name",
+          "AND name NOT LIKE 'files_fts_%' "
+          "AND name NOT LIKE 'titles_fts_%' ORDER BY name",
         ))
           row['name'],
       ];
-      expect(
-        tables,
-        ['files', 'files_fts', 'folders', 'playback', 'sources', 'subtitles'],
-      );
+      expect(tables, [
+        'episodes',
+        'file_meta',
+        'files',
+        'files_fts',
+        'folders',
+        'metadata_cache',
+        'playback',
+        'seasons',
+        'sources',
+        'subtitles',
+        'title_keys',
+        'titles',
+        'titles_fts',
+      ]);
     });
 
     test('a file must belong to a known folder', () {
@@ -233,6 +245,71 @@ void main() {
         ['wal'],
       );
       expect(second.db.select('PRAGMA foreign_keys').single.values, [1]);
+    });
+
+    test('made by version 1 is upgraded and keeps what it held', () {
+      final old = LibraryDb.openAt(path, 1);
+      old.db
+        ..execute("INSERT INTO sources (id, source_id) VALUES (1, 'a')")
+        ..execute(
+          'INSERT INTO folders (id, source, url, path, depth, state) '
+          "VALUES (1, 1, 'http://a.test/', 'Movies', 0, 1)",
+        )
+        ..execute(
+          'INSERT INTO files (id, folder, name, url, size, added_at) '
+          "VALUES (7, 1, 'Tenet.2020.mkv', 'http://a.test/Tenet.2020.mkv', "
+          '5, 9)',
+        )
+        ..execute(
+          'INSERT INTO subtitles (file, name, url) '
+          "VALUES (7, 'Tenet.2020.srt', 'http://a.test/Tenet.2020.srt')",
+        )
+        ..execute(
+          'INSERT INTO playback (url, position_ms, duration_ms, updated_at) '
+          "VALUES ('http://a.test/Tenet.2020.mkv', 1000, 5000, 0)",
+        );
+      expect(old.db.userVersion, 1);
+      expect(
+        old.db.select(
+          "SELECT 1 FROM sqlite_schema WHERE name = 'titles'",
+        ),
+        isEmpty,
+      );
+      old.close();
+
+      final upgraded = LibraryDb.open(path);
+      addTearDown(upgraded.close);
+      final db = upgraded.db;
+
+      expect(db.userVersion, LibraryDb.schemaVersion);
+      expect(
+        db.select('SELECT id, name, size, added_at FROM files').single.values,
+        [7, 'Tenet.2020.mkv', 5, 9],
+      );
+      expect(db.select('SELECT name FROM subtitles').single.values, [
+        'Tenet.2020.srt',
+      ]);
+      expect(db.select('SELECT position_ms FROM playback').single.values, [
+        1000,
+      ]);
+      expect(
+        db.select('SELECT state FROM folders').single.values,
+        [1],
+        reason: 'the crawl does not start over',
+      );
+      expect(
+        db.select(
+          "SELECT rowid FROM files_fts WHERE files_fts MATCH 'tenet'",
+        ).single.values,
+        [7],
+      );
+      for (final table in ['titles', 'title_keys', 'file_meta', 'episodes']) {
+        expect(
+          db.select('SELECT count(*) FROM $table').single.values,
+          [0],
+          reason: table,
+        );
+      }
     });
 
     test('made by a newer app is refused and left alone', () {
