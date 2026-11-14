@@ -252,7 +252,13 @@ class TmdbClient {
   }) : _key = key,
        _kind = kind,
        _ownsHttp = http == null,
-       _http = http ?? SafeHttpClient(isAllowedHost: (host) => host == apiHost),
+       _http =
+           http ??
+           // TMDB itself, or the stand-in a test points [baseUrl] at: this
+           // client goes nowhere else, also not when it is redirected.
+           SafeHttpClient(
+             isAllowedHost: (host) => host == (baseUrl?.host ?? apiHost),
+           ),
        _base = baseUrl ?? Uri.https(apiHost, '/3'),
        _wait = wait ?? Future<void>.delayed,
        _now = now;
@@ -422,6 +428,10 @@ class TmdbClient {
       SafeHttpException? failure;
       await _takeTurn();
       try {
+        // Closed while it waited for its turn.
+        if (_closed) {
+          throw const SafeHttpException(SafeHttpFailure.network, 'closed');
+        }
         response = await _http.get(
           url,
           headers: headers,
