@@ -1,11 +1,11 @@
 import 'dart:async';
 
+import 'package:dhara/features/home/ui/home_screen.dart';
 import 'package:dhara/features/indexer/ui/index_screen.dart';
 import 'package:dhara/features/metadata/ui/anime_screen.dart';
 import 'package:dhara/features/metadata/ui/titles_screen.dart';
 import 'package:dhara/features/player/open_url_dialog.dart';
 import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
-import 'package:dhara/shell/home_placeholder.dart';
 import 'package:dhara/shell/nav_rail.dart';
 import 'package:dhara/shell/shell_controller.dart';
 import 'package:dhara/shell/title_bar.dart';
@@ -44,7 +44,10 @@ class _AppShellState extends State<AppShell> {
 
   static Widget _pageFor(ShellDestination place, String? query) =>
       switch (place) {
-        ShellDestination.home => const HomePlaceholder(),
+        ShellDestination.home => const HomeScreen(
+          // Lines up with the prototype's page edge, past the rail.
+          contentLeft: DharaLayout.pageLeft - AppShell.pageInsetLeft,
+        ),
         ShellDestination.titles => TitlesScreen(initialQuery: query),
         ShellDestination.anime => const AnimeScreen(),
         ShellDestination.library => const IndexScreen(),

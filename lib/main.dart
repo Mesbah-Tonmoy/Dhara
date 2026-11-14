@@ -11,6 +11,7 @@ import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/core/window/native_window.dart';
 import 'package:dhara/core/window/window_controller.dart';
+import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/anime_controller.dart';
 import 'package:dhara/features/metadata/episodes_controller.dart';
@@ -84,6 +85,10 @@ Future<void> main() async {
     match: match,
     tmdbKey: tmdbKey,
   );
+  // What Home shows is read now, from what the last run left, and again
+  // whenever the library changes.
+  final home = HomeController(library: library, titles: titles, match: match);
+  unawaited(home.refresh());
   // Posters are kept next to the settings; without a data folder they are
   // not shown.
   final images = RemoteImageStore(
@@ -109,6 +114,7 @@ Future<void> main() async {
         review: review,
         // AniList is asked when its screen is opened, not at start-up.
         anime: AnimeController(library: library),
+        home: home,
         images: images,
       ),
     ),

@@ -5,6 +5,7 @@ import 'package:dhara/core/images/remote_image.dart';
 import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
+import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/anime_controller.dart';
 import 'package:dhara/features/metadata/match_controller.dart';
@@ -420,6 +421,11 @@ void main() {
         match: match,
         review: review,
         anime: AnimeController(library: const NoLibrary()),
+        home: HomeController(
+          library: const NoLibrary(),
+          titles: titles,
+          match: match,
+        ),
       ),
     );
 
@@ -430,7 +436,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('app-title')), findsOneWidget);
+    expect(find.byKey(const Key('home')), findsOneWidget);
   });
 
   testWidgets('the TMDB key is added from here', (tester) async {

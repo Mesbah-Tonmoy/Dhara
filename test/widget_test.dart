@@ -11,7 +11,7 @@ void main() {
     await tester.pumpWidget(testApp().app);
 
     expect(find.byType(AppShell), findsOneWidget);
-    expect(find.byKey(const Key('app-title')), findsOneWidget);
+    expect(find.byKey(const Key('home')), findsOneWidget);
     expect(find.byKey(const Key('shell-search')), findsOneWidget);
     expect(find.byKey(const Key('rail-home')), findsOneWidget);
   });

@@ -5,6 +5,7 @@ import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/core/window/window_controller.dart';
+import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/anime_controller.dart';
 import 'package:dhara/features/metadata/match_controller.dart';
@@ -22,13 +23,15 @@ import 'package:flutter/widgets.dart';
 /// no native player.
 ///
 /// [sources] are the servers it knows; [window] stands in for the app's
-/// window, as `main` provides it.
+/// window, as `main` provides it; [db] is the library to start with, if
+/// not an empty one.
 ({Widget app, SourceStore sources}) testApp({
   List<Source> sources = const [],
   WindowController? window,
+  LibraryDb? db,
 }) {
   final store = SourceStore(starter: sources);
-  final library = LocalLibrary(LibraryDb.inMemory());
+  final library = LocalLibrary(db ?? LibraryDb.inMemory());
   final index = IndexController(
     library: library,
     sources: store,
@@ -59,6 +62,7 @@ import 'package:flutter/widgets.dart';
       tmdbKey: tmdbKey,
     ),
     anime: AnimeController(library: library),
+    home: HomeController(library: library, titles: titles, match: match),
   );
   return (
     app: window == null ? app : WindowScope(controller: window, child: app),

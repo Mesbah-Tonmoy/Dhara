@@ -19,7 +19,7 @@ A Bangla + English README is written in Phase 8.
 | 3. Sources and server discovery | Done: starter list of 38 checked servers, Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet |
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
-| 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail) and the frameless window are in; see [Shell and window](#shell-and-window). The pages inside the shell are still the working screens of the earlier phases |
+| 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, and Home as rows of posters are in; see [Shell and window](#shell-and-window) and [Home](#home). Not yet: the banner and Continue Watching on Home, the details screen, search and browse, My List and History screens, Settings. The other pages inside the shell are still the working screens of the earlier phases |
 | 7–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -104,6 +104,13 @@ Known gaps, tracked for later phases:
   library database (table `playback`). Positions an older build kept in the
   settings file are moved over once, at start-up. If the database file is
   ever replaced because it was damaged, the positions go with it.
+- What was watched is noted in the watch history (table `watch_history`,
+  the last 5,000 videos): a video enters it once it was watched far enough
+  to be resumed, and is marked as watched when it ends or is left during
+  the last 5%. It is written by the player together with the position
+  (`lib/features/player/resume_store.dart`) and read through
+  `lib/features/history/history_store.dart`. A screen for it comes later
+  in Phase 6.
 
 ## Subtitles and audio tracks
 
@@ -296,6 +303,44 @@ Known gaps: Emby/Jellyfin video URLs need the session token as a request
 header, which playback does not send yet; `https` servers with self-signed
 certificates are refused.
 
+## Home
+
+Home (`lib/features/home`) shows the library as rows of posters, each row
+scrolling sideways: Recently Added, Movies, Series, Anime and Top Rated. A
+row with nothing in it is left out. (The banner and Continue Watching are
+the next increment; their queries are in already.)
+
+| Row | What is in it |
+|---|---|
+| Recently Added | Titles by their newest video: the date the server gives the file, or else when the app first saw it. A date later than that is not believed |
+| Movies, Series | The newest year first; within a year, the ones most people voted on |
+| Anime | Animation from Japan (TMDB genre and language), and what AniList knows |
+| Top Rated | By TMDB rating, both kinds; only titles with at least 300 votes |
+
+- Only titles with a video on an **enabled** server are shown, and a card
+  counts only those videos.
+- Titles TMDB was asked about and does not know are left to search; titles
+  not looked up yet are shown, with artwork drawn from their name. So Home
+  works without a TMDB key, and says once where posters would come from.
+- A card shows the best quality any of its videos has and the rating; under
+  the pointer (or the keyboard) it also shows year, genres and how many
+  copies or episodes there are. A click opens the title's copies (the
+  details screen replaces that in a later increment).
+- With nothing to show, Home lists the three steps that fill the library
+  (servers, index, TMDB key) and where each stands.
+- `HomeController` reads all of it in the library isolate, keeps it in
+  memory so that Home opens at once, and reads again when sources are
+  switched, names were read or titles were matched (at most every 12 s
+  while a matching run is under way).
+- The rows walk an index in the order they are shown in and stop when they
+  are full. In the automated test, all of Home is read from 100,000 videos
+  (20,000 titles) in 10 to 30 ms on the development PC, the slower end
+  while other tests run beside it (the aim was 50 ms);
+  it has not been timed on the real library yet.
+- Posters are fetched in TMDB's `w342` size, decoded no larger than they
+  are drawn, and not asked for while a row is being flung. Cards never blur
+  what is behind them.
+
 ## Library index
 
 The index is the list of every video on the enabled servers, kept so that
@@ -307,9 +352,13 @@ search is instant and nothing has to be asked of a server while browsing.
 (`lib/core/db/library_db.dart`): the crawl state of each source, every
 folder (which is also the crawl queue), the video files, their subtitles, a
 full-text index (FTS5) over file names and folder paths, the playback
-positions, and, since schema version 2, the titles those videos are copies
-of (see [Titles and metadata](#titles-and-metadata)). A database of version
-1 is upgraded in place and keeps its index. The schema carries a version; a file made by a newer version of
+positions, since schema version 2 the titles those videos are copies
+of (see [Titles and metadata](#titles-and-metadata)), and since version 3
+My List, the watch history and the indexes Home reads by. A database of an
+older version is upgraded in place and keeps what it holds (from version 2:
+the unfinished videos start the history). **A build older than the file
+cannot open it:** it runs with an empty index for that run and leaves the
+file alone. The schema carries a version; a file made by a newer version of
 the app is refused and left untouched, and a damaged file is set aside as
 `library.db.bad` and replaced, since the index can be crawled again. If no
 database can be opened at all (the file is not reachable, or SQLite itself
@@ -518,7 +567,9 @@ On the real library of 2026-11-14 (three servers, 23,389 videos):
   (2018.12.06)`) come out as films without a year.
 - Many Bangla natok and telefilms are not on TMDB and stay "not found".
 - A title cannot yet be marked "not a film or show", nor changed from film
-  to show; "Leave it as it is" takes it off the review list.
+  to show; "Leave it as it is" takes it off the review list. The database
+  is ready for the first (`titles.set_aside`, which Home already honours);
+  the second needs no new column. Neither has a button yet.
 - Episodes numbered straight through (anime) get no episode names. Films
   get no genres. AniList covers are not shown.
 - The anime parts were tested with made-up names and a real AniList
@@ -538,6 +589,9 @@ lib/                 app code
 lib/theme/           design tokens, theme, window scale
 lib/widgets/         shared widgets of the prototype
 lib/shell/           title bar, navigation rail, navigation
+lib/features/home/   Home: its queries, controller, rows and cards
+lib/features/        the other features: sources, indexer, metadata,
+                     player, history, my_list
 windows/runner/      the Windows window (frameless title bar support)
 test/                automated tests (run anywhere)
 test/fixtures/       saved server answers the adapter tests run against

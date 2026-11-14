@@ -1,10 +1,10 @@
 import 'dart:ui';
 
+import 'package:dhara/features/home/ui/home_screen.dart';
 import 'package:dhara/features/indexer/ui/index_screen.dart';
 import 'package:dhara/features/metadata/ui/titles_screen.dart';
 import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
-import 'package:dhara/shell/home_placeholder.dart';
 import 'package:dhara/shell/nav_rail.dart';
 import 'package:dhara/shell/shell_controller.dart';
 import 'package:dhara/shell/title_bar.dart';
@@ -15,7 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../support/test_app.dart';
 
-final _home = find.byType(HomePlaceholder);
+final _home = find.byType(HomeScreen);
 final _discovery = find.byType(ServerDiscoveryScreen);
 final _library = find.byType(IndexScreen);
 final _titles = find.byType(TitlesScreen);
@@ -268,7 +268,7 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('home-titles')));
+      await tester.tap(find.byKey(const Key('home-step-key')));
       await tester.pumpAndSettle();
       expect(_titles, findsOneWidget);
     });
