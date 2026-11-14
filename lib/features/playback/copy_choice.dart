@@ -96,7 +96,8 @@ EpisodeKey? episodeOf(TitleCopy copy) => switch (copy.episode) {
 };
 
 /// The episodes [copies] hold, in order, each with its copies. Trailers,
-/// samples and videos that are no episode are left out.
+/// samples and videos that are no episode are left out. The specials
+/// (season 0) come after the seasons: a show starts with season 1.
 Map<EpisodeKey, List<TitleCopy>> episodesIn(Iterable<TitleCopy> copies) {
   final episodes = <EpisodeKey, List<TitleCopy>>{};
   for (final copy in copies) {
@@ -104,10 +105,16 @@ Map<EpisodeKey, List<TitleCopy>> episodesIn(Iterable<TitleCopy> copies) {
     if (key == null || copy.extra != null) continue;
     (episodes[key] ??= []).add(copy);
   }
+  // Seasons first, then the specials, then what is numbered straight
+  // through.
+  int place(int? season) => switch (season) {
+    null => 1 << 30,
+    0 => (1 << 30) - 1,
+    _ => season,
+  };
   final keys = episodes.keys.toList()
     ..sort((a, b) {
-      // Numbered straight through comes after the seasons.
-      final season = (a.$1 ?? 1 << 30).compareTo(b.$1 ?? 1 << 30);
+      final season = place(a.$1).compareTo(place(b.$1));
       return season != 0 ? season : a.$2.compareTo(b.$2);
     });
   return {for (final key in keys) key: episodes[key]!};

@@ -171,9 +171,9 @@ class _Line extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(flex: 11, child: server),
+          Expanded(flex: 14, child: server),
           const SizedBox(width: rem),
-          Expanded(flex: 19, child: file),
+          Expanded(flex: 16, child: file),
           const SizedBox(width: rem),
           SizedBox(width: 9.5 * rem, child: quality),
           const SizedBox(width: rem),

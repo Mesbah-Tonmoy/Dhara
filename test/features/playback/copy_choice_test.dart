@@ -157,6 +157,15 @@ void main() {
       final episodes = episodesIn(copies);
 
       expect(episodes.keys, [(1, 1), (1, 2), (2, 1), (null, 7)]);
+      // A special does not come before the first episode.
+      expect(
+        episodesIn([
+          _copy('fast', season: 0, episode: 1),
+          _copy('fast', episode: 3),
+          _copy('fast', season: 1, episode: 1),
+        ]).keys,
+        [(1, 1), (0, 1), (null, 3)],
+      );
       expect(episodes[(1, 2)], hasLength(2));
     });
 

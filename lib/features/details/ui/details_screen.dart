@@ -1,10 +1,11 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:dhara/core/images/remote_image.dart';
 import 'package:dhara/features/details/details_store.dart';
 import 'package:dhara/features/details/next_to_play.dart';
+import 'package:dhara/features/details/ui/copies_sheet.dart';
 import 'package:dhara/features/details/ui/copies_table.dart';
+import 'package:dhara/features/details/ui/episode_list.dart';
 import 'package:dhara/features/home/home_store.dart';
 import 'package:dhara/features/home/ui/card_row.dart';
 import 'package:dhara/features/home/ui/hero_banner.dart';
@@ -70,6 +71,9 @@ String languageName(String code) =>
 /// The page of one film or show (the prototype's title details): its
 /// backdrop under soft glass, poster, what is known about it, Play and My
 /// List, every copy the enabled servers hold, and more titles like it.
+///
+/// A show lists its episodes by season instead; each plays with a click
+/// (the ones after it follow) and lists its own copies in a side sheet.
 ///
 /// [preview] is what the card that led here already knew; it is shown at
 /// once, while the rest is read. Names, descriptions and file names come
@@ -147,6 +151,60 @@ class _DetailsScreenState extends State<DetailsScreen> {
     unawaited(_play(choice.copy));
   }
 
+  /// Plays an episode: on from where a copy of it was left, or else its
+  /// best copy.
+  void _playEpisode(EpisodeKey episode) {
+    final page = _page;
+    if (page == null) return;
+    final sources = TitlesScope.read(context).index.sources;
+    final copies = episodesIn(page.copies)[episode] ?? const <TitleCopy>[];
+    TitleCopy? copy;
+    Watched? seen;
+    for (final each in copies) {
+      final watched = page.watched['${each.url}'];
+      if (watched == null || watched.finished) continue;
+      if (!canPlayCopy(each, sources)) continue;
+      if (seen == null || watched.at.isAfter(seen.at)) {
+        copy = each;
+        seen = watched;
+      }
+    }
+    copy ??= bestCopy(copies, sources);
+    if (copy == null) {
+      ToastHost.show(
+        context,
+        'has no copy that can be played from here.',
+        lead: episodeCode(episode.$1, episode.$2),
+      );
+      return;
+    }
+    unawaited(_play(copy));
+  }
+
+  /// Lists the copies of an episode in the side sheet and plays the one
+  /// that is picked there.
+  Future<void> _showEpisodeCopies(EpisodeKey episode) async {
+    final page = _page;
+    if (page == null) return;
+    final copies = episodesIn(page.copies)[episode] ?? const <TitleCopy>[];
+    String? name;
+    for (final copy in copies) {
+      name ??= copy.episodeName;
+    }
+    final chosen = await showCopiesSheet(
+      context,
+      title: page.title.name,
+      subtitle: [
+        episodeCode(episode.$1, episode.$2),
+        ?name,
+        'the best copy first',
+      ].join(' · '),
+      copies: copies,
+      watched: page.watched,
+    );
+    if (chosen != null && mounted) await _play(chosen);
+  }
+
   void _showCopies() {
     final target = _copiesKey.currentContext;
     if (target == null) return;
@@ -210,6 +268,21 @@ class _DetailsScreenState extends State<DetailsScreen> {
     }
 
     final choice = page == null ? null : nextToPlay(page, sources);
+    final next = choice == null ? null : episodeOf(choice.copy);
+    final series = title.kind == TitleKind.series;
+    final episodes = page == null || !series
+        ? const <EpisodeKey, List<TitleCopy>>{}
+        : episodesIn(page.copies);
+    // What a show holds besides its episodes; all there is of a film.
+    final others = page == null
+        ? const <TitleCopy>[]
+        : [
+            for (final copy in page.copies)
+              if (episodes.isEmpty ||
+                  episodeOf(copy) == null ||
+                  copy.extra != null)
+                copy,
+          ];
     return ColoredBox(
       key: const Key('details'),
       color: DharaColors.bg,
@@ -236,6 +309,9 @@ class _DetailsScreenState extends State<DetailsScreen> {
                 choice: choice,
                 onPlay: page == null ? null : _playNext,
                 onShowCopies: _showCopies,
+                onEpisodeCopies: next == null || episodes.isEmpty
+                    ? null
+                    : () => unawaited(_showEpisodeCopies(next)),
                 onFixMatch: _fixMatch,
               ),
             ),
@@ -251,7 +327,33 @@ class _DetailsScreenState extends State<DetailsScreen> {
             // Read in a moment: no grey flash for it, only its room.
             child: page == null
                 ? const SizedBox(height: 12 * rem)
-                : _Copies(page: page, sources: sources, onPlay: _play),
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (episodes.isNotEmpty)
+                        EpisodeList(
+                          page: page,
+                          sources: sources,
+                          next: next,
+                          onPlay: _playEpisode,
+                          onCopies: (episode) =>
+                              unawaited(_showEpisodeCopies(episode)),
+                        ),
+                      if (episodes.isNotEmpty && others.isNotEmpty)
+                        const SizedBox(height: 2.2 * rem),
+                      if (episodes.isEmpty || others.isNotEmpty)
+                        _Copies(
+                          page: page,
+                          copies: others,
+                          heading: episodes.isEmpty
+                              ? (series ? 'Videos' : 'Copies')
+                              : 'Other videos',
+                          sources: sources,
+                          onPlay: _play,
+                        ),
+                    ],
+                  ),
           ),
           if (page != null && page.similar.isNotEmpty)
             Padding(
@@ -273,8 +375,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
   }
 }
 
-/// The prototype's `.detail-bg`: the backdrop, blurred a little and faded
-/// into the page, as the ground the top of the page stands on.
+/// The prototype's `.detail-bg`: the backdrop, soft and faded into the
+/// page, as the ground the top of the page stands on.
 class _Backdrop extends StatelessWidget {
   const _Backdrop({required this.title});
 
@@ -285,21 +387,14 @@ class _Backdrop extends StatelessWidget {
     fit: StackFit.expand,
     children: [
       const ColoredBox(color: DharaColors.bg),
-      ClipRect(
-        // Blurring the picture itself costs far less than blurring what
-        // is behind a pane, and looks the same here.
-        child: ImageFiltered(
-          imageFilter: ImageFilter.blur(
-            sigmaX: 1.1 * rem,
-            sigmaY: 1.1 * rem,
-            tileMode: TileMode.clamp,
-          ),
-          child: TmdbCover(
-            path: title.backdropPath,
-            size: 'w1280',
-            placeholder: PlaceholderArt(seed: title.name, wide: true),
-          ),
-        ),
+      // Soft without a blur filter: the smallest size of the picture,
+      // stretched over the whole width. A blur filter over the full-size
+      // picture left white specks in its black parts on Windows, and costs
+      // more.
+      TmdbCover(
+        path: title.backdropPath,
+        size: 'w300',
+        placeholder: PlaceholderArt(seed: title.name, wide: true),
       ),
       const DecoratedBox(
         decoration: BoxDecoration(
@@ -332,6 +427,7 @@ class _Top extends StatelessWidget {
     required this.choice,
     required this.onPlay,
     required this.onShowCopies,
+    required this.onEpisodeCopies,
     required this.onFixMatch,
   });
 
@@ -342,6 +438,9 @@ class _Top extends StatelessWidget {
   final PlayChoice? choice;
   final VoidCallback? onPlay;
   final VoidCallback onShowCopies;
+
+  /// Lists the copies of the episode Play would play; `null` for a film.
+  final VoidCallback? onEpisodeCopies;
   final VoidCallback onFixMatch;
 
   @override
@@ -420,7 +519,16 @@ class _Top extends StatelessWidget {
                     onPressed: onPlay,
                   ),
                   MyListButton(title: title.id),
-                  if (copies != null && copies > 0)
+                  if (onEpisodeCopies != null && choice != null)
+                    DharaButton(
+                      key: const Key('details-copies'),
+                      label:
+                          'Copies for '
+                          '${episodeCode(choice!.copy.season, choice!.copy.episode!)}',
+                      icon: DharaIcons.list,
+                      onPressed: onEpisodeCopies,
+                    )
+                  else if (copies != null && copies > 0)
                     DharaButton(
                       key: const Key('details-copies'),
                       label: title.kind == TitleKind.series
@@ -627,23 +735,28 @@ class _Facts extends StatelessWidget {
   }
 }
 
-/// The copies of a film, the best first; for a show (until its episodes
-/// get their own list), every video by episode.
+/// The copies of a film, the best first; for a show, the videos that are
+/// not one of its episodes (the episodes have their own list).
 class _Copies extends StatelessWidget {
   const _Copies({
     required this.page,
+    required this.copies,
+    required this.heading,
     required this.sources,
     required this.onPlay,
   });
 
   final TitlePage page;
+
+  /// The videos to list: all of the title's, or a part of them.
+  final List<TitleCopy> copies;
+  final String heading;
   final SourceStore sources;
   final ValueChanged<TitleCopy> onPlay;
 
   @override
   Widget build(BuildContext context) {
     final series = page.title.kind == TitleKind.series;
-    final copies = page.copies;
     final real = [
       for (final copy in copies)
         if (copy.extra == null) copy,
@@ -665,7 +778,7 @@ class _Copies extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
-              series ? 'Videos' : 'Copies',
+              heading,
               style: const TextStyle(
                 fontFamily: DharaFonts.display,
                 fontSize: DharaType.lg,

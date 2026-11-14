@@ -19,7 +19,7 @@ A Bangla + English README is written in Phase 8.
 | 3. Sources and server discovery | Done: starter list of 38 checked servers, Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet |
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
-| 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, and Home as rows of posters are in; see [Shell and window](#shell-and-window) and [Home](#home). Not yet: the banner and Continue Watching on Home, the details screen, search and browse, My List and History screens, Settings. The other pages inside the shell are still the working screens of the earlier phases |
+| 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters) and the page of a title (film, or show with its episodes) are in; see [Shell and window](#shell-and-window), [Home](#home) and [Title page](#title-page). Not yet: film genres and cast, search and browse, the new Anime page, My List and History screens, Settings. The other pages inside the shell are still the working screens of the earlier phases |
 | 7–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -174,6 +174,13 @@ always the first page, a place of the rail opens on top of it and replaces
 the place that was open, so Back always leads toward Home. The player is
 not a page of the shell: it opens above it and takes the whole window.
 
+The title bar and the rail are glass. A page may let artwork run on under
+them, to the window's corner (`ArtUnderShell` in `lib/shell/page_bleed.dart`:
+Home's banner, the backdrop of a title); while that artwork is at the top,
+the bar is clear over it, and once the page has scrolled the bar blurs what
+passes beneath. These two and the copies sheet are the only places that
+blur what is behind them.
+
 | Key | Action |
 |---|---|
 | Ctrl+K or / | Put the keyboard into the search field (Enter searches the library) |
@@ -305,10 +312,20 @@ certificates are refused.
 
 ## Home
 
-Home (`lib/features/home`) shows the library as rows of posters, each row
-scrolling sideways: Recently Added, Movies, Series, Anime and Top Rated. A
-row with nothing in it is left out. (The banner and Continue Watching are
-the next increment; their queries are in already.)
+Home (`lib/features/home`) starts with a banner of up to five featured
+titles (the newest well rated films and shows that have a backdrop; the
+same five for a whole day), then Continue Watching, then the library as
+rows of posters, each row scrolling sideways: Recently Added, Movies,
+Series, Anime and Top Rated. A row with nothing in it is left out, and so
+is the banner when no title has a backdrop (no TMDB key yet).
+
+- The banner moves on every nine seconds, holds while the pointer is over
+  it, and does not move when animations are switched off. Its small
+  pictures pick a title. Play (or Resume) plays without asking for a copy,
+  My List keeps the title, the round button opens its page.
+- Continue Watching lists the videos left unfinished, a film or show once,
+  with how much is left. A click plays it on; for an episode the ones
+  after it follow. A video played from a pasted address is listed too.
 
 | Row | What is in it |
 |---|---|
@@ -324,8 +341,7 @@ the next increment; their queries are in already.)
   works without a TMDB key, and says once where posters would come from.
 - A card shows the best quality any of its videos has and the rating; under
   the pointer (or the keyboard) it also shows year, genres and how many
-  copies or episodes there are. A click opens the title's copies (the
-  details screen replaces that in a later increment).
+  copies or episodes there are. A click opens the [title page](#title-page).
 - With nothing to show, Home lists the three steps that fill the library
   (servers, index, TMDB key) and where each stands.
 - `HomeController` reads all of it in the library isolate, keeps it in
@@ -340,6 +356,36 @@ the next increment; their queries are in already.)
 - Posters are fetched in TMDB's `w342` size, decoded no larger than they
   are drawn, and not asked for while a row is being flung. Cards never blur
   what is behind them.
+
+## Title page
+
+The page of a film or show (`lib/features/details`): backdrop under soft
+glass, poster, rating, year, genres, description, Play and My List, a few
+facts, and "More like this" (same kind and first genre; for a title without
+genres, about the same year and language).
+
+- **A film** lists every copy the enabled servers hold: server, file,
+  quality, size and how the server answered its **last test** (not a live
+  ping; that comes with smart playback in Phase 7). "Re-test servers" tests
+  the servers of these copies again.
+- **A show** lists its episodes by season (only those a server holds), with
+  TMDB's name, still and description where it has them, and marks what was
+  watched. A click plays the episode; the chip at its end opens a side
+  sheet with that episode's copies. Videos that are no episode, trailers
+  and samples are listed apart.
+- **Which copy plays** when none is picked
+  (`lib/features/playback/copy_choice.dart`): one on a server that answered
+  its last test, then the sharpest picture, then the quicker server, then
+  the larger file. Copies on Emby or Jellyfin cannot be played yet.
+- **What Play plays** (`lib/features/details/next_to_play.dart`): the video
+  watched last if it was left unfinished; after an episode that ended, the
+  next one; otherwise the film, or the first episode. After an episode the
+  following ones are queued, from the same server where it has them, and
+  the player counts down to the next as before. The player shows the title
+  ("The Bay · S1 · E2 · …") instead of the file name.
+- "Fix match" opens the same dialog as Needs review, for any title.
+- Not there yet: director and cast, genres and length of films (the next
+  increment fetches them), subtitles a copy has, and a live ping.
 
 ## Library index
 
@@ -567,7 +613,8 @@ On the real library of 2026-11-14 (three servers, 23,389 videos):
   (2018.12.06)`) come out as films without a year.
 - Many Bangla natok and telefilms are not on TMDB and stay "not found".
 - A title cannot yet be marked "not a film or show", nor changed from film
-  to show; "Leave it as it is" takes it off the review list. The database
+  to show; "Leave it as it is" takes it off the review list. A wrong match
+  can be put right from the title's own page ("Fix match"). The database
   is ready for the first (`titles.set_aside`, which Home already honours);
   the second needs no new column. Neither has a button yet.
 - Episodes numbered straight through (anime) get no episode names. Films
@@ -589,7 +636,9 @@ lib/                 app code
 lib/theme/           design tokens, theme, window scale
 lib/widgets/         shared widgets of the prototype
 lib/shell/           title bar, navigation rail, navigation
-lib/features/home/   Home: its queries, controller, rows and cards
+lib/features/home/   Home: its queries, controller, banner, rows and cards
+lib/features/details/  the page of a title: copies, episodes, what to play
+lib/features/playback/ which copy to play, and opening the player
 lib/features/        the other features: sources, indexer, metadata,
                      player, history, my_list
 windows/runner/      the Windows window (frameless title bar support)
