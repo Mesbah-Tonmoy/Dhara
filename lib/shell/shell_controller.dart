@@ -60,6 +60,23 @@ class ShellController extends ChangeNotifier {
   /// False on Home, where there is nothing to go back to.
   bool get canGoBack => _stack.length > 1;
 
+  final _artUnderBar = <Route<dynamic>>{};
+
+  /// The page on screen has artwork running under the title bar right now,
+  /// so the bar is clear glass; otherwise it has a ground of its own.
+  bool get artUnderBar =>
+      _stack.isNotEmpty && _artUnderBar.contains(_stack.last);
+
+  /// A page says whether its artwork is under the title bar (it is not
+  /// once the page has scrolled). [route] is the page's own route.
+  void setArtUnderBar(Route<dynamic> route, bool under) {
+    if (_disposed) return;
+    final changed = under
+        ? _artUnderBar.add(route)
+        : _artUnderBar.remove(route);
+    if (changed) _changed();
+  }
+
   /// Opens [destination], unless it is what is on screen already.
   void open(ShellDestination destination, {String? query}) {
     final navigator = navigatorKey.currentState;
@@ -145,12 +162,14 @@ class _StackObserver extends NavigatorObserver {
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     _shell._stack.remove(route);
+    _shell._artUnderBar.remove(route);
     _shell._changed();
   }
 
   @override
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
     _shell._stack.remove(route);
+    _shell._artUnderBar.remove(route);
     _shell._changed();
   }
 
@@ -187,4 +206,8 @@ class ShellScope extends InheritedNotifier<ShellController> {
     assert(scope != null, 'No ShellScope above this widget');
     return scope!.notifier!;
   }
+
+  /// As [read], or `null` for a page shown outside the shell.
+  static ShellController? maybeRead(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<ShellScope>()?.notifier;
 }

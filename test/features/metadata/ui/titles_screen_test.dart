@@ -16,6 +16,7 @@ import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/metadata/ui/needs_review_screen.dart';
 import 'package:dhara/features/metadata/ui/titles_screen.dart';
+import 'package:dhara/features/my_list/my_list_controller.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_store.dart';
@@ -426,6 +427,7 @@ void main() {
           titles: titles,
           match: match,
         ),
+        myList: MyListController(library: const NoLibrary()),
       ),
     );
 

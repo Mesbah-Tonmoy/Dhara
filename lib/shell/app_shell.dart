@@ -7,6 +7,7 @@ import 'package:dhara/features/metadata/ui/titles_screen.dart';
 import 'package:dhara/features/player/open_url_dialog.dart';
 import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
 import 'package:dhara/shell/nav_rail.dart';
+import 'package:dhara/shell/page_bleed.dart';
 import 'package:dhara/shell/shell_controller.dart';
 import 'package:dhara/shell/title_bar.dart';
 import 'package:dhara/theme/tokens.dart';
@@ -27,7 +28,7 @@ class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
   /// How far a page starts from the left edge: clear of the rail.
-  static const pageInsetLeft = NavRail.margin + NavRail.width + .5 * rem;
+  static const pageInsetLeft = PageInsets.left;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -44,10 +45,7 @@ class _AppShellState extends State<AppShell> {
 
   static Widget _pageFor(ShellDestination place, String? query) =>
       switch (place) {
-        ShellDestination.home => const HomeScreen(
-          // Lines up with the prototype's page edge, past the rail.
-          contentLeft: DharaLayout.pageLeft - AppShell.pageInsetLeft,
-        ),
+        ShellDestination.home => const HomeScreen(),
         ShellDestination.titles => TitlesScreen(initialQuery: query),
         ShellDestination.anime => const AnimeScreen(),
         ShellDestination.library => const IndexScreen(),
@@ -136,6 +134,9 @@ class _AppShellState extends State<AppShell> {
                     child: FocusTraversalGroup(
                       child: Navigator(
                         key: _shell.navigatorKey,
+                        // A page's artwork may run on under the title bar
+                        // and the rail (see `ArtUnderShell`).
+                        clipBehavior: Clip.none,
                         observers: [_shell.observer],
                         onGenerateInitialRoutes: (navigator, name) => [
                           _shell.routeFor(ShellDestination.home),

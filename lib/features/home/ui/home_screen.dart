@@ -1,21 +1,27 @@
 import 'dart:async';
 
+import 'package:dhara/core/net/media_url.dart';
 import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/home/home_store.dart';
 import 'package:dhara/features/home/ui/card_row.dart';
+import 'package:dhara/features/home/ui/hero_banner.dart';
 import 'package:dhara/features/home/ui/poster_card.dart';
+import 'package:dhara/features/home/ui/wide_card.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/metadata/ui/titles_screen.dart';
+import 'package:dhara/features/playback/play.dart';
 import 'package:dhara/features/player/open_url_dialog.dart';
+import 'package:dhara/shell/page_bleed.dart';
 import 'package:dhara/shell/shell_controller.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:dhara/widgets/buttons.dart';
 import 'package:dhara/widgets/icons.dart';
 import 'package:dhara/widgets/logo.dart';
 import 'package:dhara/widgets/surfaces.dart';
+import 'package:dhara/widgets/toast.dart';
 import 'package:flutter/material.dart';
 
 /// Opens a film or show from its card.
@@ -40,8 +46,9 @@ void _openCopies(BuildContext context, TitleCard title) => unawaited(
   ),
 );
 
-/// Home: the library as rows of posters (Recently Added, Movies, Series,
-/// Anime, Top Rated), read by the `HomeController` above it.
+/// Home: a banner of featured titles, what was left unfinished, and the
+/// library as rows of posters (Recently Added, Movies, Series, Anime, Top
+/// Rated), all read by the `HomeController` above it.
 ///
 /// While the library is read for the first time the rows are grey
 /// placeholders; with nothing to show yet, Home says what to do first.
@@ -50,7 +57,7 @@ void _openCopies(BuildContext context, TitleCard title) => unawaited(
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
     super.key,
-    this.contentLeft = 1.3 * rem,
+    this.contentLeft = PageInsets.contentLeft,
     this.onOpenTitle = _openCopies,
   });
 
@@ -99,7 +106,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _Rows extends StatelessWidget {
+class _Rows extends StatefulWidget {
   const _Rows({
     required this.content,
     required this.left,
@@ -111,7 +118,63 @@ class _Rows extends StatelessWidget {
   final OpenTitle onOpenTitle;
 
   @override
+  State<_Rows> createState() => _RowsState();
+}
+
+class _RowsState extends State<_Rows> {
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Plays a featured title: on from where it was left, if it was.
+  void _play(TitleCard title) {
+    String? resumeUrl;
+    for (final item in widget.content.continueWatching) {
+      if (item.title?.id == title.id) resumeUrl = item.url;
+    }
+    unawaited(
+      playTitleById(
+        context,
+        title: title.id,
+        name: title.name,
+        year: title.year,
+        resumeUrl: resumeUrl,
+      ),
+    );
+  }
+
+  /// Plays a video that was left unfinished on from there.
+  void _resume(ContinueItem item) {
+    final title = item.title;
+    if (title != null) {
+      unawaited(
+        playTitleById(
+          context,
+          title: title.id,
+          name: title.name,
+          year: title.year,
+          resumeUrl: item.url,
+        ),
+      );
+      return;
+    }
+    // Not in the index: played from a pasted address, checked again here.
+    final url = parseMediaUrl(item.url);
+    if (url == null) {
+      ToastHost.show(context, 'This address cannot be played any more.');
+      return;
+    }
+    unawaited(openPlayer(context, [url]));
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final content = widget.content;
+    final left = widget.left;
     final shell = ShellScope.read(context);
     final counts = TitlesScope.of(context).counts;
     final tmdbKey = TmdbKeyScope.of(context);
@@ -138,15 +201,37 @@ class _Rows extends StatelessWidget {
           itemBuilder: (context, index) => PosterCard(
             title: cards[index],
             rank: ranked ? index + 1 : null,
-            onOpen: () => onOpenTitle(context, cards[index]),
+            onOpen: () => widget.onOpenTitle(context, cards[index]),
           ),
         ),
       );
     }
 
+    final featured = content.featured;
+    final unfinished = content.continueWatching;
     return ListView(
-      padding: const EdgeInsets.only(top: .9 * rem, bottom: DharaSpace.s7),
+      controller: _scroll,
+      // The banner's backdrop runs on under the title bar and the rail,
+      // and so do the rows once they are scrolled.
+      clipBehavior: Clip.none,
+      padding: EdgeInsets.only(
+        top: featured.isEmpty ? .9 * rem : 0,
+        bottom: DharaSpace.s7,
+      ),
       children: [
+        if (featured.isNotEmpty)
+          HeroBanner(
+            key: const Key('home-hero'),
+            titles: featured,
+            contentLeft: left,
+            scroll: _scroll,
+            resumable: {
+              for (final item in unfinished)
+                if (item.title case final title?) title.id,
+            },
+            onPlay: _play,
+            onMore: (title) => widget.onOpenTitle(context, title),
+          ),
         if (tmdbKey.isLoaded && !tmdbKey.hasKey && !tmdbKey.unreadable)
           Padding(
             padding: EdgeInsets.only(
@@ -155,6 +240,22 @@ class _Rows extends StatelessWidget {
               top: .9 * rem,
             ),
             child: _KeyNotice(onAdd: seeAll),
+          ),
+        if (unfinished.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: .9 * rem),
+            child: CardRow(
+              key: const Key('home-row-continue'),
+              title: 'Continue Watching',
+              leftInset: left,
+              itemWidth: DharaLayout.wideCardWidth,
+              itemAspectRatio: 16 / 9,
+              itemCount: unfinished.length,
+              itemBuilder: (context, index) => WideCard(
+                item: unfinished[index],
+                onPlay: () => _resume(unfinished[index]),
+              ),
+            ),
           ),
         ?row('recent', 'Recently Added', content.recentlyAdded),
         ?row(

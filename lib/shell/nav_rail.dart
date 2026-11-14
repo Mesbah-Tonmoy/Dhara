@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:dhara/shell/shell_controller.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:dhara/widgets/pressable.dart';
@@ -21,24 +23,40 @@ class NavRail extends StatelessWidget {
       selected: shell.current == place,
       onPressed: () => shell.open(place),
     );
+    final corners = BorderRadius.circular(DharaRadii.lg);
     return FocusTraversalGroup(
-      child: Container(
-        width: width,
-        padding: const EdgeInsets.symmetric(vertical: .6 * rem),
+      child: DecoratedBox(
         decoration: BoxDecoration(
-          color: DharaColors.glass,
-          borderRadius: BorderRadius.circular(DharaRadii.lg),
-          border: Border.all(color: DharaColors.stroke),
+          borderRadius: corners,
           boxShadow: DharaShadows.card,
         ),
-        child: Column(
-          children: [
-            for (final place in ShellDestination.values)
-              if (!place.low) button(place),
-            const Spacer(),
-            for (final place in ShellDestination.values)
-              if (place.low) button(place),
-          ],
+        // Glass: artwork and cards pass under the rail.
+        child: ClipRRect(
+          borderRadius: corners,
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: DharaBlur.glass,
+              sigmaY: DharaBlur.glass,
+            ),
+            child: Container(
+              width: width,
+              padding: const EdgeInsets.symmetric(vertical: .6 * rem),
+              decoration: BoxDecoration(
+                color: DharaColors.glass,
+                borderRadius: corners,
+                border: Border.all(color: DharaColors.stroke),
+              ),
+              child: Column(
+                children: [
+                  for (final place in ShellDestination.values)
+                    if (!place.low) button(place),
+                  const Spacer(),
+                  for (final place in ShellDestination.values)
+                    if (place.low) button(place),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

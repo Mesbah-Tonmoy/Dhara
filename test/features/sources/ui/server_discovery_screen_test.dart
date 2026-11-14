@@ -13,6 +13,7 @@ import 'package:dhara/features/metadata/match_controller.dart';
 import 'package:dhara/features/metadata/review_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
+import 'package:dhara/features/my_list/my_list_controller.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_list.dart';
@@ -651,6 +652,7 @@ void main() {
         ),
         anime: AnimeController(library: library),
         home: HomeController(library: library, titles: titles, match: match),
+        myList: MyListController(library: library),
       ),
     );
 

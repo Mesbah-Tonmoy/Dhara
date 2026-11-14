@@ -6,8 +6,10 @@ import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/home/home_store.dart';
 import 'package:dhara/features/home/ui/card_row.dart';
+import 'package:dhara/features/home/ui/hero_banner.dart';
 import 'package:dhara/features/home/ui/home_screen.dart';
 import 'package:dhara/features/home/ui/poster_card.dart';
+import 'package:dhara/features/home/ui/wide_card.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/indexer/ui/index_screen.dart';
 import 'package:dhara/features/metadata/match_controller.dart';
@@ -17,6 +19,8 @@ import 'package:dhara/features/metadata/ui/titles_screen.dart';
 import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
 import 'package:dhara/shell/shell_controller.dart';
+import 'package:dhara/theme/tokens.dart';
+import 'package:dhara/widgets/placeholder_art.dart';
 import 'package:dhara/widgets/surfaces.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,7 +31,12 @@ import '../../../widgets/support.dart';
 
 /// Films and one show on the source "a", as a crawl and a match on TMDB
 /// would have left them. Film [n] is of the year 2000 + n.
-LibraryDb _library({int films = 3, bool rated = true}) {
+LibraryDb _library({
+  int films = 3,
+  bool rated = true,
+  bool backdrops = false,
+  String scheme = 'http',
+}) {
   final library = LibraryDb.inMemory();
   final db = library.db
     ..execute("INSERT INTO sources (id, source_id) VALUES (1, 'a')")
@@ -39,8 +48,8 @@ LibraryDb _library({int films = 3, bool rated = true}) {
     db
       ..execute(
         'INSERT OR IGNORE INTO titles (id, kind, name, year, tmdb_id, '
-        'match_state, rating, votes, genres, added_at) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)',
+        'match_state, rating, votes, genres, backdrop_path, overview, '
+        'added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)',
         [
           id,
           kind,
@@ -51,6 +60,8 @@ LibraryDb _library({int films = 3, bool rated = true}) {
           if (rated) 6 + id / 10 else null,
           if (rated) 1000 + id else null,
           if (rated) 'Drama, Mystery' else null,
+          if (backdrops) '/b$id.jpg' else null,
+          if (backdrops) 'About $name.' else null,
         ],
       )
       ..execute(
@@ -58,7 +69,7 @@ LibraryDb _library({int films = 3, bool rated = true}) {
         'VALUES (1, ?, ?, ?, 99999)',
         [
           '$name ${episode ?? ''}.mkv',
-          'http://10.0.0.1/a/$id-${episode ?? 0}.mkv',
+          '$scheme://10.0.0.1/a/$id-${episode ?? 0}.mkv',
           id * 10 + (episode ?? 0),
         ],
       )
@@ -83,6 +94,7 @@ Future<SourceStore> _boot(
   LibraryDb? db,
   bool enabled = true,
   bool withSource = true,
+  bool settle = true,
 }) async {
   tester.view
     ..physicalSize = const Size(1280, 720)
@@ -96,8 +108,16 @@ Future<SourceStore> _boot(
     await sources.setEnabled(['a'], enabled: true);
   }
   await tester.pumpWidget(app);
-  await tester.pumpAndSettle();
+  await (settle ? tester.pumpAndSettle() : _run(tester));
   return sources;
+}
+
+/// Lets a second pass, for pages on which something keeps moving (the
+/// banner) and so never settle.
+Future<void> _run(WidgetTester tester) async {
+  for (var i = 0; i < 10; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
 }
 
 Finder _row(String key) => find.byKey(Key('home-row-$key'));
@@ -254,6 +274,186 @@ void main() {
 
       expect(_row('movies'), findsNothing);
       expect(find.byKey(const Key('home-start')), findsOneWidget);
+    });
+  });
+
+  group('banner', () {
+    BoxDecoration ground(WidgetTester tester) =>
+        tester
+                .widget<AnimatedContainer>(
+                  find.byKey(const Key('shell-bar-ground')),
+                )
+                .decoration!
+            as BoxDecoration;
+
+    testWidgets('leads Home when titles have backdrops, under a clear '
+        'title bar', (tester) async {
+      await _boot(tester, db: _library(backdrops: true), settle: false);
+
+      expect(find.byType(HeroBanner), findsOneWidget);
+      expect(find.byKey(const Key('hero-title')), findsOneWidget);
+      // The artwork starts at the window's top-left corner.
+      final art = tester.getRect(
+        find
+            .descendant(
+              of: find.byType(HeroBanner),
+              matching: find.byType(PlaceholderArt),
+            )
+            .first,
+      );
+      expect(art.topLeft, Offset.zero);
+      expect(art.right, 1280);
+      expect(ground(tester).color!.a, 0);
+      // The first row moves up over its foot.
+      expect(
+        tester.getTopLeft(_row('recent')).dy,
+        lessThan(HeroBanner.heightFor(720)),
+      );
+    });
+
+    testWidgets('once it is scrolled away the title bar is glass', (
+      tester,
+    ) async {
+      await _boot(
+        tester,
+        db: _library(backdrops: true, films: 12),
+        settle: false,
+      );
+
+      await tester.drag(find.byType(HeroBanner), const Offset(0, -300));
+      await _run(tester);
+      expect(ground(tester).color, DharaColors.glass);
+
+      await tester.drag(_row('recent'), const Offset(0, 600));
+      await _run(tester);
+      expect(ground(tester).color!.a, 0);
+    });
+
+    testWidgets('is left out when nothing has a backdrop, and the bar is '
+        'glass', (tester) async {
+      await _boot(tester, db: _library(), settle: false);
+
+      expect(find.byType(HeroBanner), findsNothing);
+      expect(ground(tester).color, DharaColors.glass);
+    });
+
+    testWidgets('on another page the bar is glass, and clear again on the '
+        'way back', (tester) async {
+      await _boot(tester, db: _library(backdrops: true), settle: false);
+
+      await tester.tap(find.byKey(const Key('hero-more')));
+      await _run(tester);
+      expect(find.byType(HeroBanner), findsNothing);
+      expect(ground(tester).color, DharaColors.glass);
+
+      await tester.tap(find.byKey(const Key('shell-back')));
+      await _run(tester);
+      expect(ground(tester).color!.a, 0);
+    });
+
+    testWidgets('My List on the banner is kept in the library', (tester) async {
+      final db = _library(backdrops: true);
+      await _boot(tester, db: db, settle: false);
+      final shown = tester
+          .widget<Text>(find.byKey(const Key('hero-title')))
+          .data!;
+
+      await tester.tap(find.byKey(const Key('my-list-button')));
+      await _run(tester);
+
+      expect(find.text('In My List'), findsOneWidget);
+      expect(
+        db.db
+            .select(
+              'SELECT t.name FROM my_list l JOIN titles t ON t.id = l.title',
+            )
+            .single
+            .values,
+        [shown],
+      );
+    });
+
+    testWidgets('Play says so when no copy can be played', (tester) async {
+      await _boot(
+        tester,
+        db: _library(backdrops: true, scheme: 'ftp'),
+        settle: false,
+      );
+
+      await tester.tap(find.byKey(const Key('hero-play')));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        find.textContaining('has no copy that can be played from here.'),
+        findsOneWidget,
+      );
+      await tester.pump(const Duration(seconds: 4));
+    });
+  });
+
+  group('Continue Watching', () {
+    void watched(LibraryDb db, String url, {required int at}) => db.db
+      ..execute(
+        'INSERT INTO watch_history '
+        '(url, watched_at, position_ms, duration_ms) '
+        'VALUES (?, ?, 600000, 2400000)',
+        [url, at],
+      )
+      ..execute(
+        'INSERT INTO playback (url, position_ms, duration_ms, updated_at) '
+        'VALUES (?, 600000, 2400000, ?)',
+        [url, at],
+      );
+
+    testWidgets('lists what was left unfinished, before the other rows', (
+      tester,
+    ) async {
+      final db = _library();
+      watched(db, 'http://10.0.0.1/a/2-0.mkv', at: 5);
+      watched(db, 'http://10.0.0.1/a/900-2.mkv', at: 9);
+      await _boot(tester, db: db);
+
+      final cards = tester
+          .widgetList<WideCard>(
+            find.descendant(
+              of: _row('continue'),
+              matching: find.byType(WideCard),
+            ),
+          )
+          .toList();
+      expect(
+        [for (final card in cards) card.item.title?.name],
+        ['The Bay', 'Film 2'],
+      );
+      expect(find.text('S1 · E2 · 30 min left'), findsOneWidget);
+      expect(
+        tester.getTopLeft(_row('continue')).dy,
+        lessThan(tester.getTopLeft(_row('recent')).dy),
+      );
+    });
+
+    testWidgets('is left out when nothing is unfinished', (tester) async {
+      await _boot(tester, db: _library());
+
+      expect(_row('continue'), findsNothing);
+    });
+
+    testWidgets('an address that is no longer allowed is not played', (
+      tester,
+    ) async {
+      final db = _library();
+      watched(db, 'ftp://elsewhere.test/clip.mkv', at: 5);
+      await _boot(tester, db: db);
+
+      await tester.tap(find.byType(WideCard));
+      await tester.pump();
+
+      expect(
+        find.text('This address cannot be played any more.'),
+        findsOneWidget,
+      );
+      await tester.pump(const Duration(seconds: 4));
     });
   });
 

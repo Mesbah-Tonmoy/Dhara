@@ -21,13 +21,22 @@ import 'package:media_kit_video/media_kit_video.dart';
 /// Each video resumes where it was left, and when one ends the next starts
 /// after a countdown the user can cancel.
 class PlayerScreen extends StatefulWidget {
-  const PlayerScreen({super.key, required this.urls, this.initialIndex = 0})
-      : assert(urls.length > 0),
-        assert(initialIndex >= 0 && initialIndex < urls.length);
+  const PlayerScreen({
+    super.key,
+    required this.urls,
+    this.initialIndex = 0,
+    this.titles,
+  })  : assert(urls.length > 0),
+        assert(initialIndex >= 0 && initialIndex < urls.length),
+        assert(titles == null || titles.length == urls.length);
 
   /// Must come from `parseMediaUrl`, never from raw input.
   final List<Uri> urls;
   final int initialIndex;
+
+  /// What to call each video ("The Bay · S1 · E2"), in the order of [urls];
+  /// without it, each goes by its file name. Shown as plain text only.
+  final List<String>? titles;
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
@@ -72,6 +81,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Duration _lastSavedPosition = Duration.zero;
 
   Uri get _url => widget.urls[_index];
+
+  String _titleAt(int index) =>
+      widget.titles?[index] ?? mediaTitleFromUrl(widget.urls[index]);
 
   /// A video may come from the hosts in this queue and from the
   /// configured sources (looked up each time: the list can change).
@@ -250,11 +262,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
             player: _player,
             settings: SettingsScope.read(context),
             mediaUrl: _url,
-            title: mediaTitleFromUrl(_url),
+            title: _titleAt(_index),
             onBack: () => Navigator.of(context).maybePop(),
             fullscreen: _fullscreen,
             onToggleFullscreen: _toggleFullscreen,
-            nextTitle: nextUrl == null ? null : mediaTitleFromUrl(nextUrl),
+            nextTitle: nextUrl == null ? null : _titleAt(_index + 1),
             autoNext: !_autoNextCancelled,
             onPlayNext: _playNext,
             onCancelAutoNext: () => setState(() => _autoNextCancelled = true),

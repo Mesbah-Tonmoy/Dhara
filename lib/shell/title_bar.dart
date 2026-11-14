@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:dhara/core/window/window_widgets.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
 import 'package:dhara/shell/shell_controller.dart';
@@ -11,6 +13,9 @@ import 'package:flutter/material.dart';
 /// The app's own title bar: Back, the brand, the search field in the
 /// middle, the state of the servers and, once the system's title bar is
 /// gone, the window buttons. Its empty space moves the window.
+///
+/// It is glass: clear while a page's artwork lies under it, and otherwise
+/// blurring what scrolls past beneath.
 class TitleBar extends StatelessWidget {
   const TitleBar({super.key});
 
@@ -21,8 +26,8 @@ class TitleBar extends StatelessWidget {
       height: DharaLayout.titleBarHeight,
       child: Stack(
         children: [
-          const Positioned.fill(
-            child: WindowDragArea(child: ColoredBox(color: DharaColors.bg)),
+          Positioned.fill(
+            child: WindowDragArea(child: _Ground(clear: shell.artUnderBar)),
           ),
           Positioned.fill(
             child: Row(
@@ -54,6 +59,39 @@ class TitleBar extends StatelessWidget {
             child: WindowTopResizeEdge(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// What the bar stands on: nothing over artwork, blurring glass otherwise.
+class _Ground extends StatelessWidget {
+  const _Ground({required this.clear});
+
+  final bool clear;
+
+  @override
+  Widget build(BuildContext context) {
+    final pane = AnimatedContainer(
+      key: const Key('shell-bar-ground'),
+      duration: motion(context, DharaMotion.base),
+      decoration: BoxDecoration(
+        color: clear ? const Color(0x000C0E18) : DharaColors.glass,
+        border: Border(
+          bottom: BorderSide(
+            color: clear ? const Color(0x00FFFFFF) : DharaColors.stroke,
+          ),
+        ),
+      ),
+    );
+    if (clear) return pane;
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: DharaBlur.glass,
+          sigmaY: DharaBlur.glass,
+        ),
+        child: pane,
       ),
     );
   }

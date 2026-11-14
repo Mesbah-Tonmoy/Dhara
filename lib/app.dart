@@ -8,6 +8,7 @@ import 'package:dhara/features/metadata/match_controller.dart';
 import 'package:dhara/features/metadata/review_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
+import 'package:dhara/features/my_list/my_list_controller.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
 import 'package:dhara/shell/app_shell.dart';
@@ -30,6 +31,7 @@ class DharaApp extends StatelessWidget {
     required this.review,
     required this.anime,
     required this.home,
+    required this.myList,
     this.images,
   });
 
@@ -43,6 +45,7 @@ class DharaApp extends StatelessWidget {
   final ReviewController review;
   final AnimeController anime;
   final HomeController home;
+  final MyListController myList;
 
   /// Where posters are kept; without it, placeholders are shown.
   final RemoteImageStore? images;
@@ -69,18 +72,21 @@ class DharaApp extends StatelessWidget {
                       controller: anime,
                       child: HomeScope(
                         controller: home,
-                        child: ImageStoreScope(
-                          store: images,
-                          child: MaterialApp(
-                            title: 'Dhara',
-                            debugShowCheckedModeBanner: false,
-                            theme: buildDharaTheme(),
-                            // Above the Navigator, so that dialogs and
-                            // menus grow with the window as well, and a
-                            // message outlives the page that sent it.
-                            builder: (context, child) =>
-                                DharaScale(child: ToastHost(child: child!)),
-                            home: const AppShell(),
+                        child: MyListScope(
+                          controller: myList,
+                          child: ImageStoreScope(
+                            store: images,
+                            child: MaterialApp(
+                              title: 'Dhara',
+                              debugShowCheckedModeBanner: false,
+                              theme: buildDharaTheme(),
+                              // Above the Navigator, so that dialogs and
+                              // menus grow with the window as well, and a
+                              // message outlives the page that sent it.
+                              builder: (context, child) =>
+                                  DharaScale(child: ToastHost(child: child!)),
+                              home: const AppShell(),
+                            ),
                           ),
                         ),
                       ),

@@ -186,6 +186,10 @@ class HomeScope extends InheritedNotifier<HomeController> {
     assert(scope != null, 'No HomeScope above this widget');
     return scope!.notifier!;
   }
+
+  /// As [read], or `null` where there is no Home (a test of one screen).
+  static HomeController? maybeRead(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<HomeScope>()?.notifier;
 }
 
 // What follows runs in the library isolate.
