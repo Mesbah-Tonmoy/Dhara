@@ -1,5 +1,9 @@
+import 'package:dhara/core/images/image_store.dart';
+import 'package:dhara/core/images/remote_image.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
+import 'package:dhara/features/metadata/match_controller.dart';
+import 'package:dhara/features/metadata/review_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/player/open_url_screen.dart';
@@ -18,6 +22,9 @@ class DharaApp extends StatelessWidget {
     required this.index,
     required this.titles,
     required this.tmdbKey,
+    required this.match,
+    required this.review,
+    this.images,
   });
 
   final SettingsController settings;
@@ -26,6 +33,11 @@ class DharaApp extends StatelessWidget {
   final IndexController index;
   final TitlesController titles;
   final TmdbKeyController tmdbKey;
+  final MatchController match;
+  final ReviewController review;
+
+  /// Where posters are kept; without it, placeholders are shown.
+  final RemoteImageStore? images;
 
   @override
   Widget build(BuildContext context) {
@@ -41,11 +53,20 @@ class DharaApp extends StatelessWidget {
               controller: titles,
               child: TmdbKeyScope(
                 controller: tmdbKey,
-                child: MaterialApp(
-                  title: 'Dhara',
-                  debugShowCheckedModeBanner: false,
-                  theme: buildDharaTheme(),
-                  home: const OpenUrlScreen(),
+                child: MatchScope(
+                  controller: match,
+                  child: ReviewScope(
+                    controller: review,
+                    child: ImageStoreScope(
+                      store: images,
+                      child: MaterialApp(
+                        title: 'Dhara',
+                        debugShowCheckedModeBanner: false,
+                        theme: buildDharaTheme(),
+                        home: const OpenUrlScreen(),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),

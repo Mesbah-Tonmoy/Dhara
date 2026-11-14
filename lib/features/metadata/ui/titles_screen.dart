@@ -1,10 +1,15 @@
 import 'dart:async';
 
+import 'package:dhara/core/images/remote_image.dart';
 import 'package:dhara/core/net/media_url.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
+import 'package:dhara/features/metadata/match_controller.dart';
+import 'package:dhara/features/metadata/match_store.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
+import 'package:dhara/features/metadata/ui/match_panel.dart';
+import 'package:dhara/features/metadata/ui/needs_review_screen.dart';
 import 'package:dhara/features/metadata/ui/tmdb_key_card.dart';
 import 'package:dhara/features/metadata/video_identity.dart';
 import 'package:dhara/features/player/player_screen.dart';
@@ -44,6 +49,8 @@ class _TitlesScreenState extends State<TitlesScreen> {
   var _searches = 0;
   TitlesController? _titles;
   var _wasReading = false;
+  MatchController? _match;
+  MatchCounts? _countsSeen;
 
   /// What the last search found; `null` while nothing is being searched.
   List<TitleHit>? _hits;
@@ -51,6 +58,12 @@ class _TitlesScreenState extends State<TitlesScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final match = MatchScope.of(context);
+    if (match != _match) {
+      _match?.removeListener(_onMatchChanged);
+      _match = match..addListener(_onMatchChanged);
+      _countsSeen = match.counts;
+    }
     final titles = TitlesScope.of(context);
     if (titles == _titles) return;
     _titles?.removeListener(_onTitlesChanged);
@@ -61,6 +74,7 @@ class _TitlesScreenState extends State<TitlesScreen> {
   @override
   void dispose() {
     _titles?.removeListener(_onTitlesChanged);
+    _match?.removeListener(_onMatchChanged);
     _debounce?.cancel();
     _query.dispose();
     super.dispose();
@@ -73,6 +87,15 @@ class _TitlesScreenState extends State<TitlesScreen> {
       unawaited(_search(_query.text));
     }
     _wasReading = reading;
+  }
+
+  /// Titles that were matched, by a run or by hand, have other names and
+  /// posters now.
+  void _onMatchChanged() {
+    final match = _match!;
+    if (match.isRunning || identical(match.counts, _countsSeen)) return;
+    _countsSeen = match.counts;
+    if (_hits != null) unawaited(_search(_query.text));
   }
 
   void _onQueryChanged(String text) {
@@ -103,6 +126,8 @@ class _TitlesScreenState extends State<TitlesScreen> {
   Widget build(BuildContext context) {
     final titles = TitlesScope.of(context);
     final tmdbKey = TmdbKeyScope.of(context);
+    final match = MatchScope.of(context);
+    final toReview = match.counts?.toReview ?? 0;
     final hits = _hits;
 
     return Scaffold(
@@ -132,12 +157,35 @@ class _TitlesScreenState extends State<TitlesScreen> {
                                 'the names of the files and folders in the '
                                 'index.',
                           ),
-                          DharaPillButton(
-                            key: const Key('titles-tmdb-key'),
-                            icon: Icons.key_outlined,
-                            label: tmdbKey.hasKey ? 'TMDB key' : 'Add TMDB key',
-                            onPressed: () =>
-                                unawaited(showTmdbKeyDialog(context, tmdbKey)),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              if (toReview > 0)
+                                DharaPillButton(
+                                  key: const Key('titles-review'),
+                                  icon: Icons.rule_rounded,
+                                  label: 'Needs review ($toReview)',
+                                  onPressed: () => unawaited(
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) =>
+                                            const NeedsReviewScreen(),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              DharaPillButton(
+                                key: const Key('titles-tmdb-key'),
+                                icon: Icons.key_outlined,
+                                label: tmdbKey.hasKey
+                                    ? 'TMDB key'
+                                    : 'Add TMDB key',
+                                onPressed: () => unawaited(
+                                  showTmdbKeyDialog(context, tmdbKey),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -150,6 +198,8 @@ class _TitlesScreenState extends State<TitlesScreen> {
                       ],
                       const SizedBox(height: 22),
                       _Stats(titles: titles),
+                      const SizedBox(height: 14),
+                      MatchPanel(match: match, tmdbKey: tmdbKey),
                       const SizedBox(height: 22),
                       TextField(
                         key: const Key('titles-search'),
@@ -266,10 +316,12 @@ class _TitleRow extends StatelessWidget {
             decoration: _rowDecoration,
             child: Row(
               children: [
-                Icon(
-                  isShow ? Icons.tv_rounded : Icons.movie_outlined,
-                  size: 20,
-                  color: DharaColors.text2,
+                TmdbPicture(
+                  path: hit.posterPath,
+                  size: 'w154',
+                  width: 30,
+                  height: 45,
+                  placeholder: isShow ? Icons.tv_rounded : Icons.movie_outlined,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -375,15 +427,39 @@ class _TitleCopiesScreenState extends State<TitleCopiesScreen> {
               SliverPadding(
                 padding: sides.copyWith(top: 28, bottom: 18),
                 sliver: SliverToBoxAdapter(
-                  child: _Header(
-                    title: year == null ? title.name : '${title.name} ($year)',
-                    subtitle: copies == null
-                        ? 'Reading …'
-                        : copies.isEmpty
-                        ? 'No video of it is on an enabled server any more.'
-                        : title.kind == TitleKind.series
-                        ? 'A tap plays an episode; the ones after it follow.'
-                        : 'A tap plays a copy.',
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.topLeft,
+                          child: _Header(
+                            title: year == null
+                                ? title.name
+                                : '${title.name} ($year)',
+                            subtitle: copies == null
+                                ? 'Reading …'
+                                : copies.isEmpty
+                                ? 'No video of it is on an enabled server any '
+                                      'more.'
+                                : title.kind == TitleKind.series
+                                ? 'A tap plays an episode; the ones after it '
+                                      'follow.'
+                                : 'A tap plays a copy.',
+                          ),
+                        ),
+                      ),
+                      if (title.posterPath case final poster?) ...[
+                        const SizedBox(width: 16),
+                        TmdbPicture(
+                          key: const Key('title-poster'),
+                          path: poster,
+                          size: 'w342',
+                          width: 92,
+                          height: 138,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),

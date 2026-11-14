@@ -7,6 +7,8 @@ import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
+import 'package:dhara/features/metadata/match_controller.dart';
+import 'package:dhara/features/metadata/review_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/player/resume_store.dart';
@@ -623,14 +625,28 @@ void main() {
       sources: controller.store,
       deviceId: 'dhara-test',
     );
+    final titles = TitlesController(library: library, index: index);
+    final tmdbKey = TmdbKeyController(MemorySecretStore());
+    final match = MatchController(
+      library: library,
+      titles: titles,
+      tmdbKey: tmdbKey,
+    );
     await tester.pumpWidget(
       DharaApp(
         settings: SettingsController(store),
         resumeStore: ResumeStore(),
         sourceTests: controller,
         index: index,
-        titles: TitlesController(library: library, index: index),
-        tmdbKey: TmdbKeyController(MemorySecretStore()),
+        titles: titles,
+        tmdbKey: tmdbKey,
+        match: match,
+        review: ReviewController(
+          library: library,
+          titles: titles,
+          match: match,
+          tmdbKey: tmdbKey,
+        ),
       ),
     );
 

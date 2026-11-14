@@ -4,11 +4,15 @@ import 'dart:io';
 import 'package:dhara/app.dart';
 import 'package:dhara/core/db/library_db.dart';
 import 'package:dhara/core/db/library_isolate.dart';
+import 'package:dhara/core/images/image_store.dart';
 import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/core/secrets/windows_credential_store.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
+import 'package:dhara/features/metadata/episodes_controller.dart';
+import 'package:dhara/features/metadata/match_controller.dart';
+import 'package:dhara/features/metadata/review_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/player/resume_store.dart';
@@ -54,6 +58,29 @@ Future<void> main() async {
     Platform.isWindows ? const WindowsCredentialStore() : MemorySecretStore(),
   );
   unawaited(tmdbKey.load());
+  // Looks titles up on TMDB: the first time when asked, later by itself
+  // for what crawls add.
+  final match = MatchController(
+    library: library,
+    titles: titles,
+    tmdbKey: tmdbKey,
+  );
+  // Fetches the episodes of matched shows whenever titles were matched; it
+  // lives as long as the controller it listens to.
+  EpisodesController(library: library, match: match, tmdbKey: tmdbKey);
+  final review = ReviewController(
+    library: library,
+    titles: titles,
+    match: match,
+    tmdbKey: tmdbKey,
+  );
+  // Posters are kept next to the settings; without a data folder they are
+  // not shown.
+  final images = RemoteImageStore(
+    folder: folder == null
+        ? null
+        : Directory('$folder${Platform.pathSeparator}images'),
+  );
   // Positions go to the database only if it is the one on disk; with a
   // stand-in for this run they stay in the settings file, where they were.
   final resumeStore = ResumeStore(librarySaved ? library : null);
@@ -66,11 +93,20 @@ Future<void> main() async {
       index: index,
       titles: titles,
       tmdbKey: tmdbKey,
+      match: match,
+      review: review,
+      images: images,
     ),
   );
   // Notice enabled servers that died since they were last tested.
   unawaited(sourceTests.retestEnabledIfStale());
   unawaited(_keepIndexFresh(index));
+  // Once the app has settled, keeps the folder of posters within its limit.
+  unawaited(
+    Future<void>.delayed(
+      const Duration(seconds: 40),
+    ).then((_) => images.trim()),
+  );
 }
 
 /// Reads the size of the index, then, once the app has settled, brings an

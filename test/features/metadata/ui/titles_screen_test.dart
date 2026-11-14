@@ -1,14 +1,18 @@
 import 'package:dhara/app.dart';
 import 'package:dhara/core/db/library_db.dart';
 import 'package:dhara/core/db/library_isolate.dart';
+import 'package:dhara/core/images/remote_image.dart';
 import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
+import 'package:dhara/features/metadata/match_controller.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/metadata/release_name.dart';
+import 'package:dhara/features/metadata/review_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
+import 'package:dhara/features/metadata/ui/needs_review_screen.dart';
 import 'package:dhara/features/metadata/ui/titles_screen.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/source.dart';
@@ -76,9 +80,18 @@ TitleCopy _copy(
 /// Shaped like TMDB's, made up.
 final _token = 'eyJhbGciOiJIUzI1NiJ9.${'a' * 120}.${'b' * 43}';
 
+/// The id of the title called [name].
+Future<int> titleId(LibraryDb library, String name) async =>
+    library.db.select('SELECT id FROM titles WHERE name = ?', [
+          name,
+        ]).single['id']
+        as int;
+
 void main() {
   late List<List<Uri>> played;
   late TmdbKeyController tmdbKey;
+  late MatchController match;
+  late ReviewController review;
 
   setUp(() {
     tmdbKey = TmdbKeyController(
@@ -95,10 +108,31 @@ void main() {
       controller: titles,
       child: TmdbKeyScope(
         controller: tmdbKey,
-        child: MaterialApp(theme: buildDharaTheme(), home: home),
+        child: MatchScope(
+          controller: match,
+          child: ReviewScope(
+            controller: review,
+            child: MaterialApp(theme: buildDharaTheme(), home: home),
+          ),
+        ),
       ),
     ),
   );
+
+  /// The controllers that look titles up, over [library].
+  void matching(LibraryWorker library, TitlesController titles) {
+    match = MatchController(library: library, titles: titles, tmdbKey: tmdbKey);
+    review = ReviewController(
+      library: library,
+      titles: titles,
+      match: match,
+      tmdbKey: tmdbKey,
+    );
+    addTearDown(() {
+      review.dispose();
+      match.dispose();
+    });
+  }
 
   /// The controllers over an index that [fill] has prepared, with the names
   /// already read. "flix" and "icc" are switched on; "media" is an Emby
@@ -138,6 +172,8 @@ void main() {
       await store.setEnabled(['flix', 'icc', 'media'], enabled: true);
       await index.load();
       await titles.refresh();
+      matching(library, titles);
+      await match.load();
     });
     return titles;
   }
@@ -230,6 +266,7 @@ void main() {
       titles.dispose();
       index.dispose();
     });
+    matching(const NoLibrary(), titles);
     await tester.pumpWidget(scoped(titles, const TitlesScreen()));
     expect(card(tester, 'titles-films'), contains('| – |'));
 
@@ -379,6 +416,8 @@ void main() {
         index: titles.index,
         titles: titles,
         tmdbKey: tmdbKey,
+        match: match,
+        review: review,
       ),
     );
 
@@ -410,6 +449,56 @@ void main() {
     expect(find.text('TMDB key'), findsOneWidget);
     expect(find.text('Add TMDB key'), findsNothing);
     expect(tmdbKey.hasKey, isTrue);
+  });
+
+  testWidgets('shows how far matching is, and the poster of a match', (
+    tester,
+  ) async {
+    late LibraryDb db;
+    await show(tester, (made) {
+      db = made;
+      library(made);
+    });
+    expect(
+      tester.widget<Text>(find.byKey(const Key('match-counts'))).data,
+      endsWith('3 not looked up yet'),
+    );
+    expect(find.byKey(const Key('titles-review')), findsNothing);
+
+    // As a run of matching leaves them.
+    db.db
+      ..execute(
+        'UPDATE titles SET match_state = 1, tmdb_id = 9, poster_path = '
+        "'/pViva.jpg' WHERE name = 'Vivarium'",
+      )
+      ..execute("UPDATE titles SET match_state = 3 WHERE name = 'Stillwater'")
+      ..execute("UPDATE titles SET match_state = 2 WHERE name = 'Some Show'");
+    await tester.runAsync(match.load);
+    await tester.pump();
+
+    expect(
+      tester.widget<Text>(find.byKey(const Key('match-counts'))).data,
+      '1 matched  ·  1 unsure  ·  1 not found  ·  0 not looked up yet',
+    );
+    await search(tester, 'viva');
+    final poster = tester.widget<TmdbPicture>(
+      find.descendant(
+        of: find.byKey(Key('title-${(await titleId(db, 'Vivarium'))}')),
+        matching: find.byType(TmdbPicture),
+      ),
+    );
+    expect(poster.path, '/pViva.jpg');
+
+    await open(tester, 'Vivarium (2019)');
+    expect(find.byKey(const Key('title-poster')), findsOneWidget);
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Needs review (2)'));
+    await tester.runAsync(review.load);
+    await tester.pumpAndSettle();
+    expect(find.byType(NeedsReviewScreen), findsOneWidget);
+    expect(find.text('2 TITLES'), findsOneWidget);
   });
 
   group('episodesFrom', () {
