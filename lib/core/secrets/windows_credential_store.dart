@@ -3,6 +3,7 @@ import 'dart:ffi';
 
 import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:win32/win32.dart';
 
 /// Keeps secrets in Windows Credential Manager, as "generic credentials"
@@ -26,7 +27,9 @@ class WindowsCredentialStore implements SecretStore {
     final target = _target(name);
     return using((arena) {
       final found = arena<Pointer<CREDENTIAL>>();
-      final result = CredRead(arena.pcwstr(target), CRED_TYPE_GENERIC, found);
+      final result = withErrorCode(
+        () => CredRead(arena.pcwstr(target), CRED_TYPE_GENERIC, found),
+      );
       if (!result.value) {
         if (result.error == ERROR_NOT_FOUND) return null;
         throw _failure('read', result.error);
@@ -66,7 +69,7 @@ class WindowsCredentialStore implements SecretStore {
         ..CredentialBlob = blob
         // Stays on this PC, for this user, across restarts.
         ..Persist = CRED_PERSIST_LOCAL_MACHINE;
-      final result = CredWrite(credential, 0);
+      final result = withErrorCode(() => CredWrite(credential, 0));
       // Windows has its own copy now; this one is not left lying in freed
       // memory.
       copy.fillRange(0, copy.length, 0);
@@ -78,7 +81,9 @@ class WindowsCredentialStore implements SecretStore {
   Future<void> delete(String name) async {
     final target = _target(name);
     using((arena) {
-      final result = CredDelete(arena.pcwstr(target), CRED_TYPE_GENERIC);
+      final result = withErrorCode(
+        () => CredDelete(arena.pcwstr(target), CRED_TYPE_GENERIC),
+      );
       if (!result.value && result.error != ERROR_NOT_FOUND) {
         throw _failure('remove', result.error);
       }
@@ -97,4 +102,24 @@ class WindowsCredentialStore implements SecretStore {
         'Windows Credential Manager could not $action the secret '
         '(error $error).',
       );
+}
+
+/// Makes a call to Windows that says, when it fails, why.
+///
+/// The reason is fetched by a second call (`GetLastError`), and now and
+/// then something else on the thread gets in between and wipes it: the call
+/// has failed, yet the reason reads "no error". Reading, writing and
+/// removing a credential can all be done again without harm, so such a
+/// call is made again, up to [tries] times in all.
+@visibleForTesting
+Win32Result<bool> withErrorCode(
+  Win32Result<bool> Function() call, {
+  int tries = 3,
+}) {
+  var result = call();
+  for (var made = 1; made < tries; made++) {
+    if (result.value || result.error != ERROR_SUCCESS) break;
+    result = call();
+  }
+  return result;
 }

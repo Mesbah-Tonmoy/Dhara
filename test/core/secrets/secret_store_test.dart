@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/core/secrets/windows_credential_store.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:win32/win32.dart';
 
 void main() {
   test('isSecretName takes short lower-case names only', () {
@@ -120,4 +121,31 @@ void main() {
       expect(await store.read('tmdb'), 'stays');
     });
   }, skip: Platform.isWindows ? null : 'Windows only');
+
+  group('withErrorCode', () {
+    const done = Win32Result(value: true, error: ERROR_SUCCESS);
+    const notFound = Win32Result(value: false, error: ERROR_NOT_FOUND);
+    // The call failed, and the reason was wiped before it could be read.
+    const lost = Win32Result(value: false, error: ERROR_SUCCESS);
+
+    (Win32Result<bool>, int) run(List<Win32Result<bool>> answers) {
+      var calls = 0;
+      final result = withErrorCode(() => answers[calls++]);
+      return (result, calls);
+    }
+
+    test('makes a call that works, or fails with a reason, once', () {
+      expect(run([done, lost]), (done, 1));
+      expect(run([notFound, done]), (notFound, 1));
+    });
+
+    test('makes a call again whose reason for failing was lost', () {
+      expect(run([lost, notFound]), (notFound, 2));
+      expect(run([lost, lost, done]), (done, 3));
+    });
+
+    test('gives up after three calls', () {
+      expect(run([lost, lost, lost, done]), (lost, 3));
+    });
+  });
 }
