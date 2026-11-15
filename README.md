@@ -604,7 +604,11 @@ covers of anime from `s4.anilist.co` (https, and only paths of the shape
 AniList's covers have); a
 download is at most 3 MB and is kept only if it starts like a JPEG, PNG or
 WebP file. The folder is held below 300 MB by removing what was not looked
-at for the longest.
+at for the longest. Four downloads run at a time, the picture asked for
+last first (it is the one on screen). A download that broke off or timed
+out is tried again after 15 s, and the picture on screen asks again by
+itself up to three times; one the server refused is left alone for ten
+minutes.
 
 ### Film details
 

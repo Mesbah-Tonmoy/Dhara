@@ -162,6 +162,43 @@ void main() {
       expect(told, [true, false]);
     });
 
+    testWidgets('asks again by itself for a picture that could not be '
+        'fetched', (tester) async {
+      final store = _CountingStore();
+      addTearDown(store.close);
+      await tester.pumpWidget(cover(store, '/a.png'));
+      await tester.pump();
+      expect(store.asked, ['/a.png']);
+
+      // A little after the store would try again, and then less often.
+      await tester.pump(
+        RemoteImageStore.retrySoonAfter + const Duration(seconds: 2),
+      );
+      expect(store.asked, hasLength(2));
+      await tester.pump(RemoteImageStore.retrySoonAfter * 2);
+      await tester.pump(const Duration(seconds: 2));
+      expect(store.asked, hasLength(3));
+      await tester.pump(const Duration(minutes: 5));
+      expect(store.asked, hasLength(1 + TmdbCover.retries));
+      await tester.pump(const Duration(minutes: 5));
+      expect(store.asked, hasLength(1 + TmdbCover.retries), reason: 'no more');
+      expect(find.byKey(placeholder), findsOneWidget);
+    });
+
+    testWidgets('stops asking once the picture is gone from the screen', (
+      tester,
+    ) async {
+      final store = _CountingStore();
+      addTearDown(store.close);
+      await tester.pumpWidget(cover(store, '/a.png'));
+      await tester.pump();
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(minutes: 5));
+
+      expect(store.asked, hasLength(1));
+    });
+
     testWidgets('does not ask for a picture while its list is flung', (
       tester,
     ) async {

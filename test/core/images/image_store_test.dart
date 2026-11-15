@@ -216,6 +216,79 @@ void main() {
       },
     );
 
+    test(
+      'a picture the server was too busy for is asked for again soon',
+      () async {
+        serve('/t/p/w500/a.jpg', const [], status: HttpStatus.badGateway);
+
+        expect(await store.file('w500', '/a.jpg'), isNull);
+        expect(await store.file('w500', '/a.jpg'), isNull);
+        expect(server.requests, hasLength(1), reason: 'not at once');
+
+        clock = clock.add(
+          RemoteImageStore.retrySoonAfter + const Duration(seconds: 1),
+        );
+        serve('/t/p/w500/a.jpg', _jpeg);
+        expect(await store.file('w500', '/a.jpg'), isNotNull);
+        expect(server.requests, hasLength(2));
+      },
+    );
+
+    test('a picture that is refused is left alone for longer', () async {
+      serve('/t/p/w342/gone.jpg', _jpeg, status: HttpStatus.notFound);
+      server.serve('/t/p/w342/odd.jpg', '<html>no picture</html>');
+      expect(await store.file('w342', '/gone.jpg'), isNull);
+      expect(await store.file('w342', '/odd.jpg'), isNull);
+
+      clock = clock.add(
+        RemoteImageStore.retrySoonAfter + const Duration(seconds: 1),
+      );
+      expect(await store.file('w342', '/gone.jpg'), isNull);
+      expect(await store.file('w342', '/odd.jpg'), isNull);
+      expect(server.requests, hasLength(2));
+    });
+
+    test('a connection that breaks is tried again soon', () async {
+      // The server hangs up without a word.
+      server.routes['/t/p/w342/a.jpg'] = (request) async {
+        final socket = await request.response.detachSocket(writeHeaders: false);
+        socket.destroy();
+      };
+      expect(await store.file('w342', '/a.jpg'), isNull);
+
+      serve('/t/p/w342/a.jpg', _jpeg);
+      expect(await store.file('w342', '/a.jpg'), isNull, reason: 'too soon');
+      clock = clock.add(
+        RemoteImageStore.retrySoonAfter + const Duration(seconds: 1),
+      );
+      expect(await store.file('w342', '/a.jpg'), isNotNull);
+    });
+
+    test(
+      'of the pictures that wait, the one asked for last goes first',
+      () async {
+        final order = <int>[];
+        for (var i = 0; i < 10; i++) {
+          server.routes['/t/p/w342/p$i.jpg'] = (request) async {
+            order.add(i);
+            await Future<void>.delayed(const Duration(milliseconds: 40));
+            request.response.add(_jpeg);
+            await request.response.close();
+          };
+        }
+
+        await Future.wait([
+          for (var i = 0; i < 10; i++) store.file('w342', '/p$i.jpg'),
+        ]);
+
+        // The first four start at once; then the latest of the rest.
+        expect(order.take(4).toSet(), {0, 1, 2, 3});
+        expect(order.indexOf(9), lessThan(order.indexOf(4)));
+        expect(order.indexOf(8), lessThan(order.indexOf(5)));
+        expect(order, hasLength(10));
+      },
+    );
+
     test('gives nothing when the server cannot be reached', () async {
       final offline = open();
       await server.close();

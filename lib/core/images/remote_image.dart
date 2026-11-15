@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dhara/core/images/image_store.dart';
@@ -142,6 +143,10 @@ class TmdbCover extends StatefulWidget {
   /// See [TmdbCover.anilist].
   final bool anilist;
 
+  /// How often a picture that could not be fetched is asked for again
+  /// while it is on screen.
+  static const retries = 3;
+
   /// As TMDB gives it ("/abc123.jpg"), or `null` if there is no picture.
   final String? path;
 
@@ -165,6 +170,11 @@ class _TmdbCoverState extends State<TmdbCover> {
 
   /// The picture has faded in: the placeholder under it is not drawn.
   var _covered = false;
+
+  /// Asks again for a picture that could not be fetched, while it is still
+  /// wanted: a failure of the connection is over in a moment.
+  Timer? _retry;
+  var _tries = 0;
 
   /// What [TmdbCover.onPicture] was last told.
   var _told = false;
@@ -200,6 +210,7 @@ class _TmdbCoverState extends State<TmdbCover> {
   @override
   void dispose() {
     // Answers and waiting frames for this one no longer count.
+    _retry?.cancel();
     _asked++;
     super.dispose();
   }
@@ -208,6 +219,8 @@ class _TmdbCoverState extends State<TmdbCover> {
     final number = ++_asked;
     _file = null;
     _covered = false;
+    _retry?.cancel();
+    _tries = 0;
     _tell(false);
     _ask(number);
   }
@@ -229,7 +242,18 @@ class _TmdbCoverState extends State<TmdbCover> {
         : store.file(widget.size, path);
     picture.then((file) {
       // Only the answer for the picture now shown counts.
-      if (mounted && number == _asked) setState(() => _file = file);
+      if (!mounted || number != _asked) return;
+      if (file != null) {
+        setState(() => _file = file);
+      } else if (++_tries <= TmdbCover.retries) {
+        // Each time a little later than the store leaves it alone.
+        _retry = Timer(
+          RemoteImageStore.retrySoonAfter * _tries + const Duration(seconds: 1),
+          () {
+            if (mounted && number == _asked) _ask(number);
+          },
+        );
+      }
     });
   }
 

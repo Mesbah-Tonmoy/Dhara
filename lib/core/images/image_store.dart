@@ -17,6 +17,12 @@ import 'package:dhara/core/net/safe_http_client.dart';
 ///   another program.
 /// - The folder is kept below [maxTotalBytes] by [trim], which removes the
 ///   pictures that were not looked at for the longest.
+/// - At most four downloads run at a time; of those that wait, the one
+///   asked for last goes first, because that is the picture on screen now.
+/// - A download that failed is not tried again at once: after
+///   [retrySoonAfter] if the server could not be reached or took too long
+///   (it may well work in a moment), after [retryLaterAfter] if it
+///   answered with something that is no picture.
 class RemoteImageStore {
   RemoteImageStore({
     required Directory? folder,
@@ -41,6 +47,11 @@ class RemoteImageStore {
 
   static const host = 'image.tmdb.org';
 
+  /// How long a picture that could not be fetched is left alone: a short
+  /// while after a failure of the connection, long after a refusal.
+  static const retrySoonAfter = Duration(seconds: 15);
+  static const retryLaterAfter = Duration(minutes: 10);
+
   /// The widths TMDB offers that the app uses: posters (`w154`, `w342`,
   /// `w500`), backdrops (`w780`, `w1280`) and stills (`w300`).
   static const sizes = {'w154', 'w300', 'w342', 'w500', 'w780', 'w1280'};
@@ -56,7 +67,8 @@ class RemoteImageStore {
   final DateTime Function() _now;
 
   final _underWay = <String, Future<File?>>{};
-  final _failedAt = <String, DateTime>{};
+  // When each picture that failed may be asked for again.
+  final _notBefore = <String, DateTime>{};
   final _waiting = <Completer<void>>[];
   var _downloads = 0;
 
@@ -170,15 +182,14 @@ class RemoteImageStore {
         return file;
       }
       // What failed a moment ago is not asked for with every rebuild.
-      final failed = _failedAt[key];
-      if (failed != null && _now().difference(failed) < _retryAfter) {
-        return null;
-      }
-      final bytes = await _download(url);
+      final notBefore = _notBefore[key];
+      if (notBefore != null && _now().isBefore(notBefore)) return null;
+      final (bytes, retryAfter) = await _download(url);
       if (bytes == null) {
-        _failedAt[key] = _now();
+        _notBefore[key] = _now().add(retryAfter);
         return null;
       }
+      _notBefore.remove(key);
       await file.parent.create(recursive: true);
       // Written beside it first, so a download that is cut short never
       // passes for a picture.
@@ -191,7 +202,8 @@ class RemoteImageStore {
     }
   }
 
-  Future<Uint8List?> _download(Uri url) async {
+  /// The picture at [url], or `null` and how long to leave it alone.
+  Future<(Uint8List?, Duration)> _download(Uri url) async {
     if (_downloads >= _maxDownloads) {
       final turn = Completer<void>();
       _waiting.add(turn);
@@ -205,14 +217,26 @@ class RemoteImageStore {
         timeout: const Duration(seconds: 20),
         maxBytes: maxImageBytes,
       );
-      if (!response.isOk || !_isPicture(response.bodyBytes)) return null;
-      return response.bodyBytes;
-    } on SafeHttpException {
-      return null;
+      if (response.isOk && _isPicture(response.bodyBytes)) {
+        return (response.bodyBytes, Duration.zero);
+      }
+      // Busy or out of order is worth another try soon; "no such
+      // picture", or something that is no picture, is not.
+      final busy =
+          response.statusCode == HttpStatus.tooManyRequests ||
+          response.statusCode >= 500;
+      return (null, busy ? retrySoonAfter : retryLaterAfter);
+    } on SafeHttpException catch (error) {
+      final passing =
+          error.failure == SafeHttpFailure.timeout ||
+          error.failure == SafeHttpFailure.network;
+      return (null, passing ? retrySoonAfter : retryLaterAfter);
     } finally {
-      // The place goes straight to whoever waits longest.
+      // The place goes to the picture asked for last: it is the one on
+      // screen now, while those that waited longest may have scrolled
+      // away.
       if (_waiting.isNotEmpty) {
-        _waiting.removeAt(0).complete();
+        _waiting.removeLast().complete();
       } else {
         _downloads--;
       }
@@ -252,7 +276,6 @@ bool _isPicture(Uint8List bytes) {
 }
 
 const _maxDownloads = 4;
-const _retryAfter = Duration(minutes: 10);
 const _partSuffix = '.part';
 
 /// "/abc123.jpg": one name, no folders, a picture's extension.

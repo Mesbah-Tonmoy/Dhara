@@ -1,6 +1,7 @@
 import 'package:dhara/app.dart';
 import 'package:dhara/core/db/library_db.dart';
 import 'package:dhara/core/db/library_isolate.dart';
+import 'package:dhara/core/images/image_store.dart';
 import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
@@ -26,11 +27,13 @@ import 'package:flutter/widgets.dart';
 ///
 /// [sources] are the servers it knows; [window] stands in for the app's
 /// window, as `main` provides it; [db] is the library to start with, if
-/// not an empty one.
+/// not an empty one; [images] is where pictures come from, if they are to
+/// be shown.
 ({Widget app, SourceStore sources}) testApp({
   List<Source> sources = const [],
   WindowController? window,
   LibraryDb? db,
+  RemoteImageStore? images,
 }) {
   final store = SourceStore(starter: sources);
   final library = LocalLibrary(db ?? LibraryDb.inMemory());
@@ -69,6 +72,7 @@ import 'package:flutter/widgets.dart';
     browse: BrowseController(library: library, titles: titles, home: home),
     // Read as the app starts, like `main` does.
     myList: MyListController(library: library)..load().ignore(),
+    images: images,
   );
   return (
     app: window == null ? app : WindowScope(controller: window, child: app),
