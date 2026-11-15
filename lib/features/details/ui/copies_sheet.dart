@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/details/details_store.dart';
 import 'package:dhara/features/details/ui/copies_table.dart';
 import 'package:dhara/features/details/ui/copy_pings.dart';
@@ -196,6 +197,7 @@ class _CopiesSheet extends StatelessWidget {
                           copies,
                           sources,
                           pings: live.done ? live.byFile : const {},
+                          preferred: SettingsScope.of(context).preferredQuality,
                         ),
                         sources: sources,
                         pings: live.byFile,
@@ -205,10 +207,11 @@ class _CopiesSheet extends StatelessWidget {
                       const SizedBox(height: rem),
                       const Text(
                         'Play on the episode itself takes the first copy '
-                        'listed here: a server that answered its last test, '
-                        'then the sharpest picture. Pick a row to play '
-                        'another one; the episodes after it follow from the '
-                        'same server where it has them.',
+                        'listed here: a server that answers, then the '
+                        'quality set as Preferred quality in Settings, then '
+                        'the fastest server. Pick a row to play another one; '
+                        'the episodes after it follow from the same server '
+                        'where it has them.',
                         style: TextStyle(
                           fontFamily: DharaFonts.ui,
                           fontSize: DharaType.sm,

@@ -34,8 +34,7 @@ enum SettingsGroup {
 /// to the tools (matching, the library index, Server Discovery).
 ///
 /// Every control here does something now and is saved as it is changed;
-/// settings whose feature is not built yet (preferred quality, languages)
-/// are not shown.
+/// settings whose feature is not built yet (languages) are not shown.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -100,6 +99,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             alignment: WrapAlignment.end,
             seconds: settings.seekForwardSeconds,
             onChanged: settings.setSeekForwardSeconds,
+          ),
+        ),
+        _SetRow(
+          label: 'Preferred quality',
+          hint:
+              'Play takes the copy at this quality whose server answers '
+              'fastest. Where a title has none at it: the nearest below, '
+              'then the nearest above.',
+          control: SegmentedPills<PreferredQuality>(
+            key: const Key('set-quality'),
+            choices: {
+              for (final quality in PreferredQuality.values)
+                quality: quality.label,
+            },
+            selected: settings.preferredQuality,
+            onSelected: settings.setPreferredQuality,
           ),
         ),
         _SetRow(

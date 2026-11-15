@@ -1,3 +1,4 @@
+import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/details/details_store.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/playback/copy_choice.dart';
@@ -34,7 +35,11 @@ class PlayChoice {
 /// each time the best copy that can be played (see [bestCopy]), for a next
 /// episode on the same server if it has one. `null` if nothing can be
 /// played.
-PlayChoice? nextToPlay(TitlePage page, SourceStore sources) {
+PlayChoice? nextToPlay(
+  TitlePage page,
+  SourceStore sources, {
+  PreferredQuality preferred = PreferredQuality.best,
+}) {
   final copies = page.copies;
   final episodes = episodesIn(copies);
 
@@ -59,11 +64,15 @@ PlayChoice? nextToPlay(TitlePage page, SourceStore sources) {
       final keys = episodes.keys.toList();
       for (final next in keys.skip(keys.indexOf(key) + 1)) {
         final copy =
-            bestCopy([
-              for (final other in episodes[next]!)
-                if (other.sourceId == last.sourceId) other,
-            ], sources) ??
-            bestCopy(episodes[next]!, sources);
+            bestCopy(
+              [
+                for (final other in episodes[next]!)
+                  if (other.sourceId == last.sourceId) other,
+              ],
+              sources,
+              preferred: preferred,
+            ) ??
+            bestCopy(episodes[next]!, sources, preferred: preferred);
         if (copy != null) return PlayChoice(copy, resume: false);
       }
     }
@@ -72,6 +81,7 @@ PlayChoice? nextToPlay(TitlePage page, SourceStore sources) {
   final first = bestCopy(
     episodes.isEmpty ? copies : episodes.values.first,
     sources,
+    preferred: preferred,
   );
   return first == null ? null : PlayChoice(first, resume: false);
 }

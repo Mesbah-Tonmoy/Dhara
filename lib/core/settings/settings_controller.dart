@@ -3,6 +3,22 @@ import 'dart:async';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:flutter/widgets.dart';
 
+/// The picture quality Play goes for when a title has copies in several.
+enum PreferredQuality {
+  /// The sharpest there is.
+  best('Auto (best)', null),
+  uhd('4K', 2160),
+  fullHd('1080p', 1080),
+  hd('720p', 720);
+
+  const PreferredQuality(this.label, this.height);
+
+  final String label;
+
+  /// The picture height that goes by this name; `null` for [best].
+  final int? height;
+}
+
 /// The user's settings: loaded once at start-up, changed through the setters
 /// below, and saved as soon as they change.
 ///
@@ -24,6 +40,7 @@ class SettingsController extends ChangeNotifier {
       ),
       _autoplayNext = _loadSwitch(_store.getInt(_autoplayNextKey), true),
       _bufferMegabytes = _loadBuffer(_store.getInt(_bufferKey)),
+      _preferredQuality = _loadQuality(_store.getInt(_preferredQualityKey)),
       _hardwareDecoding = _loadSwitch(
         _store.getInt(_hardwareDecodingKey),
         true,
@@ -64,6 +81,7 @@ class SettingsController extends ChangeNotifier {
   static const _subtitleScaleKey = 'player.subtitleScalePercent';
   static const _autoplayNextKey = 'player.autoplayNext';
   static const _bufferKey = 'player.bufferMegabytes';
+  static const _preferredQualityKey = 'player.preferredQualityHeight';
   static const _hardwareDecodingKey = 'player.hardwareDecoding';
   static const _rotateFeaturedKey = 'look.rotateFeatured';
   static const _reduceMotionKey = 'look.reduceMotion';
@@ -76,6 +94,7 @@ class SettingsController extends ChangeNotifier {
   int _subtitleScalePercent;
   bool _autoplayNext;
   int _bufferMegabytes;
+  PreferredQuality _preferredQuality;
   bool _hardwareDecoding;
   bool _rotateFeatured;
   bool _reduceMotion;
@@ -90,6 +109,19 @@ class SettingsController extends ChangeNotifier {
     _autoplayNext = value;
     notifyListeners();
     unawaited(_store.setInt(_autoplayNextKey, value ? 1 : 0));
+  }
+
+  /// The quality Play takes where a title has copies in several: the copy
+  /// at it whose server answers fastest. Without one at it, the nearest
+  /// below, then the nearest above.
+  PreferredQuality get preferredQuality => _preferredQuality;
+
+  void setPreferredQuality(PreferredQuality value) {
+    if (value == _preferredQuality) return;
+    _preferredQuality = value;
+    notifyListeners();
+    // Kept as the picture height, 0 for the sharpest.
+    unawaited(_store.setInt(_preferredQualityKey, value.height ?? 0));
   }
 
   /// How much of a video the player may keep in memory (what lies ahead
@@ -220,6 +252,13 @@ class SettingsController extends ChangeNotifier {
       return defaultSubtitleScalePercent;
     }
     return _snapSubtitleScale(stored);
+  }
+
+  static PreferredQuality _loadQuality(int? stored) {
+    for (final quality in PreferredQuality.values) {
+      if (quality.height == stored) return quality;
+    }
+    return PreferredQuality.best;
   }
 
   /// Clamps to the allowed range and rounds to the nearest step.

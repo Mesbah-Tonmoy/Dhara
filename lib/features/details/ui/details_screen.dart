@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dhara/core/images/remote_image.dart';
+import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/details/details_store.dart';
 import 'package:dhara/features/details/next_to_play.dart';
 import 'package:dhara/features/details/ui/copies_sheet.dart';
@@ -138,7 +139,11 @@ class _DetailsScreenState extends State<DetailsScreen> {
   void _playNext() {
     final page = _page;
     if (page == null) return;
-    final choice = nextToPlay(page, TitlesScope.read(context).index.sources);
+    final choice = nextToPlay(
+      page,
+      TitlesScope.read(context).index.sources,
+      preferred: SettingsScope.read(context).preferredQuality,
+    );
     if (choice == null) {
       ToastHost.show(
         context,
@@ -170,7 +175,11 @@ class _DetailsScreenState extends State<DetailsScreen> {
         seen = watched;
       }
     }
-    copy ??= bestCopy(copies, sources);
+    copy ??= bestCopy(
+      copies,
+      sources,
+      preferred: SettingsScope.read(context).preferredQuality,
+    );
     if (copy == null) {
       ToastHost.show(
         context,
@@ -268,7 +277,13 @@ class _DetailsScreenState extends State<DetailsScreen> {
       );
     }
 
-    final choice = page == null ? null : nextToPlay(page, sources);
+    final choice = page == null
+        ? null
+        : nextToPlay(
+            page,
+            sources,
+            preferred: SettingsScope.of(context).preferredQuality,
+          );
     final next = choice == null ? null : episodeOf(choice.copy);
     final series = title.kind == TitleKind.series;
     final episodes = page == null || !series
@@ -914,6 +929,7 @@ class _Copies extends StatelessWidget {
                   real,
                   sources,
                   pings: live.done ? pings : const {},
+                  preferred: SettingsScope.of(context).preferredQuality,
                 ),
               ...extras,
             ],

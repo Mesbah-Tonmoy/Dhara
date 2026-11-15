@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
@@ -54,7 +55,12 @@ Future<void> playCopy(
   required SourceStore sources,
   int? year,
 }) {
-  final queue = queueFrom(copy, copies, sources);
+  final queue = queueFrom(
+    copy,
+    copies,
+    sources,
+    preferred: SettingsScope.read(context).preferredQuality,
+  );
   return openPlayer(
     context,
     [for (final entry in queue) entry.url],
@@ -88,7 +94,11 @@ Future<void> playTitleById(
   }
   if (copy == null) {
     final episodes = episodesIn(copies);
-    copy = bestCopy(episodes.isEmpty ? copies : episodes.values.first, sources);
+    copy = bestCopy(
+      episodes.isEmpty ? copies : episodes.values.first,
+      sources,
+      preferred: SettingsScope.read(context).preferredQuality,
+    );
   }
   if (copy == null) {
     ToastHost.show(

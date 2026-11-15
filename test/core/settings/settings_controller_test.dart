@@ -21,6 +21,39 @@ void main() {
     expect(settings.interfaceScalePercent, 100);
   });
 
+  test('the preferred quality starts at the sharpest, and is saved', () {
+    final store = MemoryKeyValueStore();
+    final settings = SettingsController(store);
+    expect(settings.preferredQuality, PreferredQuality.best);
+
+    var changes = 0;
+    settings
+      ..addListener(() => changes++)
+      ..setPreferredQuality(PreferredQuality.fullHd)
+      ..setPreferredQuality(PreferredQuality.fullHd);
+    expect(changes, 1);
+    expect(store.getInt('player.preferredQualityHeight'), 1080);
+    expect(SettingsController(store).preferredQuality, PreferredQuality.fullHd);
+
+    settings.setPreferredQuality(PreferredQuality.best);
+    expect(store.getInt('player.preferredQualityHeight'), 0);
+    expect(SettingsController(store).preferredQuality, PreferredQuality.best);
+
+    // A height that is none of the choices is not trusted.
+    expect(
+      SettingsController(
+        MemoryKeyValueStore({'player.preferredQualityHeight': 1234}),
+      ).preferredQuality,
+      PreferredQuality.best,
+    );
+    expect(PreferredQuality.values.map((quality) => quality.label), [
+      'Auto (best)',
+      '4K',
+      '1080p',
+      '720p',
+    ]);
+  });
+
   test('the buffer starts at 150 MB with hardware decoding on', () {
     final settings = SettingsController(MemoryKeyValueStore());
 

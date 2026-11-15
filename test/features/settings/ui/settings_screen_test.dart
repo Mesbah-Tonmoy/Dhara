@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dhara/core/app_info.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
+import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/settings/ui/settings_screen.dart';
 import 'package:dhara/theme/scale.dart';
 import 'package:dhara/widgets/chips.dart';
@@ -49,7 +50,7 @@ void main() {
       );
     }
     // Not built yet, so not offered.
-    for (final absent in ['Preferred quality', 'Default subtitles']) {
+    for (final absent in ['Default subtitles', 'Preferred audio']) {
       expect(find.textContaining(absent, skipOffstage: false), findsNothing);
     }
   });
@@ -119,6 +120,31 @@ void main() {
     expect(store.getInt('look.rotateFeatured'), 0);
     await _tap(tester, find.byKey(const Key('set-rotate')));
     expect(store.getInt('look.rotateFeatured'), 1);
+  });
+
+  testWidgets('the preferred quality is picked from four choices', (
+    tester,
+  ) async {
+    final store = MemoryKeyValueStore();
+    await _boot(tester, store);
+    final pills = find.byKey(const Key('set-quality'));
+    PreferredQuality selected() =>
+        tester.widget<SegmentedPills<PreferredQuality>>(pills).selected;
+    expect(selected(), PreferredQuality.best);
+    for (final label in ['Auto (best)', '4K', '1080p', '720p']) {
+      expect(
+        find.descendant(of: pills, matching: find.text(label)),
+        findsOneWidget,
+      );
+    }
+
+    await _tap(
+      tester,
+      find.descendant(of: pills, matching: find.text('1080p')),
+    );
+
+    expect(selected(), PreferredQuality.fullHd);
+    expect(store.getInt('player.preferredQualityHeight'), 1080);
   });
 
   testWidgets('buffer size and hardware decoding are saved as they change', (

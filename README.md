@@ -20,7 +20,7 @@ A Bangla + English README is written in Phase 8.
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
 | 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests), frame rate while scrolling, and cold start |
-| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, seeks to keyframes where that is quicker, has an info panel, and a title's copies are pinged live (see [Smart playback](#smart-playback)). Still to come: the fastest copy on Play, failover, the next episode ahead of time |
+| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, and Settings has a preferred quality (see [Smart playback](#smart-playback)). Still to come: the fastest copy on Play, failover, the next episode ahead of time |
 | 8–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -218,10 +218,11 @@ on the rail.
 The cog at the foot of the rail (`lib/features/settings/ui/settings_screen.dart`).
 Every control does something now and is saved as it is changed
 (`lib/core/settings/settings_controller.dart`); settings whose feature is
-not built yet (preferred quality, languages) are not shown.
+not built yet (languages) are not shown.
 
 - **Playback:** the seek step back and forward (5/10/15/30/60/90/120 s or
-  a typed 1–600 s; the same values the player's own panel changes),
+  a typed 1–600 s; the same values the player's own panel changes), the
+  preferred quality (Auto, 4K, 1080p, 720p; see [Title page](#title-page)),
   autoplay of the next episode, subtitle size, the player's buffer size
   (50–500 MB) and hardware decoding (both count from the next video; see
   [Streaming set-up](#streaming-set-up)).
@@ -554,9 +555,12 @@ genres, about the same year and language).
   sheet with that episode's copies. Videos that are no episode, trailers
   and samples are listed apart.
 - **Which copy plays** when none is picked
-  (`lib/features/playback/copy_choice.dart`): one on a server that answered
-  its last test, then the sharpest picture, then the quicker server, then
-  the larger file. Copies on Emby or Jellyfin cannot be played yet.
+  (`lib/features/playback/copy_choice.dart`): one on a server that answers
+  (a live ping where there is one, else its last test), then the quality
+  that suits the **Preferred quality** of Settings best, then the quicker
+  server, then the larger file. "Auto (best)" takes the sharpest; a named
+  quality takes that one, then the nearest below it, then the nearest
+  above. Copies on Emby or Jellyfin cannot be played yet.
 - **What Play plays** (`lib/features/details/next_to_play.dart`): the video
   watched last if it was left unfinished; after an episode that ended, the
   next one; otherwise the film, or the first episode. After an episode the

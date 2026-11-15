@@ -1,4 +1,5 @@
 import 'package:dhara/core/net/media_url.dart';
+import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/playback/copy_probe.dart';
 import 'package:dhara/features/sources/source.dart';
@@ -7,10 +8,40 @@ import 'package:dhara/features/sources/source_store.dart';
 /// Which copy of a film or an episode to play when the user has not picked
 /// one, and in which order to list the copies.
 ///
-/// The rule: a copy on a server that answers, then the sharpest picture,
-/// then the server that answers fastest, then the larger file. "Answers"
-/// is what a live ping of the copy found just now (see `CopyProber`),
-/// where there is one, and else what the server's last test found.
+/// The rule: a copy on a server that answers, then the quality that suits
+/// the Preferred quality setting best (see [qualityOrder]), then the
+/// server that answers fastest, then the larger file. "Answers" is what a
+/// live ping of the copy found just now (see `CopyProber`), where there is
+/// one, and else what the server's last test found.
+
+/// The class a picture of [height] lines falls in, as the quality tags
+/// say it: 2160 (4K), 1440, 1080, 720, 480, or 0 for less and for a height
+/// the file name does not tell.
+int qualityClass(int? height) => switch (height) {
+  null => 0,
+  >= 2160 => 2160,
+  >= 1440 => 1440,
+  >= 1080 => 1080,
+  >= 720 => 720,
+  >= 480 => 480,
+  _ => 0,
+};
+
+/// How well a copy of [height] suits [preferred]; the smaller, the better.
+///
+/// - [PreferredQuality.best]: the sharper, the better.
+/// - A quality by name: that one first; then what is below it, the
+///   nearest first (a 720p copy for 1080p before a 480p one); then what is
+///   above it, the nearest first (a file larger than asked for is the last
+///   resort). A copy that does not tell its quality comes after all.
+int qualityOrder(int? height, PreferredQuality preferred) {
+  final has = qualityClass(height);
+  final wanted = preferred.height;
+  if (wanted == null) return -has;
+  if (has == 0) return 1 << 20;
+  if (has == wanted) return 0;
+  return has < wanted ? wanted - has : (1 << 16) + has - wanted;
+}
 
 /// How a copy's server stood at its last test.
 enum CopyReach {
@@ -76,6 +107,7 @@ List<TitleCopy> rankCopies(
   Iterable<TitleCopy> copies,
   SourceStore sources, {
   Map<int, CopyProbe> pings = const {},
+  PreferredQuality preferred = PreferredQuality.best,
 }) {
   int compare(TitleCopy a, TitleCopy b) {
     final playable =
@@ -84,13 +116,17 @@ List<TitleCopy> rankCopies(
     final reach =
         reachOf(b, sources, pings).index - reachOf(a, sources, pings).index;
     if (reach != 0) return reach;
+    final quality =
+        qualityOrder(a.height, preferred) - qualityOrder(b.height, preferred);
+    if (quality != 0) return quality;
+    // Within one class, the taller picture (1088 lines before 1080).
     final height = (b.height ?? 0) - (a.height ?? 0);
-    if (height != 0) return height;
     const never = Duration(days: 1);
     final ping = (pingOf(a, sources, pings) ?? never).compareTo(
       pingOf(b, sources, pings) ?? never,
     );
     if (ping != 0) return ping;
+    if (height != 0) return height;
     final size = (b.size ?? 0).compareTo(a.size ?? 0);
     return size != 0 ? size : a.fileId.compareTo(b.fileId);
   }
@@ -100,11 +136,19 @@ List<TitleCopy> rankCopies(
 
 /// The copy to play of [copies] (all of one film, or of one episode);
 /// `null` if none can be played. Trailers and samples do not count.
-TitleCopy? bestCopy(Iterable<TitleCopy> copies, SourceStore sources) {
-  final ranked = rankCopies([
-    for (final copy in copies)
-      if (copy.extra == null && canPlayCopy(copy, sources)) copy,
-  ], sources);
+TitleCopy? bestCopy(
+  Iterable<TitleCopy> copies,
+  SourceStore sources, {
+  PreferredQuality preferred = PreferredQuality.best,
+}) {
+  final ranked = rankCopies(
+    [
+      for (final copy in copies)
+        if (copy.extra == null && canPlayCopy(copy, sources)) copy,
+    ],
+    sources,
+    preferred: preferred,
+  );
   return ranked.isEmpty ? null : ranked.first;
 }
 
@@ -150,6 +194,7 @@ List<TitleCopy> queueFrom(
   Iterable<TitleCopy> copies,
   SourceStore sources, {
   int limit = 50,
+  PreferredQuality preferred = PreferredQuality.best,
 }) {
   final own = episodeOf(start);
   if (own == null || start.extra != null) return [start];
@@ -163,11 +208,15 @@ List<TitleCopy> queueFrom(
     if (!reached) continue;
     if (queue.length >= limit) break;
     final next =
-        bestCopy([
-          for (final copy in value)
-            if (copy.sourceId == start.sourceId) copy,
-        ], sources) ??
-        bestCopy(value, sources);
+        bestCopy(
+          [
+            for (final copy in value)
+              if (copy.sourceId == start.sourceId) copy,
+          ],
+          sources,
+          preferred: preferred,
+        ) ??
+        bestCopy(value, sources, preferred: preferred);
     if (next != null) queue.add(next);
   }
   return queue;

@@ -1,6 +1,8 @@
+import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/metadata/release_name.dart';
 import 'package:dhara/features/playback/copy_choice.dart';
+import 'package:dhara/features/playback/copy_probe.dart';
 import 'package:dhara/features/playback/play.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_store.dart';
@@ -123,6 +125,144 @@ void main() {
       expect(pingOf(_copy('down'), sources), isNull);
       expect(sourceOf(_copy('fast'), sources)?.name, 'Server fast');
       expect(sourceOf(_copy('gone'), sources), isNull);
+    });
+  });
+
+  group('preferred quality', () {
+    test('a height falls into the class its tag names', () {
+      expect(qualityClass(2160), 2160);
+      expect(qualityClass(1608), 1440);
+      expect(qualityClass(1088), 1080);
+      expect(qualityClass(800), 720);
+      expect(qualityClass(576), 480);
+      expect(qualityClass(360), 0);
+      expect(qualityClass(null), 0);
+    });
+
+    /// The heights in the order [preferred] takes them.
+    List<int?> order(PreferredQuality preferred, List<int?> heights) => [
+      ...heights,
+    ]..sort((a, b) => qualityOrder(a, preferred) - qualityOrder(b, preferred));
+
+    test('Auto takes the sharpest first', () {
+      expect(order(PreferredQuality.best, [720, null, 2160, 480, 1080]), [
+        2160,
+        1080,
+        720,
+        480,
+        null,
+      ]);
+    });
+
+    test('a named quality comes first; then below it, the nearest first; '
+        'then above it; then what does not say', () {
+      expect(
+        order(PreferredQuality.fullHd, [null, 2160, 480, 1080, 720, 1440]),
+        [1080, 720, 480, 1440, 2160, null],
+      );
+      expect(order(PreferredQuality.hd, [2160, 1080, 720, 480]), [
+        720,
+        480,
+        1080,
+        2160,
+      ]);
+      expect(order(PreferredQuality.uhd, [720, 2160, 1080]), [2160, 1080, 720]);
+    });
+
+    test('the ranking goes by it, after whether the server answers', () async {
+      await tested('fast', reachable: true, ms: 8);
+      await tested('slow', reachable: true, ms: 90);
+      await tested('down', reachable: false);
+      final uhd = _copy('fast', height: 2160);
+      final fullHd = _copy('slow', height: 1080);
+      final hd = _copy('fast', height: 720);
+      final offline = _copy('down', height: 1080);
+      final all = [uhd, fullHd, hd, offline];
+
+      expect(rankCopies(all, sources), [uhd, fullHd, hd, offline]);
+      expect(rankCopies(all, sources, preferred: PreferredQuality.fullHd), [
+        fullHd,
+        hd,
+        uhd,
+        // At the quality asked for, but its server is down.
+        offline,
+      ]);
+      expect(rankCopies(all, sources, preferred: PreferredQuality.hd), [
+        hd,
+        fullHd,
+        uhd,
+        offline,
+      ]);
+      expect(
+        bestCopy(all, sources, preferred: PreferredQuality.fullHd),
+        fullHd,
+      );
+    });
+
+    test('at one quality the server that answers fastest wins', () async {
+      await tested('fast', reachable: true, ms: 8);
+      await tested('slow', reachable: true, ms: 90);
+      final onSlow = _copy('slow', height: 1088, size: 9000);
+      final onFast = _copy('fast', height: 1080, size: 100);
+
+      expect(
+        rankCopies(
+          [onSlow, onFast],
+          sources,
+          preferred: PreferredQuality.fullHd,
+        ),
+        [onFast, onSlow],
+      );
+    });
+
+    test('a live ping counts instead of the last test', () async {
+      await tested('fast', reachable: true, ms: 8);
+      await tested('slow', reachable: true, ms: 90);
+      final onFast = _copy('fast', height: 1080);
+      final onSlow = _copy('slow', height: 1080);
+      CopyProbe answer(TitleCopy copy, int? ms) => CopyProbe(
+        url: copy.url,
+        time: ms == null ? null : Duration(milliseconds: ms),
+        address: ms == null ? null : copy.url,
+        problem: ms == null ? 'The server did not answer in time.' : null,
+      );
+
+      // Today the "slow" server is the quicker one.
+      final swapped = {
+        onFast.fileId: answer(onFast, 300),
+        onSlow.fileId: answer(onSlow, 20),
+      };
+      expect(rankCopies([onFast, onSlow], sources, pings: swapped), [
+        onSlow,
+        onFast,
+      ]);
+      expect(
+        pingOf(onFast, sources, swapped),
+        const Duration(milliseconds: 300),
+      );
+
+      // And a server that does not answer now is offline, whatever its
+      // last test said.
+      final gone = {onFast.fileId: answer(onFast, null)};
+      expect(reachOf(onFast, sources, gone), CopyReach.offline);
+      expect(pingOf(onFast, sources, gone), isNull);
+      expect(rankCopies([onFast, onSlow], sources, pings: gone), [
+        onSlow,
+        onFast,
+      ]);
+    });
+
+    test('the episodes that follow are taken at it too', () {
+      final first = _copy('fast', height: 1080, season: 1, episode: 1);
+      final secondUhd = _copy('fast', height: 2160, season: 1, episode: 2);
+      final secondHd = _copy('fast', height: 720, season: 1, episode: 2);
+      final all = [first, secondUhd, secondHd];
+
+      expect(queueFrom(first, all, sources), [first, secondUhd]);
+      expect(queueFrom(first, all, sources, preferred: PreferredQuality.hd), [
+        first,
+        secondHd,
+      ]);
     });
   });
 
