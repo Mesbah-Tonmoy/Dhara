@@ -1,14 +1,16 @@
 import 'package:dhara/core/net/media_url.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
+import 'package:dhara/features/playback/copy_probe.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_store.dart';
 
 /// Which copy of a film or an episode to play when the user has not picked
 /// one, and in which order to list the copies.
 ///
-/// The rule until live pings arrive (Phase 7): a copy on a server that
-/// answered its last test, then the sharpest picture, then the server
-/// that answered fastest, then the larger file.
+/// The rule: a copy on a server that answers, then the sharpest picture,
+/// then the server that answers fastest, then the larger file. "Answers"
+/// is what a live ping of the copy found just now (see `CopyProber`),
+/// where there is one, and else what the server's last test found.
 
 /// How a copy's server stood at its last test.
 enum CopyReach {
@@ -22,14 +24,29 @@ enum CopyReach {
   online,
 }
 
-CopyReach reachOf(TitleCopy copy, SourceStore sources) =>
-    switch (sources.healthOf(copy.sourceId)) {
-      null => CopyReach.unknown,
-      final health => health.reachable ? CopyReach.online : CopyReach.offline,
-    };
+/// [pings] are the live answers, by file id (none: the last test counts).
+CopyReach reachOf(
+  TitleCopy copy,
+  SourceStore sources, [
+  Map<int, CopyProbe> pings = const {},
+]) {
+  if (pings[copy.fileId] case final live?) {
+    return live.ok ? CopyReach.online : CopyReach.offline;
+  }
+  return switch (sources.healthOf(copy.sourceId)) {
+    null => CopyReach.unknown,
+    final health => health.reachable ? CopyReach.online : CopyReach.offline,
+  };
+}
 
-/// How long the copy's server took to answer its last test, if it did.
-Duration? pingOf(TitleCopy copy, SourceStore sources) {
+/// How long the copy's server took to answer: just now if it was asked
+/// ([pings]), else at its last test. `null` if it did not answer.
+Duration? pingOf(
+  TitleCopy copy,
+  SourceStore sources, [
+  Map<int, CopyProbe> pings = const {},
+]) {
+  if (pings[copy.fileId] case final live?) return live.ok ? live.time : null;
   final health = sources.healthOf(copy.sourceId);
   return health != null && health.reachable ? health.ping : null;
 }
@@ -55,18 +72,23 @@ bool canPlayCopy(TitleCopy copy, SourceStore sources) {
 
 /// [copies] in the order to offer them: the best first (see above), what
 /// cannot be played last.
-List<TitleCopy> rankCopies(Iterable<TitleCopy> copies, SourceStore sources) {
+List<TitleCopy> rankCopies(
+  Iterable<TitleCopy> copies,
+  SourceStore sources, {
+  Map<int, CopyProbe> pings = const {},
+}) {
   int compare(TitleCopy a, TitleCopy b) {
     final playable =
         (canPlayCopy(b, sources) ? 1 : 0) - (canPlayCopy(a, sources) ? 1 : 0);
     if (playable != 0) return playable;
-    final reach = reachOf(b, sources).index - reachOf(a, sources).index;
+    final reach =
+        reachOf(b, sources, pings).index - reachOf(a, sources, pings).index;
     if (reach != 0) return reach;
     final height = (b.height ?? 0) - (a.height ?? 0);
     if (height != 0) return height;
     const never = Duration(days: 1);
-    final ping = (pingOf(a, sources) ?? never).compareTo(
-      pingOf(b, sources) ?? never,
+    final ping = (pingOf(a, sources, pings) ?? never).compareTo(
+      pingOf(b, sources, pings) ?? never,
     );
     if (ping != 0) return ping;
     final size = (b.size ?? 0).compareTo(a.size ?? 0);

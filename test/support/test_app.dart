@@ -16,6 +16,7 @@ import 'package:dhara/features/metadata/review_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/my_list/my_list_controller.dart';
+import 'package:dhara/features/playback/copy_probe.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_store.dart';
@@ -30,13 +31,15 @@ import 'package:flutter/widgets.dart';
 /// window, as `main` provides it; [db] is the library to start with, if
 /// not an empty one; [images] is where pictures come from, if they are to
 /// be shown; [settings] is where the settings are kept, if a test wants to
-/// look.
+/// look; [newCopyProber] makes what copies are pinged with, if they are to
+/// be.
 ({Widget app, SourceStore sources}) testApp({
   List<Source> sources = const [],
   WindowController? window,
   LibraryDb? db,
   RemoteImageStore? images,
   KeyValueStore? settings,
+  CopyProber Function()? newCopyProber,
 }) {
   final store = SourceStore(starter: sources);
   final library = LocalLibrary(db ?? LibraryDb.inMemory());
@@ -83,6 +86,7 @@ import 'package:flutter/widgets.dart';
     // Read as the app starts, like `main` does.
     myList: MyListController(library: library)..load().ignore(),
     images: images,
+    newCopyProber: newCopyProber,
   );
   return (
     app: window == null ? app : WindowScope(controller: window, child: app),

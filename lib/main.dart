@@ -23,6 +23,7 @@ import 'package:dhara/features/metadata/review_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/my_list/my_list_controller.dart';
+import 'package:dhara/features/playback/copy_probe.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/device_id.dart';
 import 'package:dhara/features/sources/source.dart';
@@ -144,6 +145,13 @@ Future<void> main() async {
         ),
         filmDetails: filmDetails,
         images: images,
+        // A live ping may go to the configured sources, and nowhere else
+        // (looked up each time: the list can change).
+        newCopyProber: () => CopyProber(
+          isAllowedHost: (host) => sourceTests.store.sources.any(
+            (source) => source.baseUrls.any((url) => url.host == host),
+          ),
+        ),
       ),
     ),
   );

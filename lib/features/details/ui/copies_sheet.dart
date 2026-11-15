@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:dhara/features/details/details_store.dart';
 import 'package:dhara/features/details/ui/copies_table.dart';
+import 'package:dhara/features/details/ui/copy_pings.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/playback/copy_choice.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
@@ -67,6 +68,21 @@ class _CopiesSheet extends StatelessWidget {
     // Follows a server test that ends while the sheet is open.
     final tests = SourcesScope.of(context);
     final sources = tests.store;
+    // The servers are asked for these copies as the sheet opens.
+    return CopyPings(
+      copies: copies,
+      sources: sources,
+      builder: (context, live) => _sheet(context, tests, live),
+    );
+  }
+
+  Widget _sheet(
+    BuildContext context,
+    SourceTestController tests,
+    LivePings live,
+  ) {
+    final sources = tests.store;
+    final ping = live.ping;
     final window = MediaQuery.sizeOf(context);
     const corner = Radius.circular(DharaRadii.lg);
     return Align(
@@ -136,25 +152,35 @@ class _CopiesSheet extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: rem),
-                          DharaButton(
-                            key: const Key('copies-sheet-retest'),
-                            label: tests.isTesting
-                                ? 'Testing …'
-                                : 'Re-test servers',
-                            icon: DharaIcons.refresh,
-                            small: true,
-                            onPressed: tests.isTesting
-                                ? null
-                                : () => unawaited(
-                                    tests.test([
-                                      for (final source in sources.sources)
-                                        if (copies.any(
-                                          (copy) => copy.sourceId == source.id,
-                                        ))
-                                          source,
-                                    ]),
-                                  ),
-                          ),
+                          if (ping != null)
+                            DharaButton(
+                              key: const Key('copies-sheet-ping'),
+                              label: live.pinging ? 'Pinging …' : 'Ping again',
+                              icon: DharaIcons.refresh,
+                              small: true,
+                              onPressed: live.pinging ? null : ping,
+                            )
+                          else
+                            DharaButton(
+                              key: const Key('copies-sheet-retest'),
+                              label: tests.isTesting
+                                  ? 'Testing …'
+                                  : 'Re-test servers',
+                              icon: DharaIcons.refresh,
+                              small: true,
+                              onPressed: tests.isTesting
+                                  ? null
+                                  : () => unawaited(
+                                      tests.test([
+                                        for (final source in sources.sources)
+                                          if (copies.any(
+                                            (copy) =>
+                                                copy.sourceId == source.id,
+                                          ))
+                                            source,
+                                      ]),
+                                    ),
+                            ),
                           const SizedBox(width: .5 * rem),
                           DharaIconButton(
                             key: const Key('copies-sheet-close'),
@@ -166,8 +192,13 @@ class _CopiesSheet extends StatelessWidget {
                       ),
                       const SizedBox(height: 1.1 * rem),
                       CopiesTable(
-                        copies: rankCopies(copies, sources),
+                        copies: rankCopies(
+                          copies,
+                          sources,
+                          pings: live.done ? live.byFile : const {},
+                        ),
                         sources: sources,
+                        pings: live.byFile,
                         watched: watched,
                         onPlay: (copy) => Navigator.of(context).pop(copy),
                       ),

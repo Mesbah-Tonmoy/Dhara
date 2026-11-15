@@ -12,6 +12,7 @@ import 'package:dhara/features/metadata/review_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/my_list/my_list_controller.dart';
+import 'package:dhara/features/playback/copy_probe.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
 import 'package:dhara/shell/app_shell.dart';
@@ -40,6 +41,7 @@ class DharaApp extends StatelessWidget {
     required this.history,
     this.filmDetails,
     this.images,
+    this.newCopyProber,
   });
 
   final SettingsController settings;
@@ -62,6 +64,10 @@ class DharaApp extends StatelessWidget {
 
   /// Where posters are kept; without it, placeholders are shown.
   final RemoteImageStore? images;
+
+  /// Makes what the pages ask servers for copies with (the live ping);
+  /// without it, they show how the servers answered their last test.
+  final CopyProber Function()? newCopyProber;
 
   @override
   Widget build(BuildContext context) {
@@ -91,6 +97,7 @@ class DharaApp extends StatelessWidget {
     // What every page can reach, the innermost first.
     for (final scope in <Widget Function(Widget child)>[
       (child) => ImageStoreScope(store: images, child: child),
+      (child) => CopyProbeScope(make: newCopyProber, child: child),
       (child) => HistoryScope(controller: history, child: child),
       (child) => BrowseScope(controller: browse, child: child),
       (child) => MyListScope(controller: myList, child: child),

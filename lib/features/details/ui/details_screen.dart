@@ -5,6 +5,7 @@ import 'package:dhara/features/details/details_store.dart';
 import 'package:dhara/features/details/next_to_play.dart';
 import 'package:dhara/features/details/ui/copies_sheet.dart';
 import 'package:dhara/features/details/ui/copies_table.dart';
+import 'package:dhara/features/details/ui/copy_pings.dart';
 import 'package:dhara/features/details/ui/episode_list.dart';
 import 'package:dhara/features/home/home_store.dart';
 import 'package:dhara/features/home/ui/card_row.dart';
@@ -788,11 +789,31 @@ class _Copies extends StatelessWidget {
       for (final copy in copies)
         if (copy.extra != null) copy,
     ];
+    // The servers are asked for these copies as the list comes up.
+    return CopyPings(
+      copies: real,
+      sources: sources,
+      builder: (context, live) =>
+          _list(context, live, series: series, real: real, extras: extras),
+    );
+  }
+
+  Widget _list(
+    BuildContext context,
+    LivePings live, {
+    required bool series,
+    required List<TitleCopy> real,
+    required List<TitleCopy> extras,
+  }) {
+    final pings = live.byFile;
     final servers = {
       for (final copy in real)
-        if (reachOf(copy, sources) == CopyReach.online) copy.sourceId,
+        if (reachOf(copy, sources, pings) == CopyReach.online) copy.sourceId,
     }.length;
     final tests = SourcesScope.of(context);
+    // With live answers the button asks again; without, the servers are
+    // tested as before.
+    final ping = live.ping;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -816,6 +837,15 @@ class _Copies extends StatelessWidget {
               child: Text(
                 real.isEmpty
                     ? ''
+                    : live.pinging
+                    ? '${real.length} found; asking their servers …'
+                    : live.done && servers == 0
+                    ? '${real.length} found; none of their servers answers '
+                          'right now'
+                    : live.done
+                    ? '${real.length} found, on $servers '
+                          '${servers == 1 ? 'server' : 'servers'} that '
+                          '${servers == 1 ? 'answers' : 'answer'} right now'
                     : servers == 0
                     ? '${real.length} found; none of their servers has '
                           'answered a test yet'
@@ -832,7 +862,15 @@ class _Copies extends StatelessWidget {
                 ),
               ),
             ),
-            if (real.isNotEmpty)
+            if (real.isNotEmpty && ping != null)
+              DharaButton(
+                key: const Key('details-ping'),
+                label: live.pinging ? 'Pinging …' : 'Ping again',
+                icon: DharaIcons.refresh,
+                small: true,
+                onPressed: live.pinging ? null : ping,
+              )
+            else if (real.isNotEmpty)
               DharaButton(
                 key: const Key('details-retest'),
                 label: tests.isTesting ? 'Testing …' : 'Re-test servers',
@@ -865,12 +903,22 @@ class _Copies extends StatelessWidget {
         else
           CopiesTable(
             copies: [
-              // A film's copies by how good they are; a show's as they
-              // come, episode after episode.
-              if (series) ...real else ...rankCopies(real, sources),
+              // A film's copies by how good they are (by the live
+              // answers once all are in, so that rows do not jump while
+              // they arrive); a show's as they come, episode after
+              // episode.
+              if (series)
+                ...real
+              else
+                ...rankCopies(
+                  real,
+                  sources,
+                  pings: live.done ? pings : const {},
+                ),
               ...extras,
             ],
             sources: sources,
+            pings: pings,
             watched: page.watched,
             withEpisode: series,
             onPlay: onPlay,

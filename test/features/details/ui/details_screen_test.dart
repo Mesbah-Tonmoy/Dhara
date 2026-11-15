@@ -4,6 +4,7 @@ import 'package:dhara/features/details/ui/details_screen.dart';
 import 'package:dhara/features/details/ui/episode_list.dart';
 import 'package:dhara/features/home/ui/poster_card.dart';
 import 'package:dhara/features/playback/copy_choice.dart';
+import 'package:dhara/features/playback/copy_probe.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/shell/nav_rail.dart';
@@ -105,6 +106,7 @@ Future<SourceStore> _open(
   int id = 1,
   Map<String, (bool, int?)> tested = const {},
   Size window = const Size(1440, 900),
+  CopyProber Function()? newCopyProber,
 }) async {
   tester.view
     ..physicalSize = window
@@ -113,6 +115,7 @@ Future<SourceStore> _open(
   final (:app, :sources) = testApp(
     db: db,
     sources: [_server('a'), _server('b')],
+    newCopyProber: newCopyProber,
   );
   await sources.setEnabled(['a', 'b'], enabled: true);
   await sources.recordHealth({
@@ -214,6 +217,37 @@ void main() {
     expect(find.text('TRAILER'), findsOneWidget);
     expect(find.text('Not tested'), findsNWidgets(3));
     expect(find.text('BEST'), findsNothing);
+  });
+
+  testWidgets('with live pings the copies are asked, and the button asks '
+      'again', (tester) async {
+    // A prober that may go nowhere: every copy fails at once, with no
+    // network involved.
+    await _open(
+      tester,
+      _library(),
+      tested: {'a': (true, 12), 'b': (true, 30)},
+      newCopyProber: () => CopyProber(isAllowedHost: (_) => false),
+    );
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      _text(tester, 'details-copies-count'),
+      '2 found; none of their servers answers right now',
+    );
+    // What was asked just now counts, not the last test (both answered
+    // that). The trailer was not asked.
+    expect(find.text('No answer'), findsNWidgets(2));
+    expect(find.text('30 ms'), findsOneWidget);
+    expect(find.text('BEST'), findsNothing);
+    expect(find.byKey(const Key('details-retest')), findsNothing);
+    expect(
+      tester.widget<DharaButton>(find.byKey(const Key('details-ping'))).label,
+      'Ping again',
+    );
   });
 
   testWidgets('a server that answered its test comes first and is marked', (

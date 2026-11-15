@@ -3,6 +3,7 @@ import 'package:dhara/features/home/ui/poster_card.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/metadata/release_name.dart';
 import 'package:dhara/features/playback/copy_choice.dart';
+import 'package:dhara/features/playback/copy_probe.dart';
 import 'package:dhara/features/playback/play.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_store.dart';
@@ -42,8 +43,9 @@ String describeSource(Source source) => [
 ].join(' · ');
 
 /// The prototype's copies list (`.copies`): every copy of a film or of one
-/// episode with its server, file, quality, size, and how the server
-/// answered its last test; each with a Play button.
+/// episode with its server, file, quality, size, and how fast its server
+/// answers (just now where it was asked, see [pings]; else at its last
+/// test); each with a Play button.
 ///
 /// [copies] are listed in the order given (see `rankCopies`); the first
 /// one that can be played from a server that answered is marked as the
@@ -57,11 +59,16 @@ class CopiesTable extends StatelessWidget {
     required this.onPlay,
     this.watched = const {},
     this.withEpisode = false,
+    this.pings = const {},
   });
 
   final List<TitleCopy> copies;
   final SourceStore sources;
   final ValueChanged<TitleCopy> onPlay;
+
+  /// What the servers answered when they were asked for the copies just
+  /// now, by file id (see `CopyPings`).
+  final Map<int, CopyProbe> pings;
 
   /// How far each copy was watched, by its address.
   final Map<String, Watched> watched;
@@ -75,7 +82,7 @@ class CopiesTable extends StatelessWidget {
     for (final copy in copies) {
       if (copy.extra == null &&
           canPlayCopy(copy, sources) &&
-          reachOf(copy, sources) == CopyReach.online) {
+          reachOf(copy, sources, pings) == CopyReach.online) {
         best = copy;
         break;
       }
@@ -104,6 +111,7 @@ class CopiesTable extends StatelessWidget {
               key: ValueKey('copy-${copy.fileId}'),
               copy: copy,
               sources: sources,
+              live: pings[copy.fileId],
               best: identical(copy, best),
               lead: identical(copy, lead),
               watched: watched['${copy.url}'],
@@ -201,6 +209,7 @@ class _CopyLine extends StatefulWidget {
     super.key,
     required this.copy,
     required this.sources,
+    required this.live,
     required this.best,
     required this.lead,
     required this.watched,
@@ -210,6 +219,9 @@ class _CopyLine extends StatefulWidget {
 
   final TitleCopy copy;
   final SourceStore sources;
+
+  /// What its server answered just now, if it was asked.
+  final CopyProbe? live;
   final bool best;
   final bool lead;
   final Watched? watched;
@@ -228,7 +240,9 @@ class _CopyLineState extends State<_CopyLine> {
     final copy = widget.copy;
     final sources = widget.sources;
     final source = sourceOf(copy, sources);
-    final reach = reachOf(copy, sources);
+    final live = widget.live;
+    final pings = {if (live != null) copy.fileId: live};
+    final reach = reachOf(copy, sources, pings);
     final playable = canPlayCopy(copy, sources);
     final quality = qualityLabel(copy.height);
     final seen = widget.watched;
@@ -358,7 +372,11 @@ class _CopyLineState extends State<_CopyLine> {
               color: DharaColors.text2,
             ),
           ),
-          ping: PingLabel(reach: reach, ping: pingOf(copy, sources)),
+          ping: PingLabel(
+            reach: reach,
+            ping: pingOf(copy, sources, pings),
+            problem: live?.problem,
+          ),
           action: playable
               ? DharaButton(
                   key: Key('play-copy-${copy.fileId}'),
@@ -386,18 +404,29 @@ class _CopyLineState extends State<_CopyLine> {
   }
 }
 
-/// The prototype's `.ping`: how a server answered its last test, as bars
-/// and milliseconds; "Offline" if it did not, "Not tested" if it never was.
+/// The prototype's `.ping`: how a server answered (its last test, or a
+/// live ping), as bars and milliseconds; "Offline" if it did not, "Not
+/// tested" if it never was. A live ping that found the video missing says
+/// "No answer", with [problem] as the reason on hover.
 class PingLabel extends StatelessWidget {
-  const PingLabel({super.key, required this.reach, this.ping});
+  const PingLabel({super.key, required this.reach, this.ping, this.problem});
 
   final CopyReach reach;
   final Duration? ping;
+
+  /// Why a live ping failed, in plain English.
+  final String? problem;
 
   @override
   Widget build(BuildContext context) {
     if (reach != CopyReach.online) {
       final offline = reach == CopyReach.offline;
+      if (problem case final problem? when offline && problem.isNotEmpty) {
+        return Tooltip(
+          message: problem,
+          child: const PingLabel(reach: CopyReach.offline, problem: ''),
+        );
+      }
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -414,7 +443,11 @@ class PingLabel extends StatelessWidget {
           ],
           Flexible(
             child: Text(
-              offline ? 'Offline' : 'Not tested',
+              !offline
+                  ? 'Not tested'
+                  : problem == null
+                  ? 'Offline'
+                  : 'No answer',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(

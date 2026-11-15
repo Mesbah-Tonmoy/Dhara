@@ -20,7 +20,7 @@ A Bangla + English README is written in Phase 8.
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
 | 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests), frame rate while scrolling, and cold start |
-| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, seeks to keyframes where that is quicker, and has an info panel (see [Smart playback](#smart-playback)). Still to come: the fastest copy on Play, failover, the next episode ahead of time |
+| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, seeks to keyframes where that is quicker, has an info panel, and a title's copies are pinged live (see [Smart playback](#smart-playback)). Still to come: the fastest copy on Play, failover, the next episode ahead of time |
 | 8–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -105,6 +105,25 @@ not stop the video (this is about smoothness, not safety). `flutter test`
 checks the options against the real `libmpv-2.dll` and plays a short video
 through them from a local web server
 (`test/features/player/libmpv_tuning_test.dart`).
+
+### Live ping
+
+`CopyProber` (`lib/features/playback/copy_probe.dart`) asks the servers
+for the copies of one film or episode, all at the same time, and reports
+each as it answers: how long the server took, where the file really is
+(after redirects), or why it cannot be played (gone, refused, no answer
+within 2 s, a redirect to a host that is no source).
+
+- One small request per copy: the first byte of the file is asked for
+  (`Range: bytes=0-0`) and the connection is dropped once the answer's
+  head is in. It goes through `SafeHttpClient`, so only to the configured
+  sources, with redirects under the app's rules.
+- The copies of a film, and of an episode in its side sheet, are asked as
+  their list comes up, if there are at most 12 of them; trailers, samples
+  and copies that cannot be played are not asked.
+- A copy that answered counts as online and shows its time; one that did
+  not shows "No answer" (the reason on hover) and goes to the end. Where
+  nothing was asked, the server's last test counts, as before.
 
 ### Seeking
 
@@ -526,9 +545,9 @@ facts, and "More like this" (same kind and first genre; for a title without
 genres, about the same year and language).
 
 - **A film** lists every copy the enabled servers hold: server, file,
-  quality, size and how the server answered its **last test** (not a live
-  ping; that comes with smart playback in Phase 7). "Re-test servers" tests
-  the servers of these copies again.
+  quality, size and its **live ping**: as the list comes up, each copy's
+  server is asked for that file, and the list is put in order by the
+  answers (see [Live ping](#live-ping)). "Ping again" asks once more.
 - **A show** lists its episodes by season (only those a server holds), with
   TMDB's name, still and description where it has them, and marks what was
   watched. A click plays the episode; the chip at its end opens a side
@@ -547,7 +566,7 @@ genres, about the same year and language).
 - "Fix match" opens the same dialog as Needs review, for any title.
 - Director (or creators), cast, genres and length show once TMDB's page of
   the title was read (see [Film details](#film-details)).
-- Not there yet: the subtitles a copy has, and a live ping.
+- Not there yet: the subtitles a copy has.
 
 ## Search and browse
 
