@@ -282,6 +282,35 @@ poster: a port of the prototype's generator, so the same name always gives
 the same picture and nothing is downloaded. Icons are the rounded Material
 icons that ship with Flutter, named in one place (`lib/widgets/icons.dart`).
 
+### Keeping frames cheap
+
+Flutter draws this app with Impeller on OpenGL ES (through ANGLE). There,
+every gradient that is drawn costs about two render passes of its own, on
+every frame, and a blurred shadow is filled pixel by pixel. Measured on
+2026-11-16 (Ryzen 5 5500U, window maximised, the real library): a grid of
+23 poster cards took 117 render passes a frame, 102 of them for the two
+fades on each card. What repeats on a page therefore avoids both:
+
+- the fade over a card is a small picture made once and stretched over
+  each card (`lib/widgets/shade.dart`); it is a gradient only until that
+  picture exists
+- a card has a shadow only while the pointer or the keyboard is on it
+- the name on a card without a poster has an unblurred shadow
+- artwork drawn for a title without a poster (several gradients) is drawn
+  into a small image once it has been on screen for 0.4 s, and the image
+  is shown from then on (`lib/widgets/placeholder_art.dart`; the 120 used
+  last are kept, about 20 MB)
+- an anime the library lacks is dimmed by a tinted box, not by `Opacity`
+
+After that the same grid takes 36 passes a frame, and the work per frame
+on the graphics side is about half. The rail and the title bar still blur
+what is behind them (11 passes).
+
+`flutter run` starts a debug build, which builds new rows many times
+slower than a release build does (frames of 40 ms and more while a grid
+scrolls into new rows, against 2 to 5 ms in a profile build). For daily
+use, run `flutter run --release`.
+
 ## Shell and window
 
 `AppShell` (`lib/shell`) is the frame every page sits in: the app's own

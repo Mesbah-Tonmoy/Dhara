@@ -5,6 +5,7 @@ import 'package:dhara/theme/tokens.dart';
 import 'package:dhara/widgets/icons.dart';
 import 'package:dhara/widgets/placeholder_art.dart';
 import 'package:dhara/widgets/pressable.dart';
+import 'package:dhara/widgets/shade.dart';
 import 'package:flutter/material.dart';
 
 /// "4K", "1080p": what a card calls a picture [height] lines high; `null`
@@ -103,7 +104,10 @@ class _PosterCardState extends State<PosterCard> {
                 decoration: BoxDecoration(
                   color: DharaColors.bgElev,
                   borderRadius: corners,
-                  boxShadow: active ? DharaShadows.glow : DharaShadows.card,
+                  // Only the card the pointer or the keyboard is on has
+                  // a shadow: a blurred one under every card of a grid is
+                  // more than the graphics card of a laptop draws smoothly.
+                  boxShadow: active ? DharaShadows.glow : null,
                 ),
                 child: ClipRRect(
                   borderRadius: corners,
@@ -125,7 +129,7 @@ class _PosterCardState extends State<PosterCard> {
                           },
                         ),
                       ),
-                      const _Shade(),
+                      const Shade(_posterShade),
                       if (!_hasPoster)
                         Positioned(
                           left: .7 * rem,
@@ -196,33 +200,16 @@ class _PosterCardState extends State<PosterCard> {
 
 /// Darkens the foot of the poster, and its top a little, so that what is
 /// written over it can be read on any picture.
-class _Shade extends StatelessWidget {
-  const _Shade();
-
-  @override
-  Widget build(BuildContext context) => const IgnorePointer(
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [Color(0xC7000000), Color(0x00000000)],
-          stops: [0, .46],
-        ),
-      ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0x59000000), Color(0x00000000)],
-            stops: [0, .22],
-          ),
-        ),
-      ),
-    ),
-  );
-}
+/// Darker at the head (under the tags) and at the foot (under the name).
+const _posterShade = ShadeSpec(
+  colors: [
+    Color(0x59000000),
+    Color(0x00000000),
+    Color(0x00000000),
+    Color(0xC7000000),
+  ],
+  stops: [0, .22, .54, 1],
+);
 
 /// The name of a title, written across the foot of its drawn artwork.
 class _ArtTitle extends StatelessWidget {
@@ -243,13 +230,9 @@ class _ArtTitle extends StatelessWidget {
       height: 1.15,
       letterSpacing: .14 * .86 * rem,
       color: DharaColors.text,
-      shadows: [
-        Shadow(
-          color: Color(0xB3000000),
-          offset: Offset(0, .1 * rem),
-          blurRadius: .6 * rem,
-        ),
-      ],
+      // Not blurred: a blurred shadow under text is drawn in passes of
+      // its own, for every card, on every frame.
+      shadows: [Shadow(color: Color(0xB3000000), offset: Offset(0, .1 * rem))],
     ),
   );
 }

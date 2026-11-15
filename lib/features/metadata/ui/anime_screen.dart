@@ -18,6 +18,7 @@ import 'package:dhara/widgets/chips.dart';
 import 'package:dhara/widgets/icons.dart';
 import 'package:dhara/widgets/placeholder_art.dart';
 import 'package:dhara/widgets/pressable.dart';
+import 'package:dhara/widgets/shade.dart';
 import 'package:dhara/widgets/surfaces.dart';
 import 'package:dhara/widgets/toast.dart';
 import 'package:flutter/material.dart';
@@ -309,31 +310,27 @@ class AnimeCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: DharaColors.bgElev,
                   borderRadius: corners,
-                  boxShadow: active ? DharaShadows.glow : DharaShadows.card,
+                  // As on a poster card: no shadow while it rests.
+                  boxShadow: active ? DharaShadows.glow : null,
                 ),
                 child: ClipRRect(
                   borderRadius: corners,
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // What the library lacks is shown a little dimmed.
-                      Opacity(
-                        opacity: row.inLibrary || active ? 1 : .55,
-                        child: TmdbCover.anilist(
-                          path: anime.coverPath,
-                          placeholder: PlaceholderArt(seed: anime.name),
-                        ),
+                      TmdbCover.anilist(
+                        path: anime.coverPath,
+                        placeholder: PlaceholderArt(seed: anime.name),
                       ),
-                      const DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [Color(0xD9000000), Color(0x00000000)],
-                            stops: [0, .5],
-                          ),
+                      // What the library lacks is shown a little dimmed: the
+                      // card's own colour laid over it, which looks like
+                      // the cover at 55% and costs no layer of its own.
+                      if (!row.inLibrary && !active)
+                        const ColoredBox(
+                          key: Key('anime-dimmed'),
+                          color: Color(0x730D0F18),
                         ),
-                      ),
+                      const Shade(_coverShade),
                       Positioned(
                         top: .5 * rem,
                         left: .5 * rem,
@@ -441,3 +438,9 @@ class AnimeCard extends StatelessWidget {
     );
   }
 }
+
+/// Darker towards the foot of a cover, under the name.
+const _coverShade = ShadeSpec(
+  colors: [Color(0x00000000), Color(0x00000000), Color(0xD9000000)],
+  stops: [0, .5, 1],
+);

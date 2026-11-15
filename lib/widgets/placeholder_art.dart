@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -8,7 +9,13 @@ import 'package:flutter/widgets.dart';
 ///
 /// A port of the prototype's `art()`: a dark two-colour sky, a glow, and
 /// one of five scenes (hills, an orbit, shards, a skyline, waves).
-class PlaceholderArt extends StatelessWidget {
+///
+/// Drawing it takes several gradients, and each costs the graphics card
+/// extra render passes on every frame (see `Shade`). A picture that stays
+/// on screen is therefore drawn once into a small image, which is then
+/// shown instead ([ArtPictures]). One that only stands in for a moment,
+/// until its poster is read, is never turned into an image.
+class PlaceholderArt extends StatefulWidget {
   const PlaceholderArt({super.key, required this.seed, this.wide = false});
 
   /// What the picture is made from; a title's name.
@@ -17,16 +24,149 @@ class PlaceholderArt extends StatelessWidget {
   /// A 16:9 picture (a backdrop or a still) instead of a 2:3 poster.
   final bool wide;
 
+  /// How long the picture must be showing before it is made into an image.
+  static const settle = Duration(milliseconds: 400);
+
   @override
-  Widget build(BuildContext context) => RepaintBoundary(
-    child: ClipRect(
-      child: CustomPaint(
-        painter: _ArtPainter(seed, wide),
-        isComplex: true,
-        size: Size.infinite,
+  State<PlaceholderArt> createState() => _PlaceholderArtState();
+}
+
+class _PlaceholderArtState extends State<PlaceholderArt> {
+  // This widget's own handle on the shared image.
+  ui.Image? _image;
+  Timer? _settle;
+
+  @override
+  void initState() {
+    super.initState();
+    _look();
+  }
+
+  @override
+  void didUpdateWidget(PlaceholderArt old) {
+    super.didUpdateWidget(old);
+    if (old.seed != widget.seed || old.wide != widget.wide) {
+      _drop();
+      _look();
+    }
+  }
+
+  @override
+  void dispose() {
+    _drop();
+    super.dispose();
+  }
+
+  void _drop() {
+    _settle?.cancel();
+    _image?.dispose();
+    _image = null;
+  }
+
+  void _look() {
+    final seed = widget.seed;
+    final wide = widget.wide;
+    _image = ArtPictures.take(seed, wide: wide);
+    if (_image != null) return;
+    _settle = Timer(PlaceholderArt.settle, () async {
+      await ArtPictures.make(seed, wide: wide);
+      if (!mounted || widget.seed != seed || widget.wide != wide) return;
+      final image = ArtPictures.take(seed, wide: wide);
+      if (image != null) setState(() => _image = image);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final image = _image;
+    return RepaintBoundary(
+      child: ClipRect(
+        child: image == null
+            ? CustomPaint(
+                painter: _ArtPainter(widget.seed, widget.wide),
+                isComplex: true,
+                size: Size.infinite,
+              )
+            : RawImage(
+                image: image,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                filterQuality: FilterQuality.medium,
+              ),
       ),
-    ),
-  );
+    );
+  }
+}
+
+/// The pictures of [PlaceholderArt] that were drawn into images, the
+/// [capacity] used last. Small on purpose: the art is soft shapes, and
+/// 120 of them are about 20 MB.
+abstract final class ArtPictures {
+  static const capacity = 120;
+
+  // Insertion order = least recently used first.
+  static final _ready = <String, ui.Image>{};
+  static final _making = <String, Future<void>>{};
+
+  // One at a time: a page full of new cards asks for all of its images
+  // at once, and drawing them in one go would hold up a frame.
+  static Future<void> _queue = Future.value();
+
+  /// Forgets every image (for tests).
+  @visibleForTesting
+  static void clear() {
+    for (final image in _ready.values) {
+      image.dispose();
+    }
+    _ready.clear();
+    _making.clear();
+    // (A queue left by one test would never move on in the next.)
+    _queue = Future.value();
+  }
+
+  static String _key(String seed, bool wide) => '${wide ? 'w' : 'p'}:$seed';
+
+  /// A handle on the image of this picture, to be disposed by the caller,
+  /// or `null` if it has not been made.
+  static ui.Image? take(String seed, {required bool wide}) {
+    final key = _key(seed, wide);
+    final image = _ready.remove(key);
+    if (image == null) return null;
+    _ready[key] = image;
+    return image.clone();
+  }
+
+  /// Draws the picture into an image, unless that was done. Never throws.
+  static Future<void> make(String seed, {required bool wide}) {
+    final key = _key(seed, wide);
+    if (_ready.containsKey(key)) return Future.value();
+    return _making[key] ??= _queue = _queue.then(
+      (_) => _render(key, seed, wide),
+    );
+  }
+
+  static Future<void> _render(String key, String seed, bool wide) async {
+    final size = wide ? const Size(320, 180) : const Size(160, 240);
+    try {
+      final recorder = ui.PictureRecorder();
+      _ArtPainter(seed, wide).paint(Canvas(recorder), size);
+      final picture = recorder.endRecording();
+      final image = await picture.toImage(
+        size.width.round(),
+        size.height.round(),
+      );
+      picture.dispose();
+      _ready[key] = image;
+      while (_ready.length > capacity) {
+        _ready.remove(_ready.keys.first)?.dispose();
+      }
+    } on Object {
+      // It goes on being drawn each time.
+    } finally {
+      final _ = _making.remove(key);
+    }
+  }
 }
 
 /// The 32-bit FNV-1a hash of [text], as the prototype's `hash()`.

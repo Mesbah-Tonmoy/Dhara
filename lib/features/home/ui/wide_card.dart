@@ -6,6 +6,7 @@ import 'package:dhara/theme/tokens.dart';
 import 'package:dhara/widgets/icons.dart';
 import 'package:dhara/widgets/placeholder_art.dart';
 import 'package:dhara/widgets/pressable.dart';
+import 'package:dhara/widgets/shade.dart';
 import 'package:flutter/material.dart';
 
 /// "1h 05m left", "34 min left", "Under a minute left".
@@ -60,7 +61,8 @@ class WideCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: DharaColors.bgElev,
                   borderRadius: corners,
-                  boxShadow: active ? DharaShadows.glow : DharaShadows.card,
+                  // As on a poster card: no shadow while it rests.
+                  boxShadow: active ? DharaShadows.glow : null,
                 ),
                 child: ClipRRect(
                   borderRadius: corners,
@@ -77,16 +79,7 @@ class WideCard extends StatelessWidget {
                           placeholder: PlaceholderArt(seed: name, wide: true),
                         ),
                       ),
-                      const DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [Color(0xD9000000), Color(0x00000000)],
-                            stops: [0, .6],
-                          ),
-                        ),
-                      ),
+                      const Shade(_wideShade),
                       Center(
                         child: AnimatedOpacity(
                           opacity: active ? 1 : 0,
@@ -173,6 +166,12 @@ class WatchedBar extends StatelessWidget {
     ),
   );
 }
+
+/// Darker towards the foot, under the name.
+const _wideShade = ShadeSpec(
+  colors: [Color(0x00000000), Color(0x00000000), Color(0xD9000000)],
+  stops: [0, .4, 1],
+);
 
 /// The prototype's `.disc`: the round play mark over a picture.
 class _Disc extends StatelessWidget {
