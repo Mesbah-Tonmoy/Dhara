@@ -19,8 +19,8 @@ A Bangla + English README is written in Phase 8.
 | 3. Sources and server discovery | Done: starter list of 38 checked servers, Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet |
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
-| 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests), frame rate while scrolling, and cold start |
-| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, Settings has a preferred quality, Play starts on the fastest copy, a video that stalls goes on from another copy by itself, and the next episode's copy is chosen before this one ends (see [Smart playback](#smart-playback)). Still to come: the last measurements |
+| 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. Frame rate while scrolling and cold start were measured in Phase 7 (see [Keeping frames cheap](#keeping-frames-cheap)). **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests) |
+| 7. Smart playback | Done in code and in automated tests, and tried in the running app against a web server on this PC that can be slow, stall, drop the connection or send no video: the player is set up for streaming (buffer size and hardware decoding in Settings), seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, Settings has a preferred quality and the languages a video starts in, Play starts on the fastest copy, a video that stalls goes on from another copy by itself, the next episode's copy is chosen before this one ends, and files of Emby and Jellyfin servers are fetched with a session; see [Smart playback](#smart-playback) and what was [measured](#measured-in-phase-7). **Not yet tried on real BDIX servers:** all of the above except the streaming set-up and the info panel; nor on a real Emby or Jellyfin server, a Dolby TrueHD file, or a file with several languages |
 | 8–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -81,6 +81,20 @@ Known gaps, tracked for later phases:
   the video is opened unchecked and the player reports the real error.
 
 ## Smart playback
+
+### Measured in Phase 7
+
+On the PC the app is made for (Ryzen 5 5500U, integrated graphics,
+Windows 11), release build, the real library (2026-11-16):
+
+| Target of the brief | Goal | Measured |
+|---|---|---|
+| Cold start | under 2 s | 0.85 to 0.9 s to the window (1.6 s the first time after a build) |
+| Search | under 100 ms over 100k files | 2 to 7 ms by title over 23,389 videos (Phase 5); the browse page counts and lists 19,749 titles in 71 ms |
+| Playback start | under 2 s on a good BDIX link | 1.5 s on a real server before Play chose the fastest copy (the user's info panel: the server answered in 320 ms); 0.3 to 0.8 s from a server on this PC, 0.3 s for a next episode asked ahead of time |
+| Seeking | feels instant | inside the buffer no request goes to the server; not timed on a real server |
+| Idle memory | report | 136 MB working set, 219 MB private, 12 s after start on Home |
+| Installer size | about 80 MB at most | no installer yet (Phase 8); the release folder is 79 MB, of which libmpv is 28 MB and the Flutter engine 20 MB |
 
 ### Streaming set-up
 
@@ -426,12 +440,31 @@ icons that ship with Flutter, named in one place (`lib/widgets/icons.dart`).
 
 ### Keeping frames cheap
 
-Flutter draws this app with Impeller on OpenGL ES (through ANGLE). There,
-every gradient that is drawn costs about two render passes of its own, on
-every frame, and a blurred shadow is filled pixel by pixel. Measured on
-2026-11-16 (Ryzen 5 5500U, window maximised, the real library): a grid of
-23 poster cards took 117 render passes a frame, 102 of them for the two
-fades on each card. What repeats on a page therefore avoids both:
+**The renderer.** Flutter's newer renderer, Impeller, runs on OpenGL ES
+(through ANGLE) on Windows, and on the PC this app is made for that is
+the slower choice by far. The Windows runner therefore switches it off
+(`windows/runner/main.cpp`), and the app is drawn by Skia. Measured on
+2026-11-16 (Ryzen 5 5500U with integrated graphics, the real library of
+19,750 titles, window maximised at 1920×1020):
+
+| | Impeller | Skia |
+|---|---|---|
+| start of the process to the first line of Dart | 1.6 to 1.7 s | 0.2 s |
+| cold start of the release build (window on screen) | 2.1 to 2.4 s | 0.85 to 0.9 s (1.6 s the first time after a build) |
+| memory after 12 s on Home (working set / private) | 524 / 684 MB | 136 / 219 MB |
+| drawing a frame while the browse grid scrolls over rows it has shown | 8.2 ms (90% under 10.3) | 4.2 ms (90% under 5.5) |
+| the same, into rows not shown before | 14.2 ms, 9% of frames over 16.7 ms, the worst 180 ms | 4.8 ms, 1% over, the worst 23 ms |
+
+(The drawing times are from profile builds, read from the engine's
+timeline; they include the wait for the display.) Look at this again when
+Flutter drops Skia on Windows, or Impeller gets a Direct3D backend.
+
+**What repeats on a page.** Under Impeller, every gradient that is drawn
+costs about two render passes of its own, on every frame, and a blurred
+shadow is filled pixel by pixel: a grid of 23 poster cards took 117
+render passes a frame, 102 of them for the two fades on each card. What
+repeats on a page therefore avoids both (it costs Skia less to begin
+with, and nothing is lost by it):
 
 - the fade over a card is a small picture made once and stretched over
   each card (`lib/widgets/shade.dart`); it is a gradient only until that
@@ -444,9 +477,9 @@ fades on each card. What repeats on a page therefore avoids both:
   last are kept, about 20 MB)
 - an anime the library lacks is dimmed by a tinted box, not by `Opacity`
 
-After that the same grid takes 36 passes a frame, and the work per frame
-on the graphics side is about half. The rail and the title bar still blur
-what is behind them (11 passes).
+Under Impeller the same grid then took 36 passes a frame, and the work
+per frame on the graphics side was about half. The rail and the title bar
+still blur what is behind them.
 
 `flutter run` starts a debug build, which builds new rows many times
 slower than a release build does (frames of 40 ms and more while a grid
