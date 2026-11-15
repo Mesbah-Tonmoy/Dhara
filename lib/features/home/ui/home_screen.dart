@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:dhara/core/net/media_url.dart';
+import 'package:dhara/features/browse/browse_controller.dart';
+import 'package:dhara/features/browse/browse_store.dart';
 import 'package:dhara/features/details/ui/details_screen.dart';
 import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/home/home_store.dart';
@@ -158,7 +160,16 @@ class _RowsState extends State<_Rows> {
     final shell = ShellScope.read(context);
     final counts = TitlesScope.of(context).counts;
     final tmdbKey = TmdbKeyScope.of(context);
-    void seeAll() => shell.open(ShellDestination.titles);
+    void addKey() => shell.open(ShellDestination.titles);
+
+    /// Opens Search to browse all of one kind.
+    void seeAll(BrowseKind kind) {
+      shell.searchText.clear();
+      BrowseScope.read(context)
+        ..setText('')
+        ..change((query) => query.copyWith(kind: kind));
+      shell.open(ShellDestination.search);
+    }
 
     Widget? row(
       String key,
@@ -219,7 +230,7 @@ class _RowsState extends State<_Rows> {
               right: DharaLayout.pageRight,
               top: .9 * rem,
             ),
-            child: _KeyNotice(onAdd: seeAll),
+            child: _KeyNotice(onAdd: addKey),
           ),
         if (unfinished.isNotEmpty)
           Padding(
@@ -243,14 +254,14 @@ class _RowsState extends State<_Rows> {
           'Movies',
           content.movies,
           count: counts?.movies,
-          onSeeAll: seeAll,
+          onSeeAll: () => seeAll(BrowseKind.movies),
         ),
         ?row(
           'series',
           'Series',
           content.series,
           count: counts?.shows,
-          onSeeAll: seeAll,
+          onSeeAll: () => seeAll(BrowseKind.series),
         ),
         ?row('anime', 'Anime', content.anime),
         ?row('top', 'Top Rated', content.topRated, ranked: true),

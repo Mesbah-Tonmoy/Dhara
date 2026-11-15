@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dhara/core/db/library_db.dart';
 import 'package:dhara/core/db/library_isolate.dart';
 import 'package:dhara/core/secrets/secret_store.dart';
+import 'package:dhara/features/browse/ui/browse_screen.dart';
 import 'package:dhara/features/details/ui/details_screen.dart';
 import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/home/home_store.dart';
@@ -205,7 +206,15 @@ void main() {
 
       await tester.tap(seeAll);
       await tester.pumpAndSettle();
-      expect(find.byType(TitlesScreen), findsOneWidget);
+      expect(find.byType(BrowseScreen), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('browse-heading'))).data,
+        'Movies',
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const Key('browse-info'))).data,
+        startsWith('3 of 4 titles'),
+      );
     });
 
     testWidgets('only builds the cards in view of a long row', (tester) async {

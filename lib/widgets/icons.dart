@@ -15,6 +15,7 @@ abstract final class DharaIcons {
   static const history = Icons.history_rounded;
   static const servers = Icons.dns_outlined;
   static const library = Icons.video_library_outlined;
+  static const matching = Icons.fact_check_outlined;
   static const settings = Icons.settings_outlined;
 
   static const play = Icons.play_arrow_rounded;

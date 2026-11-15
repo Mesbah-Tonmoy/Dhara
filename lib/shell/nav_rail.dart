@@ -1,12 +1,18 @@
 import 'dart:ui';
 
+import 'package:dhara/features/browse/browse_controller.dart';
+import 'package:dhara/features/browse/browse_store.dart';
 import 'package:dhara/shell/shell_controller.dart';
 import 'package:dhara/theme/tokens.dart';
+import 'package:dhara/widgets/icons.dart';
 import 'package:dhara/widgets/pressable.dart';
 import 'package:flutter/material.dart';
 
 /// The floating navigation rail on the left: one icon per place, the one
 /// in use lit up. The arrow keys move along it.
+///
+/// Movies and Series are not pages of their own: they open Search with
+/// its type set, as the prototype does.
 class NavRail extends StatelessWidget {
   const NavRail({super.key});
 
@@ -17,12 +23,47 @@ class NavRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final shell = ShellScope.of(context);
-    Widget button(ShellDestination place) => _RailButton(
-      key: Key('rail-${place.name}'),
-      place: place,
-      selected: shell.current == place,
-      onPressed: () => shell.open(place),
-    );
+    final browse = BrowseScope.of(context);
+    final searching = shell.current == ShellDestination.search;
+    final typed = browse.query.text.trim().isNotEmpty;
+    final kind = browse.query.kind;
+
+    /// Opens Search to browse [kind]; what was typed goes.
+    void browseKind(BrowseKind kind) {
+      shell.searchText.clear();
+      browse
+        ..setText('')
+        ..change((query) => query.copyWith(kind: kind));
+      shell.open(ShellDestination.search);
+    }
+
+    Widget button(ShellDestination place) => switch (place) {
+      // Lit unless Movies or Series is what is being browsed.
+      ShellDestination.search => _RailButton(
+        key: const Key('rail-search'),
+        label: place.label,
+        icon: place.icon,
+        selected:
+            searching &&
+            (typed || (kind != BrowseKind.movies && kind != BrowseKind.series)),
+        onPressed: shell.openSearch,
+      ),
+      _ => _RailButton(
+        key: Key('rail-${place.name}'),
+        label: place.label,
+        icon: place.icon,
+        selected: shell.current == place,
+        onPressed: () => shell.open(place),
+      ),
+    };
+    Widget browsing(String name, String label, IconData icon, BrowseKind of) =>
+        _RailButton(
+          key: Key('rail-$name'),
+          label: label,
+          icon: icon,
+          selected: searching && !typed && kind == of,
+          onPressed: () => browseKind(of),
+        );
     final corners = BorderRadius.circular(DharaRadii.lg);
     return FocusTraversalGroup(
       child: DecoratedBox(
@@ -49,7 +90,23 @@ class NavRail extends StatelessWidget {
               child: Column(
                 children: [
                   for (final place in ShellDestination.values)
-                    if (!place.low) button(place),
+                    if (!place.low) ...[
+                      button(place),
+                      if (place == ShellDestination.search) ...[
+                        browsing(
+                          'movies',
+                          'Movies',
+                          DharaIcons.movies,
+                          BrowseKind.movies,
+                        ),
+                        browsing(
+                          'series',
+                          'Series',
+                          DharaIcons.series,
+                          BrowseKind.series,
+                        ),
+                      ],
+                    ],
                   const Spacer(),
                   for (final place in ShellDestination.values)
                     if (place.low) button(place),
@@ -66,12 +123,14 @@ class NavRail extends StatelessWidget {
 class _RailButton extends StatelessWidget {
   const _RailButton({
     super.key,
-    required this.place,
+    required this.label,
+    required this.icon,
     required this.selected,
     required this.onPressed,
   });
 
-  final ShellDestination place;
+  final String label;
+  final IconData icon;
   final bool selected;
   final VoidCallback onPressed;
 
@@ -82,8 +141,8 @@ class _RailButton extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: .15 * rem),
       child: Pressable(
         onPressed: onPressed,
-        tooltip: place.label,
-        semanticLabel: place.label,
+        tooltip: label,
+        semanticLabel: label,
         selected: selected,
         builder: (context, state) => FocusRing(
           visible: state.focused,
@@ -102,7 +161,7 @@ class _RailButton extends StatelessWidget {
               boxShadow: selected ? _selectedGlow : null,
             ),
             child: Icon(
-              place.icon,
+              icon,
               size: 1.25 * rem,
               color: selected
                   ? DharaColors.onAccent

@@ -1,5 +1,7 @@
 import 'dart:ui';
 
+import 'package:dhara/features/browse/browse_controller.dart';
+import 'package:dhara/features/browse/ui/browse_screen.dart';
 import 'package:dhara/features/home/ui/home_screen.dart';
 import 'package:dhara/features/indexer/ui/index_screen.dart';
 import 'package:dhara/features/metadata/ui/titles_screen.dart';
@@ -8,6 +10,7 @@ import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
 import 'package:dhara/shell/nav_rail.dart';
 import 'package:dhara/shell/shell_controller.dart';
 import 'package:dhara/shell/title_bar.dart';
+import 'package:dhara/widgets/pressable.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -203,24 +206,33 @@ void main() {
       expect(_searchHasFocus(tester), isFalse);
     });
 
-    testWidgets('Enter in the search field searches the library for it', (
+    testWidgets('typing in the search field opens Search with it', (
       tester,
     ) async {
       await _boot(tester);
 
-      await tester.enterText(_search, '  harbor  ');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.enterText(_search, 'harbor');
       await tester.pumpAndSettle();
 
-      expect(_titles, findsOneWidget);
-      expect(_current(tester), ShellDestination.titles);
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const Key('titles-search')))
-            .controller!
-            .text,
-        'harbor',
+      expect(find.byType(BrowseScreen), findsOneWidget);
+      expect(_current(tester), ShellDestination.search);
+      final browse = BrowseScope.read(
+        tester.element(find.byType(BrowseScreen)),
       );
+      expect(browse.query.text, 'harbor');
+      expect(
+        tester.widget<Text>(find.byKey(const Key('browse-heading'))).data,
+        'Results for “harbor”',
+      );
+      expect(_searchHasFocus(tester), isTrue, reason: 'typing goes on');
+
+      // More typing narrows the same page; Enter lets go of the keyboard.
+      await tester.enterText(_search, 'harbor lights');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.byType(BrowseScreen), findsOneWidget);
+      expect(browse.query.text, 'harbor lights');
+      expect(_searchHasFocus(tester), isFalse);
 
       // An empty search goes nowhere.
       await _open(tester, 'home');
@@ -228,6 +240,58 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(_home, findsOneWidget);
+      // The search waits a moment for the next key before it asks.
+      await tester.pump(const Duration(milliseconds: 200));
+    });
+
+    testWidgets('the rail browses Movies and Series through Search', (
+      tester,
+    ) async {
+      await _boot(tester);
+      bool lit(String place) =>
+          tester
+              .widget<Pressable>(
+                find.descendant(
+                  of: find.byKey(Key('rail-$place')),
+                  matching: find.byType(Pressable),
+                ),
+              )
+              .selected ??
+          false;
+
+      await _open(tester, 'movies');
+      expect(find.byType(BrowseScreen), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('browse-heading'))).data,
+        'Movies',
+      );
+      expect(
+        (lit('movies'), lit('series'), lit('search')),
+        (true, false, false),
+      );
+
+      await _open(tester, 'series');
+      expect(
+        tester.widget<Text>(find.byKey(const Key('browse-heading'))).data,
+        'Series',
+      );
+      expect((lit('movies'), lit('series')), (false, true));
+
+      // Typing is a search, whatever is being browsed; the rail says so.
+      await tester.enterText(_search, 'bay');
+      await tester.pumpAndSettle();
+      expect((lit('series'), lit('search')), (false, true));
+
+      // Search on the rail takes the keyboard to the field.
+      await _open(tester, 'home');
+      await _open(tester, 'search');
+      expect(find.byType(BrowseScreen), findsOneWidget);
+      expect(_searchHasFocus(tester), isTrue);
+
+      // Movies again: what was typed goes.
+      await _open(tester, 'movies');
+      expect(tester.widget<TextField>(_search).controller!.text, isEmpty);
+      expect(lit('movies'), isTrue);
     });
 
     testWidgets('Ctrl+O asks for a URL to play', (tester) async {

@@ -131,8 +131,8 @@ class _Brand extends StatelessWidget {
   );
 }
 
-/// The search pill. Enter searches the library; Ctrl+K or `/` brings the
-/// keyboard here from anywhere in the shell.
+/// The search pill. The results follow what is typed; Ctrl+K or `/`
+/// brings the keyboard here from anywhere in the shell.
 class _SearchField extends StatefulWidget {
   const _SearchField();
 
@@ -209,6 +209,7 @@ class _SearchFieldState extends State<_SearchField> {
                 key: const Key('shell-search'),
                 controller: shell.searchText,
                 focusNode: shell.searchFocus,
+                onChanged: (_) => shell.searchChanged(),
                 onSubmitted: (_) => shell.submitSearch(),
                 autocorrect: false,
                 enableSuggestions: false,

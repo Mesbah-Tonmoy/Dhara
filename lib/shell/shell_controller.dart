@@ -9,8 +9,14 @@ import 'package:flutter/material.dart';
 /// then the working screens of the earlier phases stand in.
 enum ShellDestination {
   home('Home', DharaIcons.home),
-  titles('Films and shows', DharaIcons.search),
+
+  /// Search, which is also how Movies and Series are browsed.
+  search('Search', DharaIcons.search),
   anime('Anime', DharaIcons.anime),
+
+  /// The working screen of the earlier phases: how many titles there are,
+  /// the TMDB key, matching and Needs review.
+  titles('Titles and matching', DharaIcons.matching, low: true),
   library('Library index', DharaIcons.library, low: true),
   discovery('Server Discovery', DharaIcons.servers, low: true);
 
@@ -32,11 +38,14 @@ enum ShellDestination {
 /// title, a list of copies) go on top of that. So Back always leads toward
 /// Home, and at most one place of the rail is alive at a time.
 class ShellController extends ChangeNotifier {
-  ShellController({required this.pageFor});
+  ShellController({required this.pageFor, this.onSearch});
 
   /// Builds the page of a place of the rail. For [ShellDestination.titles],
   /// [query] is what to search for at once.
   final Widget Function(ShellDestination destination, String? query) pageFor;
+
+  /// Told what the search field holds whenever that changes.
+  final ValueChanged<String>? onSearch;
 
   final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -114,12 +123,49 @@ class ShellController extends ChangeNotifier {
     );
   }
 
-  /// Searches the library for what the search field holds.
+  /// The search field was typed into: the search follows, and its page
+  /// opens if another one is on screen.
+  void searchChanged() {
+    final text = searchText.text;
+    onSearch?.call(text);
+    if (text.trim().isNotEmpty && current != ShellDestination.search) {
+      open(ShellDestination.search);
+      _keepTyping();
+    }
+  }
+
+  /// Opens Search and puts the keyboard into the search field.
+  void openSearch() {
+    open(ShellDestination.search);
+    _keepTyping();
+  }
+
+  /// A page that opens takes the keyboard; this gives it back to the
+  /// search field, with the caret where it was, so that typing goes on.
+  void _keepTyping() {
+    final selection = searchText.selection;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_disposed) return;
+      searchFocus.requestFocus();
+      // A field that gains the keyboard may select all its text; the next
+      // key would then replace what was typed.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_disposed || !selection.isValid) return;
+        final length = searchText.text.length;
+        searchText.selection = TextSelection(
+          baseOffset: selection.baseOffset.clamp(0, length),
+          extentOffset: selection.extentOffset.clamp(0, length),
+        );
+      });
+    });
+  }
+
+  /// Enter in the search field: shows the results and lets go of the
+  /// keyboard, so that the arrow keys walk the results.
   void submitSearch() {
-    final text = searchText.text.trim();
-    if (text.isEmpty) return;
+    if (searchText.text.trim().isEmpty) return;
+    searchChanged();
     searchFocus.unfocus();
-    open(ShellDestination.titles, query: text);
   }
 
   static ShellDestination? _placeOf(Route<dynamic> route) {

@@ -6,6 +6,7 @@ import 'package:dhara/core/db/library_isolate.dart';
 import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
+import 'package:dhara/features/browse/browse_controller.dart';
 import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/anime_controller.dart';
@@ -653,6 +654,7 @@ void main() {
         anime: AnimeController(library: library),
         home: HomeController(library: library, titles: titles, match: match),
         myList: MyListController(library: library),
+        browse: BrowseController(library: library, titles: titles),
       ),
     );
 

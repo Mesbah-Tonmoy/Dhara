@@ -1,6 +1,7 @@
 import 'package:dhara/core/images/image_store.dart';
 import 'package:dhara/core/images/remote_image.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
+import 'package:dhara/features/browse/browse_controller.dart';
 import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/anime_controller.dart';
@@ -33,6 +34,7 @@ class DharaApp extends StatelessWidget {
     required this.anime,
     required this.home,
     required this.myList,
+    required this.browse,
     this.filmDetails,
     this.images,
   });
@@ -48,6 +50,7 @@ class DharaApp extends StatelessWidget {
   final AnimeController anime;
   final HomeController home;
   final MyListController myList;
+  final BrowseController browse;
 
   /// Says how far the reading of film details is; without it, nothing
   /// does.
@@ -88,18 +91,21 @@ class DharaApp extends StatelessWidget {
                         controller: home,
                         child: MyListScope(
                           controller: myList,
-                          child: ImageStoreScope(
-                            store: images,
-                            child: MaterialApp(
-                              title: 'Dhara',
-                              debugShowCheckedModeBanner: false,
-                              theme: buildDharaTheme(),
-                              // Above the Navigator, so that dialogs and
-                              // menus grow with the window as well, and a
-                              // message outlives the page that sent it.
-                              builder: (context, child) =>
-                                  DharaScale(child: ToastHost(child: child!)),
-                              home: const AppShell(),
+                          child: BrowseScope(
+                            controller: browse,
+                            child: ImageStoreScope(
+                              store: images,
+                              child: MaterialApp(
+                                title: 'Dhara',
+                                debugShowCheckedModeBanner: false,
+                                theme: buildDharaTheme(),
+                                // Above the Navigator, so that dialogs and
+                                // menus grow with the window as well, and
+                                // a message outlives the page that sent it.
+                                builder: (context, child) =>
+                                    DharaScale(child: ToastHost(child: child!)),
+                                home: const AppShell(),
+                              ),
                             ),
                           ),
                         ),

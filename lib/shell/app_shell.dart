@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:dhara/features/browse/browse_controller.dart';
+import 'package:dhara/features/browse/ui/browse_screen.dart';
 import 'package:dhara/features/home/ui/home_screen.dart';
 import 'package:dhara/features/indexer/ui/index_screen.dart';
 import 'package:dhara/features/metadata/ui/anime_screen.dart';
@@ -22,8 +24,9 @@ import 'package:flutter/services.dart';
 /// The player is not a page of the shell: it opens above it and takes the
 /// whole window.
 ///
-/// Keys, anywhere in the shell: Ctrl+K or `/` to search, Ctrl+O to play a
-/// URL, Alt+Left to go back, Esc to leave a text field or else go back.
+/// Keys, anywhere in the shell: Ctrl+K or `/` to search (the results
+/// follow what is typed), Ctrl+O to play a URL, Alt+Left to go back, Esc
+/// to leave a text field or else go back.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -35,7 +38,10 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  late final _shell = ShellController(pageFor: _pageFor);
+  late final _shell = ShellController(
+    pageFor: _pageFor,
+    onSearch: (text) => BrowseScope.read(context).setText(text),
+  );
 
   @override
   void dispose() {
@@ -46,6 +52,7 @@ class _AppShellState extends State<AppShell> {
   static Widget _pageFor(ShellDestination place, String? query) =>
       switch (place) {
         ShellDestination.home => const HomeScreen(),
+        ShellDestination.search => const BrowseScreen(),
         ShellDestination.titles => TitlesScreen(initialQuery: query),
         ShellDestination.anime => const AnimeScreen(),
         ShellDestination.library => const IndexScreen(),
