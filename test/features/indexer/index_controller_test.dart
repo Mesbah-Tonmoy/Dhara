@@ -87,6 +87,7 @@ void main() {
   test('crawls the enabled sources and makes them searchable', () async {
     await sources.setEnabled(['films', 'site'], enabled: true);
     expect(index.crawlableSources.map((source) => source.id), ['films']);
+    expect(index.unreadableSources.map((source) => source.id), ['site']);
 
     final done = index.start();
     expect(index.isRunning, isTrue);

@@ -248,6 +248,42 @@ void main() {
     expect(controller.store.isEnabled('alpha'), isFalse);
   });
 
+  testWidgets('says so when a website is switched on that it cannot read',
+      (tester) async {
+    final controller = await show(
+      tester,
+      sources: [
+        _source('alpha'),
+        _source('portal', name: 'Portal', type: SourceType.customSite),
+      ],
+    );
+    String said() => tester
+        .widgetList<Text>(
+          find.descendant(
+            of: find.byKey(const Key('toast')),
+            matching: find.byType(Text),
+          ),
+        )
+        .map((text) => text.textSpan?.toPlainText() ?? text.data ?? '')
+        .join();
+
+    // A server it can read is switched on without a word.
+    await tester.tap(find.byKey(const Key('enable-alpha')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(said(), isEmpty);
+
+    await tester.tap(find.byKey(const Key('enable-portal')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(controller.store.isEnabled('portal'), isTrue);
+    expect(said(), contains('Portal is a website'));
+
+    // Let the message leave before the test ends.
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('"Enable all reachable" enables what the app can read',
       (tester) async {
     final controller = await show(

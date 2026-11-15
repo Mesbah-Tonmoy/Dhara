@@ -82,6 +82,14 @@ class IndexController extends ChangeNotifier {
         source,
   ];
 
+  /// The enabled sources a crawl leaves out: websites of a kind the app has
+  /// no adapter for. Switching one on puts nothing in the library.
+  List<Source> get unreadableSources => [
+    for (final source in _sources.sources)
+      if (_sources.isEnabled(source.id) && source.type == SourceType.customSite)
+        source,
+  ];
+
   /// Reads what the index holds. Call once at start-up. Never throws.
   Future<void> load() => _refresh();
 

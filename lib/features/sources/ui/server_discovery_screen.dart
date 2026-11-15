@@ -83,6 +83,19 @@ class _ServerDiscoveryScreenState extends State<ServerDiscoveryScreen> {
     }
   }
 
+  /// Switches a source on or off. A website the app has no adapter for can
+  /// be switched on too, but nothing of it reaches the library: said here,
+  /// as nothing else on this screen would show it.
+  Future<void> _setEnabled(Source source, bool enabled) async {
+    await _change(() => _store.setEnabled([source.id], enabled: enabled));
+    if (enabled && source.type == SourceType.customSite) {
+      _say(
+        '${source.name} is a website, which Dhara cannot read yet. '
+        'Nothing of it will be in your library.',
+      );
+    }
+  }
+
   void _toggleTesting() =>
       unawaited(_tests.isTesting ? _tests.cancel() : _tests.testAll());
 
@@ -310,11 +323,8 @@ class _ServerDiscoveryScreenState extends State<ServerDiscoveryScreen> {
                               tests: tests,
                               wide: wide,
                               isLast: index == shown.length - 1,
-                              onEnabled: (enabled) => _change(
-                                () => _store.setEnabled([
-                                  source.id,
-                                ], enabled: enabled),
-                              ),
+                              onEnabled: (enabled) =>
+                                  _setEnabled(source, enabled),
                               onAction: (action) =>
                                   _onRowAction(source, action),
                             );
