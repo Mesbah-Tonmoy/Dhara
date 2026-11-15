@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dhara/core/images/image_store.dart'
+    show anilistCoverFile, anilistImageHost;
 import 'package:dhara/core/net/safe_http_client.dart';
 import 'package:flutter/foundation.dart';
 
@@ -36,9 +38,15 @@ class AnimeEntry {
     this.episodes,
     this.year,
     this.score,
+    this.coverPath,
   });
 
   final int id;
+
+  /// Its cover on AniList's picture server, as [anilistCoverPath] lets it
+  /// through; `null` if there is none, or the lists were kept before
+  /// covers were.
+  final String? coverPath;
 
   /// The title in English, in Latin letters, and in its own script.
   final String? english;
@@ -76,6 +84,7 @@ class AnimeEntry {
     'episodes': episodes,
     'year': year,
     'score': score,
+    'cover': coverPath,
   };
 
   /// Reads what [toJson] wrote; `null` for anything else.
@@ -98,8 +107,29 @@ class AnimeEntry {
       episodes: _count(json['episodes']),
       year: _count(json['year']),
       score: _count(json['score']),
+      coverPath: switch (json['cover']) {
+        final String path when anilistCoverFile.hasMatch(path) => path,
+        _ => null,
+      },
     );
   }
+}
+
+/// The path of the cover AniList gives as [url], or `null` unless it is
+/// an `https` address on AniList's picture server of the usual shape.
+String? anilistCoverPath(Object? url) {
+  if (url is! String) return null;
+  final address = Uri.tryParse(url);
+  if (address == null ||
+      address.scheme != 'https' ||
+      address.host != anilistImageHost ||
+      address.hasPort ||
+      address.hasQuery ||
+      address.hasFragment ||
+      address.userInfo.isNotEmpty) {
+    return null;
+  }
+  return anilistCoverFile.hasMatch(address.path) ? address.path : null;
 }
 
 /// Why AniList gave no answer.
@@ -249,6 +279,10 @@ AnimeEntry? _entry(Object? json) {
     'episodes': json['episodes'],
     'year': start is Map<String, Object?> ? start['year'] : null,
     'score': json['averageScore'],
+    'cover': anilistCoverPath(switch (json['coverImage']) {
+      final Map<String, Object?> cover => cover['large'],
+      _ => null,
+    }),
   });
 }
 
@@ -278,6 +312,7 @@ query ($perPage: Int, $sort: [MediaSort], $season: MediaSeason, $year: Int) {
       episodes
       averageScore
       startDate { year }
+      coverImage { large }
     }
   }
 }

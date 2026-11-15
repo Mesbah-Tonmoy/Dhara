@@ -126,7 +126,21 @@ class TmdbCover extends StatefulWidget {
     required this.placeholder,
     this.fadeIn = DharaMotion.base,
     this.onPicture,
-  });
+  }) : anilist = false;
+
+  /// The cover of an anime from AniList's picture server instead; [path]
+  /// is as `anilistCoverPath` returns it.
+  const TmdbCover.anilist({
+    super.key,
+    required this.path,
+    required this.placeholder,
+    this.fadeIn = DharaMotion.base,
+    this.onPicture,
+  }) : anilist = true,
+       size = '';
+
+  /// See [TmdbCover.anilist].
+  final bool anilist;
 
   /// As TMDB gives it ("/abc123.jpg"), or `null` if there is no picture.
   final String? path;
@@ -176,7 +190,11 @@ class _TmdbCoverState extends State<TmdbCover> {
   @override
   void didUpdateWidget(TmdbCover old) {
     super.didUpdateWidget(old);
-    if (old.path != widget.path || old.size != widget.size) _load();
+    if (old.path != widget.path ||
+        old.size != widget.size ||
+        old.anilist != widget.anilist) {
+      _load();
+    }
   }
 
   @override
@@ -206,7 +224,10 @@ class _TmdbCoverState extends State<TmdbCover> {
       });
       return;
     }
-    store.file(widget.size, path).then((file) {
+    final picture = widget.anilist
+        ? store.anilistCover(path)
+        : store.file(widget.size, path);
+    picture.then((file) {
       // Only the answer for the picture now shown counts.
       if (mounted && number == _asked) setState(() => _file = file);
     });

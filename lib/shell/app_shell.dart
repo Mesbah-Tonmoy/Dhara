@@ -41,6 +41,7 @@ class _AppShellState extends State<AppShell> {
   late final _shell = ShellController(
     pageFor: _pageFor,
     onSearch: (text) => BrowseScope.read(context).setText(text),
+    onSearchStart: () => BrowseScope.read(context).resetFilters(),
   );
 
   @override

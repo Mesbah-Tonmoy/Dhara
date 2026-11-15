@@ -38,7 +38,7 @@ enum ShellDestination {
 /// title, a list of copies) go on top of that. So Back always leads toward
 /// Home, and at most one place of the rail is alive at a time.
 class ShellController extends ChangeNotifier {
-  ShellController({required this.pageFor, this.onSearch});
+  ShellController({required this.pageFor, this.onSearch, this.onSearchStart});
 
   /// Builds the page of a place of the rail. For [ShellDestination.titles],
   /// [query] is what to search for at once.
@@ -46,6 +46,10 @@ class ShellController extends ChangeNotifier {
 
   /// Told what the search field holds whenever that changes.
   final ValueChanged<String>? onSearch;
+
+  /// Called when typing opens Search from another page: a search that
+  /// starts elsewhere is over everything, not over what was browsed last.
+  final VoidCallback? onSearchStart;
 
   final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -127,8 +131,10 @@ class ShellController extends ChangeNotifier {
   /// opens if another one is on screen.
   void searchChanged() {
     final text = searchText.text;
+    final starts = text.trim().isNotEmpty && current != ShellDestination.search;
+    if (starts) onSearchStart?.call();
     onSearch?.call(text);
-    if (text.trim().isNotEmpty && current != ShellDestination.search) {
+    if (starts) {
       open(ShellDestination.search);
       _keepTyping();
     }

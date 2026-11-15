@@ -1,18 +1,51 @@
 import 'dart:async';
 
+import 'package:dhara/core/images/remote_image.dart';
+import 'package:dhara/features/browse/browse_controller.dart';
+import 'package:dhara/features/browse/browse_store.dart';
 import 'package:dhara/features/details/ui/details_screen.dart';
+import 'package:dhara/features/home/home_controller.dart';
+import 'package:dhara/features/home/ui/card_row.dart';
+import 'package:dhara/features/home/ui/poster_card.dart';
+import 'package:dhara/features/metadata/anilist_client.dart';
 import 'package:dhara/features/metadata/anime_controller.dart';
 import 'package:dhara/features/metadata/anime_store.dart';
-import 'package:dhara/features/player/widgets/glass.dart';
+import 'package:dhara/shell/page_bleed.dart';
+import 'package:dhara/shell/shell_controller.dart';
 import 'package:dhara/theme/tokens.dart';
+import 'package:dhara/widgets/buttons.dart';
+import 'package:dhara/widgets/chips.dart';
+import 'package:dhara/widgets/icons.dart';
+import 'package:dhara/widgets/placeholder_art.dart';
+import 'package:dhara/widgets/pressable.dart';
+import 'package:dhara/widgets/surfaces.dart';
+import 'package:dhara/widgets/toast.dart';
 import 'package:flutter/material.dart';
 
-/// AniList's lists of anime: what is trending and what airs this season,
-/// each marked with whether the library has it. An anime the library has
-/// opens with its episodes.
+/// "TV · 12 episodes · 2026": what kind of anime it is, how long, and of
+/// which year, as far as AniList says.
+String describeAnime(AnimeEntry anime) => [
+  switch (anime.format) {
+    null => null,
+    'MOVIE' => 'Film',
+    'TV' => 'Series',
+    'TV_SHORT' => 'Short series',
+    'SPECIAL' => 'Special',
+    final other => other,
+  },
+  if (anime.episodes case final count? when !anime.isFilm)
+    '$count ${count == 1 ? 'episode' : 'episodes'}',
+  if (anime.year case final year?) '$year',
+].nonNulls.join(' · ');
+
+/// The Anime page: the anime the library holds, then what AniList lists as
+/// airing this season and as trending, each with its cover and marked with
+/// whether it is on the enabled servers. One that is opens its page.
 ///
-/// A working screen until the real Home arrives in Phase 6. Titles come
-/// from AniList's users and are shown through plain `Text` widgets only.
+/// AniList is asked twice a day at most, the same two questions for
+/// everyone; nothing about the library is sent. Covers come from AniList's
+/// picture server and are kept on disk. Titles were written by AniList's
+/// users and are drawn as plain text only.
 class AnimeScreen extends StatefulWidget {
   const AnimeScreen({super.key});
 
@@ -33,7 +66,14 @@ class _AnimeScreenState extends State<AnimeScreen> {
 
   void _open(AnimeRow row) {
     final id = row.titleId;
-    if (id == null) return;
+    if (id == null) {
+      ToastHost.show(
+        context,
+        'is not on your enabled servers.',
+        lead: row.anime.name,
+      );
+      return;
+    }
     unawaited(
       Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => DetailsScreen(titleId: id)),
@@ -41,155 +81,200 @@ class _AnimeScreenState extends State<AnimeScreen> {
     );
   }
 
+  /// Opens Search to browse all the anime of the library.
+  void _browse() {
+    final shell = ShellScope.maybeRead(context);
+    final browse = BrowseScope.maybeRead(context);
+    if (shell == null || browse == null) return;
+    shell.searchText.clear();
+    browse
+      ..setText('')
+      ..change((query) => query.copyWith(kind: BrowseKind.anime));
+    shell.open(ShellDestination.search);
+  }
+
   @override
   Widget build(BuildContext context) {
     final anime = AnimeScope.of(context);
-    final trending = anime.trending;
+    final mine = HomeScope.maybeOf(context)?.content?.anime ?? const [];
     final seasonal = anime.seasonal;
-    final rows = [
-      if (seasonal != null) ...[
-        _Heading(
-          '${anime.season.label} ${anime.seasonYear}  ·  '
-          '${_inLibrary(seasonal)} of ${seasonal.length} in your library',
-        ),
-        ...seasonal,
-      ],
-      if (trending != null) ...[
-        _Heading(
-          'Trending now  ·  '
-          '${_inLibrary(trending)} of ${trending.length} in your library',
-        ),
-        ...trending,
-      ],
-    ];
+    final trending = anime.trending;
+    final failure = anime.failure;
+    String held(List<AnimeRow> rows) =>
+        '${rows.where((row) => row.inLibrary).length} of ${rows.length}';
+    final String info;
+    if (seasonal == null && trending == null) {
+      info = anime.isLoading
+          ? 'Asking AniList …'
+          : 'What AniList lists as airing and as trending, and which of '
+                'it is on your servers.';
+    } else {
+      final parts = [
+        if (seasonal != null) '${held(seasonal)} of this season',
+        if (trending != null) '${held(trending)} of what is trending',
+      ];
+      info =
+          '${parts.join(' and ')} on your servers. Nothing about your '
+          'library is sent to AniList.';
+    }
 
-    return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, box) {
-          final gutter = box.maxWidth >= 900 ? 40.0 : 20.0;
-          final sides = EdgeInsets.symmetric(horizontal: gutter);
-          return CustomScrollView(
-            slivers: [
-              SliverPadding(
-                padding: sides.copyWith(top: 28, bottom: 6),
-                sliver: SliverToBoxAdapter(
+    Widget list(String key, String title, List<AnimeRow> rows) => Padding(
+      padding: const EdgeInsets.only(top: .9 * rem),
+      child: CardRow(
+        key: Key(key),
+        title: title,
+        leftInset: PageInsets.contentLeft,
+        itemCount: rows.length,
+        itemBuilder: (context, index) => AnimeCard(
+          key: Key('anime-${rows[index].anime.id}'),
+          row: rows[index],
+          onOpen: () => _open(rows[index]),
+        ),
+      ),
+    );
+
+    return ColoredBox(
+      key: const Key('anime'),
+      color: DharaColors.bg,
+      child: ListView(
+        padding: const EdgeInsets.only(top: 1.8 * rem, bottom: DharaSpace.s7),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(
+              left: PageInsets.contentLeft,
+              right: DharaLayout.pageRight,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Wrap(
-                        alignment: WrapAlignment.spaceBetween,
-                        crossAxisAlignment: WrapCrossAlignment.end,
-                        spacing: 16,
-                        runSpacing: 14,
-                        children: [
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 760),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  tooltip: 'Back',
-                                  onPressed: () =>
-                                      Navigator.of(context).maybePop(),
-                                  icon: const Icon(Icons.arrow_back_rounded),
-                                ),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Anime',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.headlineMedium,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      const Text(
-                                        'What AniList lists as trending and '
-                                        'as airing this season, and which of '
-                                        'it is on your servers. Nothing about '
-                                        'your library is sent to AniList.',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: DharaColors.text2,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          DharaPillButton(
-                            key: const Key('anime-refresh'),
-                            icon: Icons.refresh_rounded,
-                            label: anime.isLoading ? 'Asking …' : 'Ask again',
-                            onPressed: () => unawaited(anime.load(fresh: true)),
-                          ),
-                        ],
-                      ),
-                      if (anime.failure case final failure?) ...[
-                        const SizedBox(height: 14),
-                        Text(
-                          trending == null
-                              ? failure
-                              : '$failure These are the lists as they were '
-                                    'last fetched.',
-                          key: const Key('anime-failure'),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: DharaColors.warn,
-                          ),
+                      const Text(
+                        'Anime',
+                        style: TextStyle(
+                          fontFamily: DharaFonts.display,
+                          fontSize: DharaType.xxl,
+                          fontWeight: DharaType.bold,
+                          letterSpacing: -.03 * DharaType.xxl,
+                          height: 1.1,
+                          color: DharaColors.text,
                         ),
-                      ],
-                      if (rows.isEmpty && anime.failure == null) ...[
-                        const SizedBox(height: 18),
-                        const PanelHeading('Asking AniList …'),
-                      ],
+                      ),
+                      const SizedBox(height: .3 * rem),
+                      Text(
+                        info,
+                        key: const Key('anime-info'),
+                        style: const TextStyle(
+                          fontFamily: DharaFonts.ui,
+                          fontSize: DharaType.sm,
+                          height: DharaType.body,
+                          color: DharaColors.text2,
+                        ),
+                      ),
                     ],
                   ),
                 ),
+                const SizedBox(width: rem),
+                DharaButton(
+                  key: const Key('anime-refresh'),
+                  label: anime.isLoading ? 'Asking …' : 'Ask again',
+                  icon: DharaIcons.refresh,
+                  small: true,
+                  onPressed: anime.isLoading
+                      ? null
+                      : () => unawaited(anime.load(fresh: true)),
+                ),
+              ],
+            ),
+          ),
+          if (failure != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                PageInsets.contentLeft,
+                rem,
+                DharaLayout.pageRight,
+                0,
               ),
-              SliverPadding(
-                padding: sides,
-                sliver: SliverList.builder(
-                  itemCount: rows.length,
-                  itemBuilder: (context, i) => switch (rows[i]) {
-                    _Heading(:final text) => Padding(
-                      padding: const EdgeInsets.only(top: 16, bottom: 8),
-                      child: PanelHeading(text),
+              child: GlassCard(
+                radius: DharaRadii.md,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DharaSpace.s4,
+                  vertical: DharaSpace.s3,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      DharaIcons.info,
+                      size: 1.2 * rem,
+                      color: DharaColors.warn,
                     ),
-                    final AnimeRow row => _AnimeRowTile(
-                      row: row,
-                      onOpen: () => _open(row),
+                    const SizedBox(width: DharaSpace.s3),
+                    Expanded(
+                      child: Text(
+                        failure,
+                        key: const Key('anime-failure'),
+                        style: const TextStyle(
+                          fontFamily: DharaFonts.ui,
+                          fontSize: DharaType.sm,
+                          height: DharaType.body,
+                          color: DharaColors.text2,
+                        ),
+                      ),
                     ),
-                    _ => const SizedBox.shrink(),
-                  },
+                  ],
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 36)),
-            ],
-          );
-        },
+            ),
+          if (mine.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: .9 * rem),
+              child: CardRow(
+                key: const Key('anime-mine'),
+                title: 'In your library',
+                onSeeAll: _browse,
+                leftInset: PageInsets.contentLeft,
+                itemCount: mine.length,
+                itemBuilder: (context, index) => PosterCard(
+                  title: mine[index],
+                  onOpen: () => openDetails(context, mine[index]),
+                ),
+              ),
+            ),
+          if (seasonal != null && seasonal.isNotEmpty)
+            list(
+              'anime-season',
+              'Airing this season · ${anime.season.label} '
+                  '${anime.seasonYear}',
+              seasonal,
+            ),
+          if (trending != null && trending.isNotEmpty)
+            list('anime-trending', 'Trending on AniList', trending),
+          if (mine.isEmpty &&
+              (seasonal?.isEmpty ?? true) &&
+              (trending?.isEmpty ?? true) &&
+              !anime.isLoading &&
+              failure == null)
+            const EmptyState(
+              key: Key('anime-empty'),
+              icon: DharaIcons.anime,
+              title: 'No anime to show yet',
+              message:
+                  'AniList has not been asked, and the library holds '
+                  'nothing that is known to be anime.',
+            ),
+        ],
       ),
     );
   }
 }
 
-int _inLibrary(List<AnimeRow> rows) =>
-    rows.where((row) => row.inLibrary).length;
-
-class _Heading {
-  const _Heading(this.text);
-
-  final String text;
-}
-
-class _AnimeRowTile extends StatelessWidget {
-  const _AnimeRowTile({required this.row, required this.onOpen});
+/// An anime of one of AniList's lists, as a poster: its cover, its score,
+/// and whether the library has it.
+class AnimeCard extends StatelessWidget {
+  const AnimeCard({super.key, required this.row, required this.onOpen});
 
   final AnimeRow row;
   final VoidCallback onOpen;
@@ -197,86 +282,162 @@ class _AnimeRowTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final anime = row.anime;
-    final year = anime.year;
-    final episodes = anime.episodes;
     final score = anime.score;
-    final romaji = anime.romaji;
-    final details = [
-      if (romaji != null && romaji != anime.name) romaji,
-      switch (anime.format) {
-        'TV' => 'Series',
-        'MOVIE' => 'Film',
-        'TV_SHORT' => 'Short series',
-        final String other => other,
-        null => 'Anime',
-      },
-      if (episodes != null) episodes == 1 ? '1 episode' : '$episodes episodes',
-      if (score != null) '$score / 100',
-    ].join('  ·  ');
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          key: Key('anime-${anime.id}'),
-          borderRadius: BorderRadius.circular(DharaRadii.md),
-          onTap: row.inLibrary ? onOpen : null,
-          child: Ink(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-            decoration: BoxDecoration(
-              color: DharaColors.surface,
-              borderRadius: BorderRadius.circular(DharaRadii.md),
-              border: Border.all(color: DharaColors.stroke),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    const corners = BorderRadius.all(Radius.circular(DharaRadii.md));
+    const small = TextStyle(
+      fontFamily: DharaFonts.ui,
+      fontSize: .68 * rem,
+      height: 1.3,
+      color: DharaColors.text2,
+    );
+    return Pressable(
+      onPressed: onOpen,
+      semanticLabel:
+          '${anime.name}, '
+          '${row.inLibrary ? 'in your library' : 'not on your servers'}',
+      builder: (context, state) {
+        final active = state.active;
+        return ExcludeSemantics(
+          child: AnimatedScale(
+            scale: active ? DharaMotion.hoverScale : 1,
+            duration: motion(context, DharaMotion.base),
+            curve: DharaMotion.easeOut,
+            child: AspectRatio(
+              aspectRatio: 2 / 3,
+              child: AnimatedContainer(
+                duration: motion(context, DharaMotion.base),
+                decoration: BoxDecoration(
+                  color: DharaColors.bgElev,
+                  borderRadius: corners,
+                  boxShadow: active ? DharaShadows.glow : DharaShadows.card,
+                ),
+                child: ClipRRect(
+                  borderRadius: corners,
+                  child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      Text(
-                        year == null ? anime.name : '${anime.name} ($year)',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
+                      // What the library lacks is shown a little dimmed.
+                      Opacity(
+                        opacity: row.inLibrary || active ? 1 : .55,
+                        child: TmdbCover.anilist(
+                          path: anime.coverPath,
+                          placeholder: PlaceholderArt(seed: anime.name),
                         ),
                       ),
-                      Text(
-                        details,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          color: DharaColors.text3,
+                      const DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [Color(0xD9000000), Color(0x00000000)],
+                            stops: [0, .5],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: .5 * rem,
+                        left: .5 * rem,
+                        right: .5 * rem,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Shrinks rather than runs out of the card.
+                            Expanded(
+                              child: row.inLibrary
+                                  ? const FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.topLeft,
+                                      child: DharaBadge(
+                                        'IN LIBRARY',
+                                        style: DharaBadgeStyle.good,
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                            const SizedBox(width: .3 * rem),
+                            if (score != null)
+                              Container(
+                                height: 1.2 * rem,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: .4 * rem,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xA6000000),
+                                  borderRadius: BorderRadius.circular(.3 * rem),
+                                  border: Border.all(
+                                    color: const Color(0x24FFFFFF),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      DharaIcons.star,
+                                      size: .7 * rem,
+                                      color: DharaColors.warn,
+                                    ),
+                                    const SizedBox(width: .2 * rem),
+                                    Text(
+                                      (score / 10).toStringAsFixed(1),
+                                      style: const TextStyle(
+                                        fontFamily: DharaFonts.ui,
+                                        fontSize: .64 * rem,
+                                        fontWeight: DharaType.bold,
+                                        height: 1.2,
+                                        color: DharaColors.text,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Positioned(
+                        left: .7 * rem,
+                        right: .7 * rem,
+                        bottom: .7 * rem,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              anime.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: DharaFonts.ui,
+                                fontSize: DharaType.sm,
+                                fontWeight: DharaType.semibold,
+                                height: 1.25,
+                                color: DharaColors.text,
+                              ),
+                            ),
+                            const SizedBox(height: .15 * rem),
+                            Text(
+                              describeAnime(anime),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: small,
+                            ),
+                            if (!row.inLibrary)
+                              Text(
+                                'Not on your servers',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: small.copyWith(color: DharaColors.text3),
+                              ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 14),
-                Text(
-                  row.inLibrary ? 'In your library' : 'Not on your servers',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: row.inLibrary ? DharaColors.good : DharaColors.text3,
-                  ),
-                ),
-                if (row.inLibrary) ...[
-                  const SizedBox(width: 6),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    size: 20,
-                    color: DharaColors.text3,
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

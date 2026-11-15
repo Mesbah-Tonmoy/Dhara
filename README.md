@@ -19,7 +19,7 @@ A Bangla + English README is written in Phase 8.
 | 3. Sources and server discovery | Done: starter list of 38 checked servers, Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet |
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
-| 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters) and the page of a title (film, or show with its episodes) are in; see [Shell and window](#shell-and-window), [Home](#home) and [Title page](#title-page). Not yet: film genres and cast, search and browse, the new Anime page, My List and History screens, Settings. The other pages inside the shell are still the working screens of the earlier phases |
+| 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). Not yet: My List and History screens, Settings, the new look for Server Discovery, Library index and matching. "Titles and matching", Library index and Server Discovery are still the working screens of the earlier phases |
 | 7–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -183,7 +183,7 @@ blur what is behind them.
 
 | Key | Action |
 |---|---|
-| Ctrl+K or / | Put the keyboard into the search field (Enter searches the library) |
+| Ctrl+K or / | Put the keyboard into the search field; the results follow what is typed (Enter lets go of the keyboard) |
 | Ctrl+O | Play a URL |
 | Alt+← , the mouse's back button | Back |
 | Esc | Leave a text field, otherwise Back |
@@ -384,8 +384,40 @@ genres, about the same year and language).
   the player counts down to the next as before. The player shows the title
   ("The Bay · S1 · E2 · …") instead of the file name.
 - "Fix match" opens the same dialog as Needs review, for any title.
-- Not there yet: director and cast, genres and length of films (the next
-  increment fetches them), subtitles a copy has, and a live ping.
+- Director (or creators), cast, genres and length show once TMDB's page of
+  the title was read (see [Film details](#film-details)).
+- Not there yet: the subtitles a copy has, and a live ping.
+
+## Search and browse
+
+One page (`lib/features/browse`) is the search and the way to browse
+Movies and Series: what is typed into the title bar and the filters on the
+page narrow one grid of posters as they change. The rail's Movies and
+Series open it with the type set.
+
+- **What is found:** every film and show with a video on an enabled server,
+  also the ones TMDB does not know (artwork drawn from the name); only what
+  was set aside by hand is left out. Videos that are neither (clips, songs)
+  are found by file name on the Library index screen, as before.
+- **Search** is over the titles' names (and original names) with SQLite
+  FTS5: every word must match, the last one as a prefix. What is typed is
+  quoted, so it cannot act as query syntax.
+- **Filters:** type (All, Movies, Series, Anime), quality (has a copy at
+  least that sharp on an enabled server), TMDB rating (7+, 8+), year (this
+  year, the two before, or older), and genres (all of the chosen ones).
+  **Order:** relevance (with a search; otherwise newest), rating, newest,
+  A–Z.
+- A query is answered with the ids of all titles that fit, so the grid
+  knows its length at once; the cards are read sixty at a time as the grid
+  scrolls, and only those in view are built.
+- Typing waits 120 ms for the next key before it asks; a filter asks at
+  once; only the latest answer counts. A search typed on another page
+  starts over everything: the filters of the last browse are taken off.
+- Measured in the automated test, on 20,000 titles with 100,000 videos, on
+  the development PC: a search 20 to 25 ms, listing everything 35 to 45 ms,
+  several filters at once about 40 ms, a page of 60 cards about 1 ms (the
+  aims were 100 ms for a search and 20 ms for a page). Not yet timed on
+  the real library.
 
 ## Library index
 
@@ -400,7 +432,8 @@ folder (which is also the crawl queue), the video files, their subtitles, a
 full-text index (FTS5) over file names and folder paths, the playback
 positions, since schema version 2 the titles those videos are copies
 of (see [Titles and metadata](#titles-and-metadata)), and since version 3
-My List, the watch history and the indexes Home reads by. A database of an
+My List, the watch history and the indexes Home reads by, and since
+version 4 who made a title and when TMDB's page of it was read. A database of an
 older version is upgraded in place and keeps what it holds (from version 2:
 the unfinished videos start the history). **A build older than the file
 cannot open it:** it runs with an empty index for that run and leaves the
@@ -566,26 +599,50 @@ no later run changes it.
 
 `RemoteImageStore` (`lib/core/images`) downloads a poster once and keeps it
 in `%APPDATA%\com.dhara\dhara\images`. Only `image.tmdb.org` over https,
-a fixed set of sizes and paths of the shape TMDB uses are asked for; a
+a fixed set of sizes and paths of the shape TMDB uses are asked for, and
+covers of anime from `s4.anilist.co` (https, and only paths of the shape
+AniList's covers have); a
 download is at most 3 MB and is kept only if it starts like a JPEG, PNG or
 WebP file. The folder is held below 300 MB by removing what was not looked
 at for the longest.
 
+### Film details
+
+A match (a search answer) brings name, year, description, rating and
+pictures, but not genres, length or people. So TMDB's page of every matched
+film is read once more, by id, in the background
+(`film_details_controller.dart`): genres, length, director and the first of
+the cast. Shows get their creators and cast with their seasons.
+
+- One request per film, about fourteen a second: a library of 18,000
+  matched films takes roughly twenty minutes the first time. It starts by
+  itself after titles were matched or counted, makes way for a run of
+  matching, and goes on next time from where it stopped.
+- What was read is kept for good (`titles.details_at` says when). A title
+  that is matched to another film has its page read again.
+- With the genres in, Japanese animated films count as anime, and "More
+  like this" goes by genre.
+
 ### Anime
 
-The Anime screen shows AniList's trending list and the season under way,
-each anime marked with whether the library has it (a season of a show
-finds its show). AniList needs no key; the two lists are fetched when the
-screen is opened, twice a day at most, and nothing about the library is
-sent.
+The Anime page shows the anime the library holds (animation from Japan,
+and what AniList's lists matched), then AniList's list of the season under
+way and its trending list as rows of covers, each anime marked with whether
+the library has it (a season of a show finds its show). One that is in the
+library opens its page. AniList needs no key; the two lists are fetched
+when the page is opened, twice a day at most, and nothing about the library
+is sent. Covers come from AniList's picture server and are kept on disk
+like posters; lists kept by an older build have no covers until they are
+fetched again ("Ask again").
 
 ### What the app contacts for this
 
 | Host | For | When |
 |---|---|---|
-| `api.themoviedb.org` | search, show and season details, key check | only with a key, during a match run or a search in Needs review |
-| `image.tmdb.org` | posters | when a matched title is shown |
-| `graphql.anilist.co` | two lists of anime | when the Anime screen is opened |
+| `api.themoviedb.org` | search, film, show and season details, key check | only with a key: during a match run, after it for details, or a search in Needs review |
+| `image.tmdb.org` | posters, backdrops, stills | when a matched title is shown |
+| `graphql.anilist.co` | two lists of anime | when the Anime page is opened |
+| `s4.anilist.co` | covers of the anime on those lists | when the Anime page shows them |
 
 All over https, each through its own client that knows no other host. Only
 titles and years are sent.
@@ -617,8 +674,7 @@ On the real library of 2026-11-14 (three servers, 23,389 videos):
   can be put right from the title's own page ("Fix match"). The database
   is ready for the first (`titles.set_aside`, which Home already honours);
   the second needs no new column. Neither has a button yet.
-- Episodes numbered straight through (anime) get no episode names. Films
-  get no genres. AniList covers are not shown.
+- Episodes numbered straight through (anime) get no episode names.
 - The anime parts were tested with made-up names and a real AniList
   answer: none of the three servers tried so far has an anime folder.
 
@@ -638,6 +694,7 @@ lib/widgets/         shared widgets of the prototype
 lib/shell/           title bar, navigation rail, navigation
 lib/features/home/   Home: its queries, controller, banner, rows and cards
 lib/features/details/  the page of a title: copies, episodes, what to play
+lib/features/browse/   search and browse: query, controller, grid
 lib/features/playback/ which copy to play, and opening the player
 lib/features/        the other features: sources, indexer, metadata,
                      player, history, my_list

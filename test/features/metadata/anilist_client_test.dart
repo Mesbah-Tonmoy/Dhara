@@ -6,7 +6,57 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/local_server.dart';
 
+void _coverTests() {
+  group('a cover', () {
+    const path = '/file/anilistcdn/media/anime/cover/large/bx21-YCDoj1.jpg';
+
+    test('is taken by its path if it is on AniList\'s picture server', () {
+      expect(anilistCoverPath('https://s4.anilist.co$path'), path);
+    });
+
+    test('is dropped if its address is anything else', () {
+      for (final url in [
+        'http://s4.anilist.co$path',
+        'https://s4.anilist.co.evil.test$path',
+        'https://evil.test$path',
+        'https://user:pw@s4.anilist.co$path',
+        'https://s4.anilist.co:8443$path',
+        'https://s4.anilist.co$path?x=1',
+        'https://s4.anilist.co$path#x',
+        'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/'
+            '..%2F..%2Fa.jpg',
+        'https://s4.anilist.co/other/a.jpg',
+        'file:///C:/Windows/a.jpg',
+        '',
+      ]) {
+        expect(anilistCoverPath(url), isNull, reason: url);
+      }
+      expect(anilistCoverPath(null), isNull);
+      expect(anilistCoverPath(42), isNull);
+    });
+
+    test('is kept with the entry, and checked again when it is read back', () {
+      const entry = AnimeEntry(id: 21, english: 'ONE PIECE', coverPath: path);
+
+      expect(AnimeEntry.fromJson(entry.toJson())!.coverPath, path);
+      expect(
+        AnimeEntry.fromJson({
+          ...entry.toJson(),
+          'cover': '/../a.jpg',
+        })!.coverPath,
+        isNull,
+      );
+      expect(
+        AnimeEntry.fromJson({'id': 21, 'english': 'ONE PIECE'})!.coverPath,
+        isNull,
+        reason: 'lists kept before covers were',
+      );
+    });
+  });
+}
+
 void main() {
+  _coverTests();
   late LocalServer server;
   late List<Duration> waits;
   late List<Map<String, Object?>> bodies;

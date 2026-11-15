@@ -4,11 +4,11 @@ import 'dart:typed_data';
 
 import 'package:dhara/core/net/safe_http_client.dart';
 
-/// Posters, backdrops and stills from TMDB's image server, kept on disk so
-/// that each is downloaded once.
+/// Posters, backdrops and stills from TMDB's image server, and covers from
+/// AniList's, kept on disk so that each is downloaded once.
 ///
-/// - Talks to `image.tmdb.org` over https only, through a [SafeHttpClient];
-///   every download has a time limit and a size limit.
+/// - Talks to `image.tmdb.org` and `s4.anilist.co` over https only, through
+///   a [SafeHttpClient]; every download has a time limit and a size limit.
 /// - Only the sizes in [sizes] and paths of the shape TMDB uses
 ///   (`/abc123.jpg`) are asked for: the path becomes part of an address
 ///   and of a file name, so nothing else is let through.
@@ -22,15 +22,19 @@ class RemoteImageStore {
     required Directory? folder,
     SafeHttpClient? http,
     Uri? baseUrl,
+    Uri? anilistBaseUrl,
     this.maxTotalBytes = 300 * 1024 * 1024,
     this.maxImageBytes = 3 * 1024 * 1024,
     DateTime Function() now = DateTime.now,
   }) : _folder = folder,
        _base = baseUrl ?? Uri.https(host, '/t/p'),
+       _anilistBase = anilistBaseUrl ?? Uri.https(anilistImageHost),
        _http =
            http ??
            SafeHttpClient(
-             isAllowedHost: (name) => name == (baseUrl?.host ?? host),
+             isAllowedHost: (name) =>
+                 name == (baseUrl?.host ?? host) ||
+                 name == (anilistBaseUrl?.host ?? anilistImageHost),
            ),
        _ownsHttp = http == null,
        _now = now;
@@ -46,6 +50,7 @@ class RemoteImageStore {
 
   final Directory? _folder;
   final Uri _base;
+  final Uri _anilistBase;
   final SafeHttpClient _http;
   final bool _ownsHttp;
   final DateTime Function() _now;
@@ -66,13 +71,42 @@ class RemoteImageStore {
     if (folder == null || !sizes.contains(size) || !_imagePath.hasMatch(path)) {
       return Future.value();
     }
-    final key = '$size$path';
-    return _underWay[key] ??= _get(folder, size, path).whenComplete(() {
-      // In braces: returning the removed future would make it wait for
-      // itself.
-      _underWay.remove(key);
-    });
+    final separator = Platform.pathSeparator;
+    return _kept(
+      '$size$path',
+      File(
+        '${folder.path}${separator}tmdb$separator$size$separator'
+        '${path.substring(1)}',
+      ),
+      _base.replace(path: '${_base.path}/$size$path'),
+    );
   }
+
+  /// The cover of an anime at [path] on AniList's picture server (as
+  /// `anilistCoverPath` returns it), as a file on disk; downloaded if it is
+  /// not there yet. `null` in the same cases as [file]. Never throws.
+  Future<File?> anilistCover(String path) {
+    final folder = _folder;
+    if (folder == null || !anilistCoverFile.hasMatch(path)) {
+      return Future.value();
+    }
+    final separator = Platform.pathSeparator;
+    final [..., size, name] = path.split('/');
+    return _kept(
+      'anilist$path',
+      File('${folder.path}${separator}anilist$separator$size$separator$name'),
+      _anilistBase.replace(path: path),
+    );
+  }
+
+  /// The picture kept as [file], fetched from [url] if it is not there;
+  /// asked for once at a time under [key].
+  Future<File?> _kept(String key, File file, Uri url) =>
+      _underWay[key] ??= _get(key, file, url).whenComplete(() {
+        // In braces: returning the removed future would make it wait for
+        // itself.
+        _underWay.remove(key);
+      });
 
   /// Removes the pictures that were not looked at for the longest until
   /// the folder is well below [maxTotalBytes], and downloads that were
@@ -82,15 +116,20 @@ class RemoteImageStore {
     if (folder == null) return 0;
     var freed = 0;
     try {
-      final root = Directory('${folder.path}${Platform.pathSeparator}tmdb');
-      if (!await root.exists()) return 0;
       final kept = <(File, int, DateTime)>[];
       var total = 0;
       final stale = _now().subtract(const Duration(hours: 1));
-      await for (final entry in root.list(
-        recursive: true,
-        followLinks: false,
-      )) {
+      final entries = <FileSystemEntity>[];
+      for (final provider in const ['tmdb', 'anilist']) {
+        final root = Directory(
+          '${folder.path}${Platform.pathSeparator}$provider',
+        );
+        if (!await root.exists()) continue;
+        entries.addAll(
+          await root.list(recursive: true, followLinks: false).toList(),
+        );
+      }
+      for (final entry in entries) {
         if (entry is! File) continue;
         final stat = await entry.stat();
         if (entry.path.endsWith(_partSuffix)) {
@@ -124,25 +163,20 @@ class RemoteImageStore {
     if (_ownsHttp) _http.close();
   }
 
-  Future<File?> _get(Directory folder, String size, String path) async {
-    final separator = Platform.pathSeparator;
-    final file = File(
-      '${folder.path}${separator}tmdb$separator$size$separator'
-      '${path.substring(1)}',
-    );
+  Future<File?> _get(String key, File file, Uri url) async {
     try {
       if (await file.exists() && await file.length() > 0) {
         await _markUsed(file);
         return file;
       }
       // What failed a moment ago is not asked for with every rebuild.
-      final failed = _failedAt['$size$path'];
+      final failed = _failedAt[key];
       if (failed != null && _now().difference(failed) < _retryAfter) {
         return null;
       }
-      final bytes = await _download(size, path);
+      final bytes = await _download(url);
       if (bytes == null) {
-        _failedAt['$size$path'] = _now();
+        _failedAt[key] = _now();
         return null;
       }
       await file.parent.create(recursive: true);
@@ -157,7 +191,7 @@ class RemoteImageStore {
     }
   }
 
-  Future<Uint8List?> _download(String size, String path) async {
+  Future<Uint8List?> _download(Uri url) async {
     if (_downloads >= _maxDownloads) {
       final turn = Completer<void>();
       _waiting.add(turn);
@@ -167,7 +201,7 @@ class RemoteImageStore {
     }
     try {
       final response = await _http.get(
-        _base.replace(path: '${_base.path}/$size$path'),
+        url,
         timeout: const Duration(seconds: 20),
         maxBytes: maxImageBytes,
       );
@@ -223,3 +257,14 @@ const _partSuffix = '.part';
 
 /// "/abc123.jpg": one name, no folders, a picture's extension.
 final _imagePath = RegExp(r'^/[A-Za-z0-9_-]{1,64}\.(jpg|jpeg|png|webp)$');
+
+/// The host AniList serves its pictures from.
+const anilistImageHost = 's4.anilist.co';
+
+/// The path of a cover on AniList's picture server: a size and one file
+/// name with a picture's extension, nothing else. The path ends up in an
+/// address and in a file name.
+final anilistCoverFile = RegExp(
+  r'^/file/anilistcdn/media/anime/cover/(small|medium|large)/'
+  r'[A-Za-z0-9_-]{1,80}\.(jpg|jpeg|png|webp)$',
+);

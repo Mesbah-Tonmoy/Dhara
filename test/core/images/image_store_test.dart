@@ -43,6 +43,7 @@ void main() {
       folder: noFolder ? null : into ?? folder,
       http: server.client(),
       baseUrl: server.url('/t/p'),
+      anilistBaseUrl: server.url(''),
       maxTotalBytes: maxTotalBytes,
       maxImageBytes: maxImageBytes,
       now: () => clock,
@@ -299,6 +300,73 @@ void main() {
     test('has nothing to do in a folder that was never used', () async {
       expect(await store.trim(), 0);
     });
+  });
+
+  group('anilistCover', () {
+    const cover = '/file/anilistcdn/media/anime/cover/large/bx21-YCDoj1.jpg';
+
+    test('downloads a cover once and keeps it apart from TMDB', () async {
+      var asked = 0;
+      server.routes[cover] = (request) async {
+        asked++;
+        request.response.add(_jpeg);
+        await request.response.close();
+      };
+
+      final file = await store.anilistCover(cover);
+      final again = await store.anilistCover(cover);
+
+      expect(file!.readAsBytesSync(), _jpeg);
+      expect(again!.path, file.path);
+      expect(asked, 1);
+      expect(kept(), ['anilist/large/bx21-YCDoj1.jpg']);
+    });
+
+    test('asks for nothing that is not the path of a cover', () async {
+      for (final path in [
+        '/file/anilistcdn/media/anime/cover/large/../../secret.jpg',
+        '/file/anilistcdn/media/anime/banner/21-abc.jpg',
+        '/file/anilistcdn/media/anime/cover/large/a.exe',
+        '/file/anilistcdn/media/anime/cover/huge/a.jpg',
+        'https://evil.test/file/anilistcdn/media/anime/cover/large/a.jpg',
+        '/a.jpg',
+        '',
+      ]) {
+        expect(await store.anilistCover(path), isNull, reason: path);
+      }
+      expect(server.requests, isEmpty);
+      expect(kept(), isEmpty);
+    });
+
+    test('keeps nothing that is not a picture', () async {
+      serve(cover, utf8.encode('<html>not a picture</html>'));
+
+      expect(await store.anilistCover(cover), isNull);
+      expect(kept(), isEmpty);
+    });
+
+    test('counts toward the limit of the folder like any picture', () async {
+      serve(cover, List.filled(400, 0)..setAll(0, _jpeg));
+      serve('/t/p/w342/a.jpg', List.filled(400, 0)..setAll(0, _jpeg));
+      serve('/t/p/w342/b.jpg', List.filled(400, 0)..setAll(0, _jpeg));
+      final first = await store.anilistCover(cover);
+      first!.setLastModifiedSync(clock.subtract(const Duration(days: 9)));
+      await store.file('w342', '/a.jpg');
+      await store.file('w342', '/b.jpg');
+
+      expect(await store.trim(), 400);
+      expect(kept(), ['tmdb/w342/a.jpg', 'tmdb/w342/b.jpg']);
+    });
+  });
+
+  test('knows a cover of AniList by its address', () {
+    expect(
+      anilistCoverFile.hasMatch(
+        '/file/anilistcdn/media/anime/cover/medium/bx1-abc_DEF-9.png',
+      ),
+      isTrue,
+    );
+    expect(anilistImageHost, 's4.anilist.co');
   });
 
   test('talks to image.tmdb.org unless told otherwise', () {

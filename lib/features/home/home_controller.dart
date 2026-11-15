@@ -187,6 +187,10 @@ class HomeScope extends InheritedNotifier<HomeController> {
     return scope!.notifier!;
   }
 
+  /// As [of], or `null` where there is no Home (a test of one screen).
+  static HomeController? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<HomeScope>()?.notifier;
+
   /// As [read], or `null` where there is no Home (a test of one screen).
   static HomeController? maybeRead(BuildContext context) =>
       context.getInheritedWidgetOfExactType<HomeScope>()?.notifier;

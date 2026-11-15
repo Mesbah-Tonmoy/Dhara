@@ -140,33 +140,42 @@ class _CardRowState extends State<CardRow> {
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Flexible(
-                  child: Text(
-                    widget.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: DharaFonts.display,
-                      fontSize: DharaType.lg,
-                      fontWeight: DharaType.bold,
-                      letterSpacing: -.01 * DharaType.lg,
-                      height: DharaType.snug,
-                      color: DharaColors.text,
-                    ),
+                // The heading and its count take all the room there is, so
+                // that "See all" stands at the right edge.
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          widget.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: DharaFonts.display,
+                            fontSize: DharaType.lg,
+                            fontWeight: DharaType.bold,
+                            letterSpacing: -.01 * DharaType.lg,
+                            height: DharaType.snug,
+                            color: DharaColors.text,
+                          ),
+                        ),
+                      ),
+                      if (count != null && count > 0) ...[
+                        const SizedBox(width: .7 * rem),
+                        Text(
+                          '$count ${count == 1 ? 'title' : 'titles'}',
+                          style: const TextStyle(
+                            fontFamily: DharaFonts.ui,
+                            fontSize: DharaType.xs,
+                            color: DharaColors.text3,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                if (count != null && count > 0) ...[
-                  const SizedBox(width: .7 * rem),
-                  Text(
-                    '$count ${count == 1 ? 'title' : 'titles'}',
-                    style: const TextStyle(
-                      fontFamily: DharaFonts.ui,
-                      fontSize: DharaType.xs,
-                      color: DharaColors.text3,
-                    ),
-                  ),
-                ],
-                const Spacer(),
                 if (onSeeAll != null) _SeeAll(onPressed: onSeeAll),
               ],
             ),

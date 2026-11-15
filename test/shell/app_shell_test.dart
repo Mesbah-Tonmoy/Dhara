@@ -288,6 +288,19 @@ void main() {
       expect(find.byType(BrowseScreen), findsOneWidget);
       expect(_searchHasFocus(tester), isTrue);
 
+      // A search that starts on another page is over everything again.
+      await _open(tester, 'series');
+      await _open(tester, 'home');
+      await tester.enterText(_search, 'bay');
+      await tester.pumpAndSettle();
+      expect(
+        BrowseScope.read(
+          tester.element(find.byType(BrowseScreen)),
+        ).query.hasNoFilters,
+        isTrue,
+      );
+      await tester.pump(const Duration(milliseconds: 200));
+
       // Movies again: what was typed goes.
       await _open(tester, 'movies');
       expect(tester.widget<TextField>(_search).controller!.text, isEmpty);

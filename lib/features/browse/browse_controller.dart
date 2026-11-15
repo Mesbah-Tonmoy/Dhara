@@ -212,6 +212,10 @@ class BrowseScope extends InheritedNotifier<BrowseController> {
     assert(scope != null, 'No BrowseScope above this widget');
     return scope!.notifier!;
   }
+
+  /// As [read], or `null` where there is no search (a test of one screen).
+  static BrowseController? maybeRead(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<BrowseScope>()?.notifier;
 }
 
 // What follows runs in the library isolate.

@@ -83,6 +83,12 @@ void main() {
     expect(find.text('2310 titles'), findsOneWidget);
     expect(tester.getTopLeft(find.text('Movies')).dx, 190 + 20);
 
+    // At the right edge of the row, a page margin in.
+    expect(
+      tester.getTopRight(find.byIcon(Icons.chevron_right_rounded).first).dx,
+      moreOrLessEquals(190 + 900 - DharaLayout.pageRight, epsilon: 1),
+    );
+
     await tester.tap(find.text('See all'));
     expect(seen, 1);
   });
