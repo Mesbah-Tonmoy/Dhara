@@ -76,9 +76,13 @@ class ReviewStore {
   ///
   /// With [only], the title with that id alone, whatever its state: to put
   /// right a match nobody doubted.
+  ///
+  /// At most [limit] of them, after the first [offset]: the list is read a
+  /// part at a time. [count] says how many there are in all.
   List<ReviewItem> items({
     required Iterable<String> sourceIds,
     int limit = 500,
+    int offset = 0,
     int? only,
   }) {
     final ids = sourceIds.toList();
@@ -105,8 +109,9 @@ class ReviewStore {
         'JOIN folders d ON d.id = f.folder JOIN sources s ON s.id = d.source '
         'WHERE m.title = t.id '
         'AND s.source_id IN (${List.filled(ids.length, '?').join(', ')})) '
-        'ORDER BY t.match_state, t.name COLLATE NOCASE, t.id LIMIT ?',
-        [?only, ...ids, limit],
+        'ORDER BY t.match_state, t.name COLLATE NOCASE, t.id '
+        'LIMIT ? OFFSET ?',
+        [?only, ...ids, limit, offset],
       ))
         ReviewItem(
           id: row['id'] as int,
@@ -124,6 +129,25 @@ class ReviewStore {
           samplePath: row['path'] as String?,
         ),
     ];
+  }
+
+  /// How many titles there are to review with a video on one of the
+  /// sources in [sourceIds]: what [items] lists, without its limit.
+  int count({required Iterable<String> sourceIds}) {
+    final ids = sourceIds.toList();
+    if (ids.isEmpty) return 0;
+    return _db
+            .select(
+              'SELECT count(*) AS titles FROM titles t '
+              'WHERE t.match_state IN (2, 3) AND EXISTS ('
+              'SELECT 1 FROM file_meta m JOIN files f ON f.id = m.file '
+              'JOIN folders d ON d.id = f.folder '
+              'JOIN sources s ON s.id = d.source WHERE m.title = t.id '
+              'AND s.source_id IN (${List.filled(ids.length, '?').join(', ')}))',
+              ids,
+            )
+            .single['titles']
+        as int;
   }
 
   /// What TMDB answered when it was asked about [item] before, as far as

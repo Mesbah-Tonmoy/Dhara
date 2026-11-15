@@ -899,7 +899,9 @@ seasons the library has (`EpisodesController`), and again every 14 days.
 
 ### Needs review
 
-Opened from "Titles and matching". Lists the unsure and not-found titles.
+Opened from "Titles and matching". Lists the unsure and not-found titles:
+all of them are counted in its heading, and the list is read 500 at a
+time as it is scrolled ("Show more" does the same).
 A title opens with the candidates
 TMDB offered (no new request); pick one, search by another name and year,
 or leave the title as its files name it. A decision made by hand is final:

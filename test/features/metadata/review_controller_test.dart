@@ -54,7 +54,7 @@ void main() {
   late ReviewController review;
 
   /// Opens the controllers, reads the names and looks every title up.
-  Future<void> open({String? key = _apiKey}) async {
+  Future<void> open({String? key = _apiKey, int pageSize = 500}) async {
     sources = SourceStore(
       starter: [
         for (final id in ['icc', 'flix'])
@@ -93,6 +93,7 @@ void main() {
       tmdbKey: tmdbKey,
       tmdbUrl: tmdb.url,
       tmdbRetries: 0,
+      pageSize: pageSize,
     );
     addTearDown(() {
       review.dispose();
@@ -150,6 +151,53 @@ void main() {
     expect(items.first.samplePath, 'Movies/English');
     expect(items.last.notFound, isTrue);
     expect(items.last.spelledYear, 1999);
+  });
+
+  test(
+    'a long list is read a part at a time, and counted as a whole',
+    () async {
+      await open(pageSize: 1);
+      var changes = 0;
+      review.addListener(() => changes++);
+
+      await review.load();
+      expect([for (final entry in review.items!) entry.spelledName], ['Hell']);
+      expect(review.total, 2);
+      expect(review.hasMore, isTrue);
+
+      await review.loadMore();
+      expect(
+        [for (final entry in review.items!) entry.spelledName],
+        ['Hell', 'A Wrong Name'],
+      );
+      expect(review.total, 2);
+      expect(review.hasMore, isFalse);
+      expect(changes, 2);
+
+      // At the end there is nothing more to read.
+      await review.loadMore();
+      expect(review.items, hasLength(2));
+      expect(changes, 2);
+    },
+  );
+
+  test('a title that is settled leaves the count too', () async {
+    await open(pageSize: 1);
+    await review.load();
+    expect(review.total, 2);
+
+    await review.leaveAsIs(item('Hell'));
+
+    expect(review.items, isEmpty);
+    expect(review.total, 1);
+    // What moved up is read next.
+    expect(review.hasMore, isTrue);
+    await review.loadMore();
+    expect(
+      [for (final entry in review.items!) entry.spelledName],
+      ['A Wrong Name'],
+    );
+    expect(review.hasMore, isFalse);
   });
 
   test('leaves out titles on sources that are switched off', () async {

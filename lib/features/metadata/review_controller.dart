@@ -37,6 +37,7 @@ class ReviewController extends ChangeNotifier {
     required TmdbKeyController tmdbKey,
     Uri? tmdbUrl,
     int tmdbRetries = 1,
+    this.pageSize = 500,
   }) : _library = library,
        _titles = titles,
        _match = match,
@@ -53,22 +54,72 @@ class ReviewController extends ChangeNotifier {
   final Uri? _tmdbUrl;
   final int _tmdbRetries;
 
+  /// How many titles are read at a time: the list can be thousands long.
+  final int pageSize;
+
   List<ReviewItem>? _items;
+  int _total = 0;
+  var _loadingMore = false;
   var _disposed = false;
 
-  /// The titles to review, as of the last [load]; `null` before the first.
+  /// The titles to review that were read so far (see [loadMore]), as of
+  /// the last [load]; `null` before the first.
   List<ReviewItem>? get items => _items;
 
-  /// Reads the list again. Never throws.
+  /// How many titles there are to review in all.
+  int get total => _total;
+
+  /// Whether [loadMore] has more of the list to read.
+  bool get hasMore => (_items?.length ?? 0) < _total;
+
+  List<String> get _enabledSources => [
+    for (final source in _titles.index.sources.sources)
+      if (_titles.index.sources.isEnabled(source.id)) source.id,
+  ];
+
+  /// Reads the list again, from its beginning. Never throws.
   Future<void> load() async {
-    final ids = [
-      for (final source in _titles.index.sources.sources)
-        if (_titles.index.sources.isEnabled(source.id)) source.id,
-    ];
     try {
-      _items = await _library.run(_readItems, ids);
+      final (items, total) = await _library.run(_readPage, (
+        _enabledSources,
+        pageSize,
+        0,
+        true,
+      ));
+      _items = items;
+      _total = total;
     } on LibraryWorkException {
       _items ??= const [];
+    }
+    _notify();
+  }
+
+  /// Reads the next part of the list, if there is one. Never throws.
+  Future<void> loadMore() async {
+    final items = _items;
+    if (items == null || !hasMore || _loadingMore) return;
+    _loadingMore = true;
+    try {
+      // (Counted when the list was read from its beginning.)
+      final (more, _) = await _library.run(_readPage, (
+        _enabledSources,
+        pageSize,
+        items.length,
+        false,
+      ));
+      // A title that was settled meanwhile may have moved the rest up.
+      final known = {for (final item in _items ?? items) item.id};
+      _items = [
+        ...?_items,
+        for (final item in more)
+          if (!known.contains(item.id)) item,
+      ];
+      // Nothing new came: there is no more, whatever was counted.
+      if (more.isEmpty) _total = _items!.length;
+    } on LibraryWorkException {
+      // Asked for again when the end of the list is reached again.
+    } finally {
+      _loadingMore = false;
     }
     _notify();
   }
@@ -152,10 +203,12 @@ class ReviewController extends ChangeNotifier {
     } on LibraryWorkException {
       return;
     }
+    final before = _items?.length ?? 0;
     _items = [
       for (final other in _items ?? const <ReviewItem>[])
         if (other.id != item.id) other,
     ];
+    if (_items!.length < before && _total > 0) _total--;
     _notify();
     // The numbers on the Films and shows screen follow.
     await _match.load();
@@ -201,8 +254,19 @@ class ReviewScope extends InheritedNotifier<ReviewController> {
 
 // What follows runs in the library isolate.
 
-List<ReviewItem> _readItems(LibraryDb db, List<String> sourceIds) =>
-    ReviewStore(db).items(sourceIds: sourceIds);
+/// One part of the list (the sources, how many, after how many), and, if
+/// asked for, how many titles there are in all (0 otherwise).
+(List<ReviewItem>, int) _readPage(
+  LibraryDb db,
+  (List<String>, int, int, bool) request,
+) {
+  final store = ReviewStore(db);
+  final (sources, limit, offset, count) = request;
+  return (
+    store.items(sourceIds: sources, limit: limit, offset: offset),
+    count ? store.count(sourceIds: sources) : 0,
+  );
+}
 
 List<ReviewItem> _readItem(LibraryDb db, (List<String>, int) request) =>
     ReviewStore(db).items(sourceIds: request.$1, only: request.$2);

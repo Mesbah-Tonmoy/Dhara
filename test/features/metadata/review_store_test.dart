@@ -85,6 +85,42 @@ void main() {
     expect(store.items(sourceIds: []), isEmpty);
   });
 
+  test('is read a part at a time, and counted as a whole', () {
+    final matches = MatchStore(library);
+    final names = ['Delta', 'Alpha', 'Charlie', 'Bravo', 'Echo'];
+    for (final (index, name) in names.indexed) {
+      final title = add('Movies', '$name (200$index).mkv');
+      matches.markNotFound(title, confidence: 10);
+    }
+    // One that is sure, and one on another server, do not count.
+    matches.apply(
+      add('Movies', 'Sure (2010).mkv'),
+      _film(1, 'Sure', 2010),
+      confidence: 95,
+    );
+    matches.markNotFound(
+      add('Movies', 'Elsewhere (2011).mkv', source: 'flix'),
+      confidence: 10,
+    );
+
+    List<String> part(int offset) => [
+      for (final item in store.items(
+        sourceIds: ['icc'],
+        limit: 2,
+        offset: offset,
+      ))
+        item.name,
+    ];
+
+    expect(part(0), ['Alpha', 'Bravo']);
+    expect(part(2), ['Charlie', 'Delta']);
+    expect(part(4), ['Echo']);
+    expect(part(6), isEmpty);
+    expect(store.count(sourceIds: ['icc']), 5);
+    expect(store.count(sourceIds: ['icc', 'flix']), 6);
+    expect(store.count(sourceIds: []), 0);
+  });
+
   test('counts the videos of a title without its trailers', () {
     final title = add('Movies/Lost (2004)', 'Lost (2004) 720p.mkv');
     add('Movies/Lost (2004)', 'Trailer - Lost (2004).mp4');

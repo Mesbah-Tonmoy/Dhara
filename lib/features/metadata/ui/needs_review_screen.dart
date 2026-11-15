@@ -77,9 +77,15 @@ class _NeedsReviewScreenState extends State<NeedsReviewScreen> {
                           ? 'Reading …'
                           : items.isEmpty
                           ? 'Nothing to review'
-                          : items.length == 1
+                          : review.total == 1
                           ? '1 title'
-                          : '${items.length} titles',
+                          // All of them are counted, though the list is
+                          // read a part at a time.
+                          : review.hasMore
+                          ? '${review.total} titles · the first '
+                                '${items.length} listed'
+                          : '${review.total} titles',
+                      key: const Key('review-count'),
                     ),
                   ],
                 ),
@@ -103,16 +109,51 @@ class _NeedsReviewScreenState extends State<NeedsReviewScreen> {
                 padding: sides,
                 sliver: SliverList.builder(
                   itemCount: items.length,
-                  itemBuilder: (context, i) => _ItemRow(
-                    key: Key('review-item-${items[i].id}'),
-                    item: items[i],
-                    onOpen: () => unawaited(
-                      showDialog<void>(
-                        context: context,
-                        builder: (_) =>
-                            _ReviewDialog(item: items[i], review: review),
+                  itemBuilder: (context, i) {
+                    // Near the end of what was read: the next part is
+                    // read, so that scrolling goes on.
+                    if (i >= items.length - 10 && review.hasMore) {
+                      unawaited(review.loadMore());
+                    }
+                    return _ItemRow(
+                      key: Key('review-item-${items[i].id}'),
+                      item: items[i],
+                      onOpen: () => unawaited(
+                        showDialog<void>(
+                          context: context,
+                          builder: (_) =>
+                              _ReviewDialog(item: items[i], review: review),
+                        ),
                       ),
-                    ),
+                    );
+                  },
+                ),
+              ),
+            // For the keyboard, and in case reading the next part failed.
+            if (items != null && review.hasMore)
+              SliverPadding(
+                padding: sides.copyWith(top: rem),
+                sliver: SliverToBoxAdapter(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${items.length} of ${review.total} titles are '
+                          'listed.',
+                          style: const TextStyle(
+                            fontFamily: DharaFonts.ui,
+                            fontSize: DharaType.sm,
+                            color: DharaColors.text2,
+                          ),
+                        ),
+                      ),
+                      DharaButton(
+                        key: const Key('review-more'),
+                        label: 'Show more',
+                        small: true,
+                        onPressed: () => unawaited(review.loadMore()),
+                      ),
+                    ],
                   ),
                 ),
               ),

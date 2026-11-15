@@ -41,6 +41,7 @@ void main() {
       'Hell.mkv',
       'A Wrong Name (1999) 720p.mkv',
     ],
+    int pageSize = 500,
   }) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
@@ -105,6 +106,7 @@ void main() {
         tmdbKey: tmdbKey,
         tmdbUrl: tmdb.url,
         tmdbRetries: 0,
+        pageSize: pageSize,
       );
       addTearDown(() async {
         review.dispose();
@@ -153,6 +155,24 @@ void main() {
     expect(find.text('Not found'), findsOneWidget);
     expect(find.text('Movies/English / Hell.mkv'), findsOneWidget);
     expect(find.text('Stillwater (2018)'), findsNothing, reason: 'it is sure');
+  });
+
+  testWidgets('a list that is read a part at a time reads on by itself as '
+      'its end comes into view', (tester) async {
+    // One title at a time: showing the first asks for the second.
+    await show(tester, pageSize: 1);
+    expect(review.total, 2);
+    expect(find.text('Hell (2011)'), findsOneWidget);
+
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+    await tester.pump();
+
+    expect(review.hasMore, isFalse);
+    expect(find.text('2 TITLES'), findsOneWidget);
+    expect(find.text('A Wrong Name (1999)'), findsOneWidget);
+    expect(find.byKey(const Key('review-more')), findsNothing);
   });
 
   testWidgets('says so when there is nothing to review', (tester) async {
