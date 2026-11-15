@@ -239,7 +239,10 @@ class MatchStore {
       'UPDATE titles SET name = ?, original_name = ?, year = ?, '
       'tmdb_id = ?, match_state = ?, confidence = ?, overview = ?, '
       'rating = ?, votes = ?, language = ?, poster_path = ?, '
-      'backdrop_path = ?, matched_at = ? WHERE id = ?',
+      'backdrop_path = ?, matched_at = ?, '
+      // Another film or show than before: its page is to be read again.
+      'details_at = CASE WHEN tmdb_id IS ?4 THEN details_at END '
+      'WHERE id = ?',
       [
         candidate.title,
         candidate.originalTitle,

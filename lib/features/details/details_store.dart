@@ -60,6 +60,8 @@ class TitlePage {
     this.originalName,
     this.language,
     this.votes,
+    this.makers = const [],
+    this.cast = const [],
     this.similar = const [],
     this.episodes = const [],
     this.seasonNames = const {},
@@ -81,6 +83,11 @@ class TitlePage {
   /// Code of the original language: "en", "bn".
   final String? language;
   final int? votes;
+
+  /// Who directed the film, or created the show; and the first of its
+  /// cast. Empty until TMDB's page of the title was read.
+  final List<String> makers;
+  final List<String> cast;
 
   /// "More like this".
   final List<TitleCard> similar;
@@ -127,8 +134,8 @@ class DetailsStore {
     if (cards.isEmpty) return null;
     final card = cards.single;
     final more = _db.select(
-      'SELECT match_state, original_name, language, votes FROM titles '
-      'WHERE id = ?',
+      'SELECT match_state, original_name, language, votes, director, '
+      'actors FROM titles WHERE id = ?',
       [title],
     ).single;
     final copies = MetadataStore(
@@ -141,6 +148,8 @@ class DetailsStore {
       originalName: more['original_name'] as String?,
       language: more['language'] as String?,
       votes: more['votes'] as int?,
+      makers: _names(more['director']),
+      cast: _names(more['actors']),
       similar: _similar(home, card, more['language'] as String?, similarTitles),
       episodes: _episodes(title),
       seasonNames: {
@@ -201,6 +210,9 @@ class DetailsStore {
         runtime: row['runtime'] as int?,
       ),
   ];
+
+  static List<String> _names(Object? joined) =>
+      joined is String && joined.isNotEmpty ? joined.split(', ') : const [];
 
   /// What the history says about the videos of [title], by address.
   Map<String, Watched> _watched(int title) => {

@@ -656,7 +656,8 @@ class _Facts extends StatelessWidget {
       MatchState.leftAlone => 'Left as the files name it',
       _ => 'Not looked up yet',
     };
-    Widget fact(String name, Widget value) => Expanded(
+    Widget fact(String name, Widget value, {int flex = 1}) => Expanded(
+      flex: flex,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -689,45 +690,67 @@ class _Facts extends StatelessWidget {
     return GlassCard(
       key: const Key('details-facts'),
       padding: const EdgeInsets.symmetric(horizontal: 1.2 * rem, vertical: rem),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          fact(
-            'Original title',
-            text(original == null || original.isEmpty ? '–' : original),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              fact(
+                page.title.kind == TitleKind.series ? 'Created by' : 'Director',
+                text(page.makers.isEmpty ? '–' : page.makers.join(', ')),
+              ),
+              const SizedBox(width: 1.4 * rem),
+              fact(
+                'Cast',
+                text(page.cast.isEmpty ? '–' : page.cast.take(6).join(', ')),
+                flex: 2,
+              ),
+              const SizedBox(width: 1.4 * rem),
+              fact(
+                'Language',
+                text(language == null ? '–' : languageName(language)),
+              ),
+            ],
           ),
-          const SizedBox(width: 1.4 * rem),
-          fact(
-            'Language',
-            text(language == null ? '–' : languageName(language)),
-          ),
-          const SizedBox(width: 1.4 * rem),
-          fact(
-            'Audio in the files',
-            text(languages.isEmpty ? '–' : languages.take(4).join(', ')),
-          ),
-          const SizedBox(width: 1.4 * rem),
-          fact(
-            'Match',
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                text(match),
-                const SizedBox(height: .4 * rem),
-                // Shrinks rather than runs out of a narrow column.
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: DharaButton(
-                    key: const Key('details-fix-match'),
-                    label: 'Fix match',
-                    small: true,
-                    onPressed: onFixMatch,
-                  ),
+          const SizedBox(height: rem),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              fact(
+                'Original title',
+                text(original == null || original.isEmpty ? '–' : original),
+              ),
+              const SizedBox(width: 1.4 * rem),
+              fact(
+                'Audio in the files',
+                text(languages.isEmpty ? '–' : languages.take(4).join(', ')),
+                flex: 2,
+              ),
+              const SizedBox(width: 1.4 * rem),
+              fact(
+                'Match',
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    text(match),
+                    const SizedBox(height: .4 * rem),
+                    // Shrinks rather than runs out of a narrow column.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: DharaButton(
+                        key: const Key('details-fix-match'),
+                        label: 'Fix match',
+                        small: true,
+                        onPressed: onFixMatch,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),

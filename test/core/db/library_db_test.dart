@@ -508,6 +508,48 @@ void main() {
       );
     });
 
+    test('made by version 3 is upgraded and keeps what it held', () {
+      final old = LibraryDb.openAt(path, 3);
+      old.db
+        ..execute(
+          'INSERT INTO titles (id, kind, name, year, tmdb_id, match_state, '
+          'genres, runtime, added_at) '
+          "VALUES (3, 0, 'Tenet', 2020, 577922, 1, 'Action', 150, 9)",
+        )
+        ..execute('INSERT INTO my_list (title, added_at) VALUES (3, 5)')
+        ..execute(
+          'INSERT INTO watch_history (url, watched_at, position_ms, '
+          "duration_ms) VALUES ('http://a.test/t.mkv', 7, 1000, 5000)",
+        );
+      expect(old.db.userVersion, 3);
+      old.close();
+
+      final upgraded = LibraryDb.open(path);
+      addTearDown(upgraded.close);
+      final db = upgraded.db;
+
+      expect(db.userVersion, LibraryDb.schemaVersion);
+      expect(
+        db
+            .select(
+              'SELECT name, genres, runtime, director, actors, details_at '
+              'FROM titles',
+            )
+            .single
+            .values,
+        ['Tenet', 'Action', 150, null, null, null],
+        reason: 'its page on TMDB is still to be read',
+      );
+      expect(db.select('SELECT title FROM my_list').single.values, [3]);
+      expect(db.select('SELECT count(*) FROM watch_history').single.values, [
+        1,
+      ]);
+      db.execute(
+        "UPDATE titles SET director = 'Christopher Nolan', "
+        "actors = 'John David Washington, Robert Pattinson', details_at = 11",
+      );
+    });
+
     test('made by a newer app is refused and left alone', () {
       final newer = sqlite3.open(path)
         ..execute('CREATE TABLE future (x)')

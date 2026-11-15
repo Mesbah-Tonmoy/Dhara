@@ -15,6 +15,7 @@ import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/anime_controller.dart';
 import 'package:dhara/features/metadata/episodes_controller.dart';
+import 'package:dhara/features/metadata/film_details_controller.dart';
 import 'package:dhara/features/metadata/match_controller.dart';
 import 'package:dhara/features/metadata/review_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
@@ -90,6 +91,18 @@ Future<void> main() async {
   // whenever the library changes.
   final home = HomeController(library: library, titles: titles, match: match);
   unawaited(home.refresh());
+  // Reads TMDB's page of each matched film (genres, length, people) once,
+  // in the background; Home is read again when a run of that ends.
+  final filmDetails = FilmDetailsController(
+    library: library,
+    match: match,
+    tmdbKey: tmdbKey,
+  );
+  filmDetails.addListener(() {
+    if (!filmDetails.isFetching && filmDetails.filmsDone > 0) {
+      unawaited(home.refresh());
+    }
+  });
   final myList = MyListController(library: library);
   unawaited(myList.load());
   // Posters are kept next to the settings; without a data folder they are
@@ -119,6 +132,7 @@ Future<void> main() async {
         anime: AnimeController(library: library),
         home: home,
         myList: myList,
+        filmDetails: filmDetails,
         images: images,
       ),
     ),

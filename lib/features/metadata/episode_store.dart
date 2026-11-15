@@ -48,7 +48,8 @@ class EpisodeStore {
     final oldest = _now - refreshAfter.inMilliseconds;
     final shows = <ShowToFetch>[];
     for (final row in _db.select(
-      'SELECT t.id, t.tmdb_id, c.body, c.fetched_at FROM titles t '
+      'SELECT t.id, t.tmdb_id, t.details_at, c.body, c.fetched_at '
+      'FROM titles t '
       'LEFT JOIN metadata_cache c ON c.provider = ? '
       "AND c.key = 'show|' || t.tmdb_id "
       'WHERE t.kind = 1 AND t.tmdb_id IS NOT NULL '
@@ -68,7 +69,12 @@ class EpisodeStore {
       final fetchedAt = row['fetched_at'] as int?;
       final fresh =
           fetchedAt != null && fetchedAt > oldest && fetchedAt <= _now;
-      if (fresh && _fetched(row['body']).containsAll(seasons)) continue;
+      // A show asked about before the people were kept is asked again.
+      if (fresh &&
+          row['details_at'] != null &&
+          _fetched(row['body']).containsAll(seasons)) {
+        continue;
+      }
       shows.add(
         ShowToFetch(
           title: title,
@@ -80,9 +86,9 @@ class EpisodeStore {
     return shows;
   }
 
-  /// Keeps what TMDB says about the show [title]: its genres and seasons
-  /// from [details], and the episodes of [seasons] (those that were asked
-  /// for). Replaces what was kept before, and notes that the show was
+  /// Keeps what TMDB says about the show [title]: its genres, creators,
+  /// cast and seasons from [details], and the episodes of [seasons] (those
+  /// that were asked for). Replaces what was kept before, and notes that the show was
   /// asked about now, also if TMDB knew none of the seasons.
   void saveShow(
     ShowToFetch show,
@@ -94,10 +100,16 @@ class EpisodeStore {
     if (exists.isEmpty) return;
     if (details != null) {
       _db
-        ..execute('UPDATE titles SET genres = ? WHERE id = ?', [
-          details.genres.isEmpty ? null : details.genres.join(', '),
-          title,
-        ])
+        ..execute(
+          'UPDATE titles SET genres = ?, director = ?, actors = ? '
+          'WHERE id = ?',
+          [
+            details.genres.isEmpty ? null : details.genres.join(', '),
+            details.makers.isEmpty ? null : details.makers.join(', '),
+            details.cast.isEmpty ? null : details.cast.join(', '),
+            title,
+          ],
+        )
         ..execute('DELETE FROM seasons WHERE title = ?', [title])
         ..execute('DELETE FROM episodes WHERE title = ?', [title]);
       final overviews = {
@@ -138,11 +150,13 @@ class EpisodeStore {
         }
       }
     }
-    _db.execute(
-      'INSERT OR REPLACE INTO metadata_cache '
-      '(provider, key, body, fetched_at) VALUES (?, ?, ?, ?)',
-      [_provider, 'show|${show.tmdbId}', jsonEncode(show.seasons), _now],
-    );
+    _db
+      ..execute('UPDATE titles SET details_at = ? WHERE id = ?', [_now, title])
+      ..execute(
+        'INSERT OR REPLACE INTO metadata_cache '
+        '(provider, key, body, fetched_at) VALUES (?, ?, ?, ?)',
+        [_provider, 'show|${show.tmdbId}', jsonEncode(show.seasons), _now],
+      );
   });
 
   /// The season numbers a note of an earlier fetch lists.

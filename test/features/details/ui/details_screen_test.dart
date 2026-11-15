@@ -167,6 +167,30 @@ void main() {
     );
   });
 
+  testWidgets('names who made it and who is in it, once that was read', (
+    tester,
+  ) async {
+    final db = _library();
+    await _open(tester, db);
+    expect(find.text('DIRECTOR'), findsOneWidget);
+    expect(find.text('CAST'), findsOneWidget);
+
+    db.db.execute(
+      "UPDATE titles SET director = 'Lorcan Finnegan', "
+      "actors = 'Imogen Poots, Jesse Eisenberg' WHERE id = 1",
+    );
+    db.db.execute(
+      "UPDATE titles SET director = 'Daragh Carville' WHERE id = 9",
+    );
+    await _open(tester, db);
+    expect(find.text('Lorcan Finnegan'), findsOneWidget);
+    expect(find.text('Imogen Poots, Jesse Eisenberg'), findsOneWidget);
+
+    await _open(tester, db, id: 9);
+    expect(find.text('CREATED BY'), findsOneWidget);
+    expect(find.text('Daragh Carville'), findsOneWidget);
+  });
+
   testWidgets('lists the copies, the sharpest first, trailers last', (
     tester,
   ) async {

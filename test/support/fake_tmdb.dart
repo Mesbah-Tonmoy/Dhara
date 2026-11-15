@@ -39,19 +39,47 @@ class FakeTmdb {
     int votes = 100,
     String? originalTitle,
     String? poster,
-  }) => _films.add({
-    'id': id,
-    'title': title,
-    'original_title': originalTitle ?? title,
-    'release_date': year == null ? '' : '$year-06-01',
-    'overview': 'About $title.',
-    'popularity': votes / 10,
-    'vote_average': 7.5,
-    'vote_count': votes,
-    'original_language': 'en',
-    'poster_path': poster ?? '/poster$id.jpg',
-    'backdrop_path': '/backdrop$id.jpg',
-  });
+  }) {
+    final film = {
+      'id': id,
+      'title': title,
+      'original_title': originalTitle ?? title,
+      'release_date': year == null ? '' : '$year-06-01',
+      'overview': 'About $title.',
+      'popularity': votes / 10,
+      'vote_average': 7.5,
+      'vote_count': votes,
+      'original_language': 'en',
+      'poster_path': poster ?? '/poster$id.jpg',
+      'backdrop_path': '/backdrop$id.jpg',
+    };
+    _films.add(film);
+    // Its page, with the credits when they are asked for along with it.
+    _server.routes['/3/movie/$id'] = (request) {
+      asked.add('movie/$id');
+      final credits =
+          request.uri.queryParameters['append_to_response'] == 'credits';
+      return _answer(request, {
+        ...film,
+        'runtime': 90 + id % 60,
+        'genres': [
+          {'id': 53, 'name': 'Thriller'},
+          {'id': 878, 'name': 'Science Fiction'},
+        ],
+        if (credits)
+          'credits': {
+            'cast': [
+              for (final name in ['Lead of $title', 'Second, of $title'])
+                {'name': name, 'character': 'Someone'},
+            ],
+            'crew': [
+              {'name': 'Writer of $title', 'job': 'Screenplay'},
+              {'name': 'Director of $title', 'job': 'Director'},
+            ],
+          },
+      });
+    };
+  }
 
   /// [seasons] gives the episode names of each season by its number.
   void addShow(
@@ -83,6 +111,15 @@ class FakeTmdb {
           {'id': 18, 'name': 'Drama'},
           {'id': 9648, 'name': 'Mystery'},
         ],
+        'created_by': [
+          {'name': 'Creator of $name'},
+        ],
+        if (request.uri.queryParameters['append_to_response'] == 'credits')
+          'credits': {
+            'cast': [
+              {'name': 'Star of $name'},
+            ],
+          },
         'seasons': [
           for (final MapEntry(key: number, value: episodes) in seasons.entries)
             {

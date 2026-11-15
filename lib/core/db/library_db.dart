@@ -106,7 +106,7 @@ class LibraryDb {
 
   /// The schema this version of the app reads and writes. Raise it together
   /// with a new entry in [_migrations].
-  static const schemaVersion = 3;
+  static const schemaVersion = 4;
 
   final Database db;
 
@@ -134,7 +134,7 @@ const _damagedCodes = {11, 26};
 /// One script per schema version, in order: `_migrations[n]` takes a
 /// database from version n to n + 1. Never edit a script that has shipped;
 /// add a new one.
-const _migrations = [_schemaV1, _schemaV2, _schemaV3];
+const _migrations = [_schemaV1, _schemaV2, _schemaV3, _schemaV4];
 
 const _schemaV1 = '''
 -- Crawl state of one source. The source itself (name, URLs, type) lives in
@@ -334,6 +334,18 @@ BEGIN
   INSERT INTO titles_fts (rowid, name, original_name)
   VALUES (new.id, new.name, new.original_name);
 END;
+''';
+
+/// Who made a title, and when TMDB's details of it were read.
+const _schemaV4 = '''
+-- Of a film, who directed it; of a show, who created it. Names joined by
+-- ", ", like genres.
+ALTER TABLE titles ADD COLUMN director TEXT;
+-- The first few of the cast, joined by ", ".
+ALTER TABLE titles ADD COLUMN actors TEXT;
+-- When TMDB's page of the title (genres, length, people) was last read;
+-- NULL: never. A match alone does not bring these.
+ALTER TABLE titles ADD COLUMN details_at INTEGER;
 ''';
 
 /// My List, the watch history, and what Home sorts and filters by.

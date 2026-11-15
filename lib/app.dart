@@ -4,6 +4,7 @@ import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/anime_controller.dart';
+import 'package:dhara/features/metadata/film_details_controller.dart';
 import 'package:dhara/features/metadata/match_controller.dart';
 import 'package:dhara/features/metadata/review_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
@@ -32,6 +33,7 @@ class DharaApp extends StatelessWidget {
     required this.anime,
     required this.home,
     required this.myList,
+    this.filmDetails,
     this.images,
   });
 
@@ -47,11 +49,23 @@ class DharaApp extends StatelessWidget {
   final HomeController home;
   final MyListController myList;
 
+  /// Says how far the reading of film details is; without it, nothing
+  /// does.
+  final FilmDetailsController? filmDetails;
+
   /// Where posters are kept; without it, placeholders are shown.
   final RemoteImageStore? images;
 
   @override
   Widget build(BuildContext context) {
+    final filmDetails = this.filmDetails;
+    final app = _scopes();
+    return filmDetails == null
+        ? app
+        : FilmDetailsScope(controller: filmDetails, child: app);
+  }
+
+  Widget _scopes() {
     return SettingsScope(
       settings: settings,
       child: ResumeStoreScope(

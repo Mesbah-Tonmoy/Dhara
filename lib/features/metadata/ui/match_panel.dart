@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dhara/features/metadata/film_details_controller.dart';
 import 'package:dhara/features/metadata/match_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/player/widgets/glass.dart';
@@ -59,6 +60,19 @@ class MatchPanel extends StatelessWidget {
                       key: const Key('match-status'),
                       style: TextStyle(fontSize: 12.5, color: color),
                     ),
+                    if (FilmDetailsScope.maybeOf(context) case final films?
+                        when films.isFetching && films.filmsToDo > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Reading film details (genres, length, cast) … '
+                        '${films.filmsDone} of ${films.filmsToDo}',
+                        key: const Key('film-details-status'),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: DharaColors.text2,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

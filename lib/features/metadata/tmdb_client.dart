@@ -171,9 +171,21 @@ class TmdbDetails {
     this.genres = const [],
     this.runtime,
     this.seasons = const [],
+    this.makers = const [],
+    this.cast = const [],
   });
 
+  /// How many of the cast, and of the directors or creators, are kept.
+  static const maxCast = 8;
+  static const maxMakers = 3;
+
   final TmdbCandidate summary;
+
+  /// Who directed the film, or created the show.
+  final List<String> makers;
+
+  /// The first of the cast, in TMDB's order (the leads first).
+  final List<String> cast;
 
   /// Genre names, in English.
   final List<String> genres;
@@ -315,23 +327,40 @@ class TmdbClient {
   Future<List<TmdbCandidate>> searchShows(String title, {int? year}) =>
       _search(TitleKind.series, title, year);
 
+  /// The page of a film: genres, length, director and cast (the credits
+  /// come along in the same request).
   Future<TmdbDetails> movie(int id) async {
-    final json = await _get('movie/$id');
+    final json = await _get('movie/$id', query: _withCredits);
     final summary = _candidate(json, TitleKind.movie);
     if (summary == null) throw _badAnswer();
+    final credits = json['credits'];
     return TmdbDetails(
       summary: summary,
       genres: _genres(json['genres']),
       runtime: _minutes(json['runtime']),
+      makers: _names(
+        [
+          for (final member in _list(_field(credits, 'crew')))
+            if (_field(member, 'job') == 'Director') member,
+        ],
+        TmdbDetails.maxMakers,
+      ),
+      cast: _names(_list(_field(credits, 'cast')), TmdbDetails.maxCast),
     );
   }
 
+  /// The page of a show: genres, seasons, who created it and its cast.
   Future<TmdbDetails> show(int id) async {
-    final json = await _get('tv/$id');
+    final json = await _get('tv/$id', query: _withCredits);
     final summary = _candidate(json, TitleKind.series);
     if (summary == null) throw _badAnswer();
     return TmdbDetails(
       summary: summary,
+      makers: _names(_list(json['created_by']), TmdbDetails.maxMakers),
+      cast: _names(
+        _list(_field(json['credits'], 'cast')),
+        TmdbDetails.maxCast,
+      ),
       genres: _genres(json['genres']),
       seasons: [
         for (final season in _list(json['seasons']))
@@ -590,6 +619,25 @@ TmdbCandidate? _candidate(Object? json, TitleKind kind) {
     posterPath: _imagePath(json['poster_path']),
     backdropPath: _imagePath(json['backdrop_path']),
   );
+}
+
+/// Asks for the cast and crew along with a film's or show's page.
+const _withCredits = {'append_to_response': 'credits'};
+
+Object? _field(Object? json, String name) =>
+    json is Map<String, Object?> ? json[name] : null;
+
+/// The names of the first [most] people in [people], each once.
+List<String> _names(List<Object?> people, int most) {
+  final names = <String>[];
+  for (final person in people) {
+    // A comma would split one name in two where the names are kept.
+    final name = _text(_field(person, 'name'), 80)?.replaceAll(',', ' ');
+    if (name == null || names.contains(name)) continue;
+    names.add(name);
+    if (names.length == most) break;
+  }
+  return names;
 }
 
 List<String> _genres(Object? json) => [
