@@ -29,6 +29,8 @@ class PlaybackInfo {
   const PlaybackInfo({
     this.server,
     this.serverAnswered,
+    this.copiesAsked = 0,
+    this.copiesAnswered = 0,
     this.startedIn,
     this.width,
     this.height,
@@ -52,6 +54,8 @@ class PlaybackInfo {
     Map<String, String> mpv, {
     String? server,
     Duration? serverAnswered,
+    int copiesAsked = 0,
+    int copiesAnswered = 0,
     Duration? startedIn,
     List<String> notTaken = const [],
   }) {
@@ -80,6 +84,8 @@ class PlaybackInfo {
     return PlaybackInfo(
       server: server,
       serverAnswered: serverAnswered,
+      copiesAsked: copiesAsked,
+      copiesAnswered: copiesAnswered,
       startedIn: startedIn,
       width: whole('width'),
       height: whole('height'),
@@ -108,6 +114,12 @@ class PlaybackInfo {
   /// How long that server took to answer when it was asked for the video
   /// (before the player opened it).
   final Duration? serverAnswered;
+
+  /// How many copies of the video were asked for before this one was
+  /// chosen, and how many of their servers had answered by then. 0 or 1
+  /// asked: there was nothing to choose.
+  final int copiesAsked;
+  final int copiesAnswered;
 
   /// From Play to the first moving picture.
   final Duration? startedIn;
@@ -162,6 +174,14 @@ class PlaybackInfo {
       if (server case final server?) ('Server', server),
       if (serverAnswered case final time?)
         ('Server answered in', '${time.inMilliseconds} ms'),
+      if (copiesAsked > 1)
+        (
+          'Copies',
+          copiesAnswered == 0
+              ? 'none of $copiesAsked answered'
+              : 'the best of $copiesAnswered that answered, '
+                    '$copiesAsked asked',
+        ),
       if (startedIn case final time?)
         ('Started in', '${_short(time.inMilliseconds / 1000)} s'),
       if (picture.isNotEmpty) ('Picture', picture.join(' · ')),

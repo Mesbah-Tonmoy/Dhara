@@ -14,6 +14,7 @@ import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/playback/play.dart';
+import 'package:dhara/features/playback/smart_start.dart';
 import 'package:dhara/features/player/open_url_dialog.dart';
 import 'package:dhara/shell/page_bleed.dart';
 import 'package:dhara/shell/shell_controller.dart';
@@ -150,7 +151,7 @@ class _RowsState extends State<_Rows> {
       ToastHost.show(context, 'This address cannot be played any more.');
       return;
     }
-    unawaited(openPlayer(context, [url]));
+    unawaited(openPlayer(context, [PlayEntry.url(url)]));
   }
 
   @override

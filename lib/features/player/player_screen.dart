@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:dhara/core/net/media_url.dart';
-import 'package:dhara/core/net/safe_http_client.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/core/window/fullscreen.dart';
-import 'package:dhara/features/player/playback_url.dart';
+import 'package:dhara/features/playback/copy_probe.dart';
+import 'package:dhara/features/playback/smart_start.dart';
 import 'package:dhara/features/player/player_tuning.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/player/secure_player.dart';
@@ -17,28 +17,25 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
-/// Plays a queue of already validated `http`/`https` URLs, one after the
-/// other, with the app's own controls drawn over the video.
+/// Plays a queue of videos, one after the other, with the app's own
+/// controls drawn over the video.
 ///
+/// A video that has several copies is played from the one whose server
+/// answers fastest right now, at the preferred quality (see `chooseCopy`).
 /// Each video resumes where it was left, and when one ends the next starts
 /// after a countdown the user can cancel.
 class PlayerScreen extends StatefulWidget {
-  const PlayerScreen({
-    super.key,
-    required this.urls,
-    this.initialIndex = 0,
-    this.titles,
-  })  : assert(urls.length > 0),
-        assert(initialIndex >= 0 && initialIndex < urls.length),
-        assert(titles == null || titles.length == urls.length);
+  const PlayerScreen({super.key, required this.entries, this.initialIndex = 0})
+    : assert(entries.length > 0),
+      assert(initialIndex >= 0 && initialIndex < entries.length);
 
-  /// Must come from `parseMediaUrl`, never from raw input.
-  final List<Uri> urls;
+  /// The videos at [urls], each at that one address. They must come from
+  /// `parseMediaUrl`, never from raw input.
+  PlayerScreen.urls(List<Uri> urls, {Key? key})
+    : this(key: key, entries: [for (final url in urls) PlayEntry.url(url)]);
+
+  final List<PlayEntry> entries;
   final int initialIndex;
-
-  /// What to call each video ("The Bay · S1 · E2"), in the order of [urls];
-  /// without it, each goes by its file name. Shown as plain text only.
-  final List<String>? titles;
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
@@ -57,6 +54,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// How long the "Resumed from ..." pill stays up.
   static const _resumeNoticeDuration = Duration(seconds: 7);
 
+  /// How long a server has to answer when it is asked for a video.
+  static const _askTimeout = Duration(seconds: 2);
+
   /// How this player reads ahead and decodes: the settings as they were
   /// when it was opened.
   late final PlayerTuning _tuning = PlayerTuning.of(
@@ -64,19 +64,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
   );
 
   late final Player _player = createPlayer();
-  late final VideoController _video = createVideoController(
-    _player,
-    _tuning,
-  );
+  late final VideoController _video = createVideoController(_player, _tuning);
   late final ResumeStore _resume = ResumeStoreScope.of(context);
   late final SourceStore _sources;
 
-  /// Checks where a video's server redirects to before the player opens
-  /// it (see [resolvePlaybackUrl]).
-  late final SafeHttpClient _http = SafeHttpClient(
-    isAllowedHost: _mayPlayFrom,
-    timeout: const Duration(seconds: 5),
-  );
+  /// What is asking the servers for the current video, while it does.
+  CopyProber? _asking;
   final _subscriptions = <StreamSubscription<Object?>>[];
   late final Future<void> _started;
 
@@ -90,10 +83,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Timer? _resumeNoticeTimer;
   bool _autoNextCancelled = false;
 
+  // Which copy of the current video is played (until that is decided,
+  // the first of them), and how many are being asked for.
+  late Uri _url = _entry.candidates.first.url;
+  int _choosingFrom = 0;
+
+  // A position that was taken over from another copy of the video: where
+  // that copy was left is forgotten once this one has a position of its
+  // own, so that the video is not kept as unfinished twice.
+  Uri? _carriedFrom;
+
   // For the info panel: where the current video is fetched from, how
-  // long that server took to answer, and how long the video took to start.
+  // long that server took to answer, how many copies were asked for, and
+  // how long the video took to start.
   Uri? _playingFrom;
   Duration? _serverAnswered;
+  CopyChoice? _choice;
   Duration? _startedIn;
   final _sinceOpen = Stopwatch();
   Duration _startPosition = Duration.zero;
@@ -104,21 +109,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _progressReady = false;
   Duration _lastSavedPosition = Duration.zero;
 
-  Uri get _url => widget.urls[_index];
+  PlayEntry get _entry => widget.entries[_index];
 
-  String _titleAt(int index) =>
-      widget.titles?[index] ?? mediaTitleFromUrl(widget.urls[index]);
+  String _titleAt(int index) {
+    final entry = widget.entries[index];
+    return entry.title ?? mediaTitleFromUrl(entry.candidates.first.url);
+  }
 
   /// A video may come from the hosts in this queue and from the
   /// configured sources (looked up each time: the list can change).
   bool _mayPlayFrom(String host) =>
-      widget.urls.any((url) => url.host == host) ||
+      widget.entries.any(
+        (entry) => entry.candidates.any((copy) => copy.url.host == host),
+      ) ||
       _sources.sources.any(
         (source) => source.baseUrls.any((url) => url.host == host),
       );
 
-  Uri? get _nextUrl =>
-      _index + 1 < widget.urls.length ? widget.urls[_index + 1] : null;
+  bool get _hasNext => _index + 1 < widget.entries.length;
 
   @override
   void initState() {
@@ -177,10 +185,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  /// Opens the video at [_index], resuming from the saved position if any.
+  /// Opens the video at [_index], from the copy of it that is fastest
+  /// right now, resuming from the saved position if any.
   Future<void> _openCurrent() async {
     final index = _index;
-    final resumeFrom = _resume.positionFor(_url);
+    final candidates = _entry.candidates;
+    // Where it was left, on whichever copy that was.
+    Uri? resumeUrl;
+    Duration? resumeFrom;
+    for (final copy in candidates) {
+      final position = _resume.positionFor(copy.url);
+      if (position != null) {
+        resumeUrl = copy.url;
+        resumeFrom = position;
+        break;
+      }
+    }
+    _url = resumeUrl ?? candidates.first.url;
+    _carriedFrom = null;
     _progressReady = false;
     _lastSavedPosition = resumeFrom ?? Duration.zero;
     _resumeNoticeTimer?.cancel();
@@ -195,31 +217,50 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _resumedFrom = resumeFrom;
       _playingFrom = null;
       _serverAnswered = null;
+      _choice = null;
       _startedIn = null;
+      _choosingFrom = candidates.length;
     });
-    final Uri address;
-    Duration? answered;
+    // The servers are asked for the copies: which answers fastest, and
+    // where it sends the player (FFmpeg would follow a redirect to any
+    // host; the app follows them first, under its own rules).
+    _asking?.close();
+    final asking = _asking = CopyProber(
+      isAllowedHost: _mayPlayFrom,
+      timeout: _askTimeout,
+    );
+    final CopyChoice choice;
     try {
-      address = await resolvePlaybackUrl(
-        _http,
-        _url,
-        onAnswered: (time) => answered = time,
+      choice = await chooseCopy(
+        asking,
+        candidates,
+        preferred: SettingsScope.read(context).preferredQuality,
+        resume: resumeUrl,
       );
     } on PlaybackBlocked catch (blocked) {
       if (mounted && _index == index) {
-        setState(() => _error = blocked.message);
+        setState(() {
+          _error = blocked.message;
+          _choosingFrom = 0;
+        });
       }
       return;
+    } finally {
+      asking.close();
     }
-    // The user may have left or moved on while the server was asked.
+    // The user may have left or moved on while the servers were asked.
     if (!mounted || _index != index) return;
+    if (resumeUrl != null && resumeUrl != choice.url) _carriedFrom = resumeUrl;
     setState(() {
-      _playingFrom = address;
-      _serverAnswered = answered;
+      _url = choice.url;
+      _playingFrom = choice.address;
+      _serverAnswered = choice.answeredIn;
+      _choice = choice;
+      _choosingFrom = 0;
     });
-    // Resume positions and titles stay tied to the URL that was asked for;
+    // Resume positions and titles stay tied to the copy that was chosen;
     // only the player is pointed at where it leads.
-    final media = Media(address.toString());
+    final media = Media(choice.address.toString());
     if (resumeFrom == null) {
       await _player.open(media);
       return;
@@ -272,12 +313,26 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final state = _player.state;
     _lastSavedPosition = state.position;
     _resume.save(_url, position: state.position, duration: state.duration);
+    _forgetCarried();
+  }
+
+  /// The video goes on from another copy now: where the earlier copy was
+  /// left is forgotten once this one has a position of its own, or was
+  /// watched to the end ([finished]). Until then the earlier one's is the
+  /// only position there is.
+  void _forgetCarried({bool finished = false}) {
+    final from = _carriedFrom;
+    if (from == null) return;
+    if (!finished && _resume.positionFor(_url) == null) return;
+    _resume.clear(from);
+    _carriedFrom = null;
   }
 
   void _onCompleted() {
     if (!_progressReady) return;
     // Watched to the end: next time it starts from the beginning.
     _resume.finish(_url, duration: _player.state.duration);
+    _forgetCarried(finished: true);
     if (_autoNext) _playNext();
   }
 
@@ -287,7 +342,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       !_autoNextCancelled && SettingsScope.read(context).autoplayNext;
 
   void _playNext() {
-    if (_nextUrl == null || !mounted) return;
+    if (!_hasNext || !mounted) return;
     _saveProgress();
     _index++;
     unawaited(_openCurrent());
@@ -312,7 +367,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     for (final subscription in _subscriptions) {
       unawaited(subscription.cancel());
     }
-    _http.close();
+    _asking?.close();
     // Fullscreen belongs to the player; the rest of the app is windowed.
     if (_fullscreen) unawaited(setWindowFullscreen(false));
     // Dispose only after start-up has settled, so libmpv is never torn down
@@ -324,7 +379,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   Widget build(BuildContext context) {
     final error = _error;
-    final nextUrl = _nextUrl;
+    final choice = _choice;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -349,7 +404,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             onBack: () => Navigator.of(context).maybePop(),
             fullscreen: _fullscreen,
             onToggleFullscreen: _toggleFullscreen,
-            nextTitle: nextUrl == null ? null : _titleAt(_index + 1),
+            nextTitle: _hasNext ? _titleAt(_index + 1) : null,
             autoNext: _autoNext,
             onPlayNext: _playNext,
             onCancelAutoNext: () => setState(() => _autoNextCancelled = true),
@@ -360,9 +415,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
               final url => _serverLabel(url),
             },
             serverAnswered: _serverAnswered,
+            copiesAsked: choice?.asked ?? 0,
+            copiesAnswered: choice?.answered ?? 0,
             startedIn: _startedIn,
             optionsNotTaken: _optionsNotTaken,
           ),
+          // While the servers are asked which has the video fastest.
+          if (_choosingFrom > 1 && error == null)
+            Positioned(
+              left: 24,
+              right: 24,
+              bottom: 120,
+              child: IgnorePointer(
+                child: Center(
+                  child: Text(
+                    'Asking $_choosingFrom servers for the fastest copy …',
+                    key: const Key('choosing-copy'),
+                    style: const TextStyle(
+                      fontFamily: DharaFonts.ui,
+                      fontSize: 14,
+                      color: DharaColors.text2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (error != null)
             Positioned(
               left: 24,

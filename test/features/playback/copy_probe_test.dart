@@ -154,6 +154,14 @@ void main() {
     expect(away.problem, contains('not one of your sources'));
     expect(loop.blocked, isTrue);
     expect(loop.problem, contains('keeps redirecting'));
+
+    // Nor to something that is no web address at all.
+    for (final target in ['file:///C:/Windows/win.ini', 'smb://nas/share/a']) {
+      server.redirect('/play/2', target);
+      final probe = await prober().probeOne(server.url('/play/2'));
+      expect(probe.blocked, isTrue, reason: target);
+      expect(probe.address, isNull);
+    }
   });
 
   test('a host that is no source is never asked', () async {

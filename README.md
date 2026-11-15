@@ -20,7 +20,7 @@ A Bangla + English README is written in Phase 8.
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
 | 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests), frame rate while scrolling, and cold start |
-| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, and Settings has a preferred quality (see [Smart playback](#smart-playback)). Still to come: the fastest copy on Play, failover, the next episode ahead of time |
+| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, Settings has a preferred quality, and Play starts on the fastest copy (see [Smart playback](#smart-playback)). Still to come: failover, the next episode ahead of time |
 | 8–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -72,11 +72,12 @@ Known gaps, tracked for later phases:
   build has no option to stop it (checked: the DLL has no `max_redirects`).
   The app therefore follows redirects first, under its own rule (same host
   or a configured source, at most 5), refuses to play if the chain breaks
-  it, and hands the player the final address
-  (`lib/features/player/playback_url.dart`). What is left: a server could
+  it, and hands the player the final address (the live ping does this,
+  see [Starting on the fastest copy](#starting-on-the-fastest-copy)).
+  What is left: a server could
   still answer the player itself with a new redirect. Closing that needs a
   libmpv whose FFmpeg can limit redirects.
-- If the server cannot be asked beforehand (unreachable, slower than 5 s),
+- If no server can be asked beforehand (unreachable, slower than 2 s),
   the video is opened unchecked and the player reports the real error.
 
 ## Smart playback
@@ -126,6 +127,31 @@ within 2 s, a redirect to a host that is no source).
   not shows "No answer" (the reason on hover) and goes to the end. Where
   nothing was asked, the server's last test counts, as before.
 
+### Starting on the fastest copy
+
+A video of the player's queue comes with every copy it can be played from
+(`PlayEntry`, `lib/features/playback/smart_start.dart`). When it is
+opened, the player asks all of their servers at once (the live ping
+above, 2 s at most) and `chooseCopy` picks:
+
+- the copy it was left unfinished on, if that server answers: the same
+  file is gone on with
+- otherwise the quality that suits **Preferred quality** best, and of
+  that quality the copy that answered first. All are asked at the same
+  moment, so the first to answer is the fastest; the slower servers are
+  not waited for
+- a copy that is gone, refused or redirected away is passed over. If no
+  server answers, the first copy is opened unchecked and the player says
+  what is wrong; if every copy is redirected to a host that is no source,
+  nothing is played
+
+If the copy it was left on is gone, another copy goes on from the same
+position, and the old copy's position is forgotten once the new one has
+its own. A copy picked from a title's list, and a pasted address, are
+played from exactly there (one request, for where it leads). The answer
+is also where the player is sent: it replaces the redirect check that
+ran before every video.
+
 ### Seeking
 
 A video can only start decoding at a keyframe, and those lie some seconds
@@ -152,8 +178,9 @@ It is there for trying things on a real connection, where only numbers
 tell what happened:
 
 - the server (its name and address), how long it took to answer when it
-  was asked for the video, and how long the video took to start (from
-  opening it to the first moving picture)
+  was asked for the video, how many copies were asked for and how many
+  answered, and how long the video took to start (from opening it to the
+  first moving picture)
 - picture size, format and frame rate; whether the graphics card decodes
   (and with which decoder) or the processor does; the sound format
 - how much lies buffered ahead (seconds and megabytes), how fast the
@@ -565,8 +592,10 @@ genres, about the same year and language).
 - **What Play plays** (`lib/features/details/next_to_play.dart`): the video
   watched last if it was left unfinished; after an episode that ended, the
   next one; otherwise the film, or the first episode. After an episode the
-  following ones are queued, from the same server where it has them, and
-  the player counts down to the next as before. The player shows the title
+  following ones are queued, and the player counts down to the next as
+  before. Each video is then played from its fastest copy (see
+  [Starting on the fastest copy](#starting-on-the-fastest-copy)); a row of
+  the copies list plays that very copy. The player shows the title
   ("The Bay · S1 · E2 · …") instead of the file name.
 - "Fix match" opens the same dialog as Needs review, for any title.
 - Director (or creators), cast, genres and length show once TMDB's page of

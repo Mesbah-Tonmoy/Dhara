@@ -64,6 +64,17 @@ void main() {
     ]);
   });
 
+  test('says how the copy was chosen, where there was a choice', () {
+    List<(String, String)> copies(int asked, int answered) =>
+        PlaybackInfo(copiesAsked: asked, copiesAnswered: answered).rows;
+
+    expect(copies(3, 2), [('Copies', 'the best of 2 that answered, 3 asked')]);
+    expect(copies(2, 0), [('Copies', 'none of 2 answered')]);
+    // One copy, or a pasted address: nothing was chosen.
+    expect(copies(1, 1), isEmpty);
+    expect(copies(0, 0), isEmpty);
+  });
+
   test('says when the processor decodes', () {
     final info = PlaybackInfo.fromMpv({..._real, 'hwdec-current': 'no'});
     expect(info.hardwareDecoder, isNull);

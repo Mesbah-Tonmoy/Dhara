@@ -12,6 +12,7 @@ import 'package:dhara/features/home/ui/wide_card.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/my_list/my_list_controller.dart';
 import 'package:dhara/features/playback/play.dart';
+import 'package:dhara/features/playback/smart_start.dart';
 import 'package:dhara/shell/page_bleed.dart';
 import 'package:dhara/shell/shell_controller.dart';
 import 'package:dhara/theme/tokens.dart';
@@ -119,7 +120,7 @@ class _ListsScreenState extends State<ListsScreen> {
         ToastHost.show(context, 'This address cannot be played any more.');
         return;
       }
-      await openPlayer(context, [url]);
+      await openPlayer(context, [PlayEntry.url(url)]);
     }
     if (mounted) await HistoryScope.read(context).load();
   }

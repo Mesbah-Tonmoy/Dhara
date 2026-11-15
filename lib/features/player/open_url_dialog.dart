@@ -12,7 +12,7 @@ void _openPlayer(BuildContext context, List<Uri> urls) => unawaited(
   Navigator.of(
     context,
     rootNavigator: true,
-  ).push(MaterialPageRoute<void>(builder: (_) => PlayerScreen(urls: urls))),
+  ).push(MaterialPageRoute<void>(builder: (_) => PlayerScreen.urls(urls))),
 );
 
 /// Asks for one or more video addresses and plays them in order: the way

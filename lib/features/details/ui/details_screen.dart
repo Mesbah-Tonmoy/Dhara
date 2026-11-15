@@ -121,7 +121,10 @@ class _DetailsScreenState extends State<DetailsScreen> {
     });
   }
 
-  Future<void> _play(TitleCopy copy) async {
+  /// Plays [copy]. With [exact] that very copy (it was picked from the
+  /// list); otherwise the player may take another copy of the same video
+  /// that answers faster.
+  Future<void> _play(TitleCopy copy, {bool exact = false}) async {
     final page = _page;
     if (page == null) return;
     await playCopy(
@@ -131,6 +134,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
       copy: copy,
       copies: page.copies,
       sources: TitlesScope.read(context).index.sources,
+      exact: exact,
     );
     // What was watched shows on the page.
     if (mounted) await _load();
@@ -212,7 +216,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
       copies: copies,
       watched: page.watched,
     );
-    if (chosen != null && mounted) await _play(chosen);
+    if (chosen != null && mounted) await _play(chosen, exact: true);
   }
 
   void _showCopies() {
@@ -366,7 +370,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                               ? (series ? 'Videos' : 'Copies')
                               : 'Other videos',
                           sources: sources,
-                          onPlay: _play,
+                          onPlay: (copy) => unawaited(_play(copy, exact: true)),
                         ),
                     ],
                   ),
