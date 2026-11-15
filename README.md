@@ -224,6 +224,15 @@ not built yet (preferred quality, languages) are not shown.
   picture-based ones (PGS, VobSub) work. They move up while the control bar
   is showing.
 - Size (50–200%) is saved; delay (±0.1 s steps) applies to the current video.
+- The bundled libmpv has no decoder for Dolby TrueHD (or MLP), the first
+  sound track of many 4K films. Such a track says "cannot be played" in the
+  list, and when libmpv picks one, the player switches to another track by
+  itself (the same language if there is one) and says so
+  (`lib/features/player/track_options.dart`). DTS, E-AC3, AC3, AAC, FLAC and
+  Opus are decoded.
+- A long track name is shown on up to three lines.
+- What libmpv reports as an error goes away after 8 seconds once the video
+  plays; it stays while nothing is playing.
 - "Load external subtitle…" accepts a local `.srt`, `.ass`, `.ssa` or `.vtt`
   file up to 20 MB. The file is checked (type, regular file, size) and is only
   ever handed to the player as a subtitle.

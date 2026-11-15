@@ -98,6 +98,11 @@ class _PlayerControlsState extends State<PlayerControls> {
   String _audioId = offId;
   String _subtitleId = offId;
 
+  // The codecs this libmpv can decode (empty: not known), and whether the
+  // current video's sound was already looked at (see [_checkAudio]).
+  Set<String> _decoders = const {};
+  bool _audioChecked = false;
+
   // Per-video; a new video starts in sync again.
   double _subtitleDelay = 0;
   PlayerNotice? _notice;
@@ -137,6 +142,7 @@ class _PlayerControlsState extends State<PlayerControls> {
   void didUpdateWidget(PlayerControls oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.mediaUrl != widget.mediaUrl) {
+      _audioChecked = false;
       // A subtitle delay belongs to one video; the next starts in sync.
       _subtitleDelay = 0;
       unawaited(_native?.setProperty('sub-delay', '0'));
@@ -263,6 +269,8 @@ class _PlayerControlsState extends State<PlayerControls> {
     if (!mounted) return;
     await _applySubtitleScale();
     if (!mounted) return;
+    _decoders = decodableCodecs(await native.getProperty('decoder-list'));
+    if (!mounted) return;
     await native.observeProperty('aid', (_) => _refreshSelection());
     if (!mounted) return;
     await native.observeProperty('sid', (_) => _refreshSelection());
@@ -279,6 +287,34 @@ class _PlayerControlsState extends State<PlayerControls> {
       _audioId = _normaliseTrackId(audioId);
       _subtitleId = _normaliseTrackId(subtitleId);
     });
+    _checkAudio();
+  }
+
+  /// Once per video, when its tracks are known: if libmpv picked a sound
+  /// track it has no decoder for (Dolby TrueHD, on a 4K film), another one
+  /// is played instead, and the user is told.
+  void _checkAudio() {
+    final real = _tracks.audio.where((track) => int.tryParse(track.id) != null);
+    if (_audioChecked || real.isEmpty) return;
+    _audioChecked = true;
+    final unplayable = real.where((track) => !canDecode(track, _decoders));
+    if (unplayable.isEmpty) return;
+    final instead = audioFallback(_tracks.audio, _audioId, _decoders);
+    if (instead != null) {
+      final label = audioOptions(
+        _tracks.audio,
+      ).firstWhere((option) => option.id == instead.id).label;
+      _selectAudio(instead.id);
+      _notify(
+        '${audioFormatName(unplayable.first)} sound cannot be played: '
+        'switched to $label',
+      );
+    } else if (real.every((track) => !canDecode(track, _decoders))) {
+      _notify(
+        'The sound of this video (${audioFormatName(unplayable.first)}) '
+        'cannot be played.',
+      );
+    }
   }
 
   /// libmpv reports "no", "auto" or a number; anything that is not a real
@@ -288,6 +324,11 @@ class _PlayerControlsState extends State<PlayerControls> {
   }
 
   void _selectAudio(String id) {
+    final track = _tracks.audio.where((t) => t.id == id).firstOrNull;
+    if (track != null && !canDecode(track, _decoders)) {
+      _notify('${audioFormatName(track)} sound cannot be played.');
+      return;
+    }
     setState(() => _audioId = id);
     unawaited(widget.player.setAudioTrack(AudioTrack(id, null, null)));
   }
@@ -396,7 +437,7 @@ class _PlayerControlsState extends State<PlayerControls> {
         // Saved once per drag, not on every pixel of movement.
         onVolumeChangeEnd: settings.setVolume,
         onToggleMute: _toggleMute,
-        audioOptions: audioOptions(_tracks.audio),
+        audioOptions: audioOptions(_tracks.audio, decoders: _decoders),
         selectedAudioId: _audioId,
         onAudioSelected: _selectAudio,
         subtitleOptions: subtitleOptions(_tracks.subtitle),

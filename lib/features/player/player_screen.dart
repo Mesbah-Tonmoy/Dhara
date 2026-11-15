@@ -8,6 +8,7 @@ import 'package:dhara/features/player/playback_url.dart';
 import 'package:dhara/features/player/player_tuning.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/player/secure_player.dart';
+import 'package:dhara/features/player/track_options.dart';
 import 'package:dhara/features/player/widgets/player_controls.dart';
 import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
@@ -50,6 +51,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// How long to wait for a file to open before giving up on resuming.
   static const _loadTimeout = Duration(seconds: 15);
 
+  /// How long an error stays up once the video is playing.
+  static const _errorDuration = Duration(seconds: 8);
+
   /// How long the "Resumed from ..." pill stays up.
   static const _resumeNoticeDuration = Duration(seconds: 7);
 
@@ -78,6 +82,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   late int _index = widget.initialIndex;
   String? _error;
+  Timer? _errorTimer;
   bool _fullscreen = false;
 
   // Resume and "up next" state of the current video.
@@ -123,9 +128,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _sources = SourcesScope.read(context).store;
     final stream = _player.stream;
     _subscriptions.addAll([
-      stream.error.listen((message) {
-        if (mounted) setState(() => _error = message);
-      }),
+      stream.error.listen(_showError),
       stream.duration.listen((duration) {
         if (duration > Duration.zero) _progressReady = true;
       }),
@@ -138,6 +141,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }),
     ]);
     _started = _start();
+  }
+
+  /// Shows what libmpv reported. While the video plays on, the message
+  /// goes away by itself; it stays if nothing is playing, since it is then
+  /// the only explanation there is.
+  void _showError(String message) {
+    // A sound track without a decoder: the controls switch to another
+    // track and say so themselves.
+    if (!mounted || undecodableAudioCodec(message) != null) return;
+    setState(() => _error = message);
+    _errorTimer?.cancel();
+    _errorTimer = Timer.periodic(_errorDuration, (timer) {
+      if (!mounted || !_progressReady) return;
+      timer.cancel();
+      setState(() => _error = null);
+    });
   }
 
   /// Hardens the player first; a URL is only opened once every security
@@ -165,6 +184,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _progressReady = false;
     _lastSavedPosition = resumeFrom ?? Duration.zero;
     _resumeNoticeTimer?.cancel();
+    _errorTimer?.cancel();
     _startPosition = resumeFrom ?? Duration.zero;
     _sinceOpen
       ..reset()
@@ -288,6 +308,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void dispose() {
     _saveProgress();
     _resumeNoticeTimer?.cancel();
+    _errorTimer?.cancel();
     for (final subscription in _subscriptions) {
       unawaited(subscription.cancel());
     }

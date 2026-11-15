@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:media_kit/media_kit.dart';
 
 /// One selectable audio or subtitle choice, ready for display.
@@ -29,21 +31,100 @@ const offId = 'no';
 const _pseudoIds = {'auto', 'no'};
 
 /// The audio tracks of the current file. Empty for a video without sound.
-List<TrackOption> audioOptions(List<AudioTrack> tracks) {
+///
+/// A track in a format the player has no decoder for (see
+/// [decodableCodecs]) says so: the bundled libmpv cannot play Dolby TrueHD.
+List<TrackOption> audioOptions(
+  List<AudioTrack> tracks, {
+  Set<String> decoders = const {},
+}) {
   final real = tracks.where((t) => !_pseudoIds.contains(t.id)).toList();
   return [
     for (final (index, track) in real.indexed)
       TrackOption(
         id: track.id,
-        label: _label(
-          language: track.language,
-          title: track.title,
-          detail: _audioDetail(track),
-          fallback: 'Track ${index + 1}',
-        ),
+        label: [
+          _label(
+            language: track.language,
+            title: track.title,
+            detail: _audioDetail(track),
+            fallback: 'Track ${index + 1}',
+          ),
+          if (!canDecode(track, decoders)) 'cannot be played',
+        ].join(' · '),
       ),
   ];
 }
+
+/// The codecs libmpv has a decoder for, from its `decoder-list` property
+/// (JSON: a list of `{"codec": "ac3", ...}`). Empty if that cannot be
+/// read, which counts as "not known": nothing is ruled out then.
+Set<String> decodableCodecs(String decoderList) {
+  try {
+    final list = jsonDecode(decoderList);
+    if (list is! List) return const {};
+    return {
+      for (final entry in list)
+        if (entry case {'codec': final String codec}) codec.toLowerCase(),
+    };
+  } on FormatException {
+    return const {};
+  }
+}
+
+/// Whether the player can decode [track], as far as [decoders] tell.
+bool canDecode(AudioTrack track, Set<String> decoders) {
+  final codec = track.codec?.trim().toLowerCase();
+  return decoders.isEmpty ||
+      codec == null ||
+      codec.isEmpty ||
+      decoders.contains(codec);
+}
+
+/// "TrueHD" for a track's format, or the codec's own name.
+String audioFormatName(AudioTrack track) {
+  final codec = track.codec?.trim().toLowerCase() ?? '';
+  return _audioCodecs[codec] ?? (codec.isEmpty ? 'this format' : codec);
+}
+
+/// The audio track to play instead of the one libmpv chose ([currentId],
+/// or [offId] if it gave up on it), when that one cannot be decoded: a
+/// track that can, in the same language if there is one. `null` if the
+/// current track is fine, or nothing better exists.
+AudioTrack? audioFallback(
+  List<AudioTrack> tracks,
+  String currentId,
+  Set<String> decoders,
+) {
+  final real = tracks.where((t) => !_pseudoIds.contains(t.id)).toList();
+  final failed =
+      real.where((t) => t.id == currentId).firstOrNull ??
+      real.where((t) => !canDecode(t, decoders)).firstOrNull;
+  if (failed == null || canDecode(failed, decoders)) return null;
+  final playable = real.where((t) => canDecode(t, decoders)).toList();
+  return playable.where((t) => t.language == failed.language).firstOrNull ??
+      playable.firstOrNull;
+}
+
+/// The codec in libmpv's "Failed to initialize a decoder for codec 'x'."
+/// if it is an audio one: the controls deal with that themselves (see
+/// [audioFallback]), so it is not shown as an error. `null` otherwise.
+String? undecodableAudioCodec(String error) {
+  final codec = _decoderFailure.firstMatch(error)?[1]?.toLowerCase();
+  if (codec == null) return null;
+  final audio =
+      _audioCodecs.containsKey(codec) ||
+      codec == 'mlp' ||
+      codec.startsWith('pcm_') ||
+      codec.startsWith('wma') ||
+      codec.startsWith('atrac') ||
+      codec.startsWith('adpcm_');
+  return audio ? codec : null;
+}
+
+final _decoderFailure = RegExp(
+  r"Failed to initialize a decoder for codec '([A-Za-z0-9_]{1,40})'",
+);
 
 /// "Off" followed by the subtitle tracks of the current file (embedded ones
 /// and any external file that was loaded).
@@ -201,6 +282,7 @@ const _audioCodecs = <String, String>{
   'eac3': 'E-AC3',
   'dts': 'DTS',
   'truehd': 'TrueHD',
+  'mlp': 'MLP',
   'flac': 'FLAC',
   'opus': 'Opus',
   'vorbis': 'Vorbis',

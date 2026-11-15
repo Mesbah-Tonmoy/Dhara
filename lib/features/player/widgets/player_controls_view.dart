@@ -159,6 +159,9 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
   static const _volumeKeyStep = 5.0;
   static const _osdDuration = Duration(milliseconds: 900);
 
+  /// A notice is a sentence to be read, not an echo of a key press.
+  static const _noticeDuration = Duration(seconds: 5);
+
   /// Receives the player's keyboard shortcuts. It wraps every control, so
   /// keys pressed while a button has focus still reach [_onKey].
   final _keyFocus = FocusNode(debugLabel: 'player shortcuts');
@@ -208,7 +211,7 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
     if (notice != null && !identical(notice, oldWidget.notice)) {
       // setState is not allowed while the parent is rebuilding us.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showOsd(notice.text);
+        if (mounted) _showOsd(notice.text, hold: _noticeDuration);
       });
     }
   }
@@ -234,13 +237,13 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
   }
 
   /// Briefly shows [message] near the top of the picture.
-  void _showOsd(String message) {
+  void _showOsd(String message, {Duration hold = _osdDuration}) {
     _osdTimer?.cancel();
     setState(() {
       _osd = message;
       _osdVisible = true;
     });
-    _osdTimer = Timer(_osdDuration, () {
+    _osdTimer = Timer(hold, () {
       if (mounted) setState(() => _osdVisible = false);
     });
   }
@@ -724,7 +727,7 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
       case _Panel.audio:
         return ConstrainedBox(
           key: const Key('audio-panel'),
-          constraints: const BoxConstraints(maxWidth: 340),
+          constraints: const BoxConstraints(maxWidth: 460),
           child: AudioPanel(
             options: widget.audioOptions,
             selectedId: widget.selectedAudioId,
@@ -734,7 +737,7 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
       case _Panel.subtitles:
         return ConstrainedBox(
           key: const Key('subtitles-panel'),
-          constraints: const BoxConstraints(maxWidth: 360),
+          constraints: const BoxConstraints(maxWidth: 460),
           child: SubtitlePanel(
             options: widget.subtitleOptions,
             selectedId: widget.selectedSubtitleId,

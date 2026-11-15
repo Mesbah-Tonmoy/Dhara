@@ -40,10 +40,8 @@ class SpeedPanel extends StatelessWidget {
                 ),
             ],
             // Matches by value, so 1 and 1.0 are the same choice.
-            selectedId: '${playbackSpeeds.firstWhere(
-              (value) => (value - speed).abs() < 0.001,
-              orElse: () => -1,
-            )}',
+            selectedId:
+                '${playbackSpeeds.firstWhere((value) => (value - speed).abs() < 0.001, orElse: () => -1)}',
             onSelected: (id) => onSelected(double.parse(id)),
           ),
         ],
@@ -373,12 +371,15 @@ class _Row extends StatelessWidget {
                 leading,
                 const SizedBox(width: 10),
                 Expanded(
+                  // Up to three lines: the names of the sound tracks of a
+                  // film are long, and cut short they all look the same.
                   child: Text(
                     label,
-                    maxLines: 1,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 13,
+                      height: 1.3,
                       color: selected ? Colors.white : DharaColors.text,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                     ),

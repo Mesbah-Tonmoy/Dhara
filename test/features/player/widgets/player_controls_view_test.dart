@@ -5,6 +5,7 @@ import 'package:dhara/features/player/playback_info.dart';
 import 'package:dhara/features/player/track_options.dart';
 import 'package:dhara/features/player/widgets/player_controls_view.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -558,7 +559,36 @@ void main() {
         tester.widget<AnimatedOpacity>(find.byKey(const Key('osd'))).opacity,
         1,
       );
+      // A sentence stays long enough to be read.
+      await tester.pump(const Duration(seconds: 3));
+      expect(
+        tester.widget<AnimatedOpacity>(find.byKey(const Key('osd'))).opacity,
+        1,
+      );
     });
+  });
+
+  testWidgets('a long track name is shown on several lines, not cut', (
+    tester,
+  ) async {
+    // (The test font is far wider than the real one.)
+    const long = 'English · TrueHD Atmos 7.1 theatrical mix · TrueHD';
+    await _pump(
+      tester,
+      audioOptions: const [
+        TrackOption(id: '1', label: long),
+        TrackOption(id: '2', label: 'Hindi · E-AC3 5.1'),
+      ],
+    );
+    await tester.tap(find.byKey(const Key('audio-button')));
+    await tester.pumpAndSettle();
+
+    final name = tester.renderObject<RenderParagraph>(find.text(long));
+    expect(name.didExceedMaxLines, isFalse);
+    expect(
+      tester.getSize(find.text(long)).height,
+      greaterThan(tester.getSize(find.text('Hindi · E-AC3 5.1')).height * 1.5),
+    );
   });
 
   group('speed', () {
