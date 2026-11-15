@@ -6,11 +6,13 @@ import 'package:dhara/features/details/ui/copy_pings.dart';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/playback/copy_choice.dart';
 import 'package:dhara/features/playback/copy_probe.dart';
+import 'package:dhara/features/playback/media_sessions.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../../support/fake_emby.dart';
 import '../../../support/local_server.dart';
 
 Source _source(String id) => Source(
@@ -53,6 +55,7 @@ void main() {
     WidgetTester tester,
     List<TitleCopy> copies, {
     bool withProber = true,
+    MediaSessions? sessions,
   }) async {
     tester.view
       ..physicalSize = const Size(1280, 720)
@@ -69,24 +72,27 @@ void main() {
                       timeout: const Duration(seconds: 2),
                     )
                   : null,
-              child: CopyPings(
-                copies: copies,
-                sources: sources,
-                builder: (context, live) {
-                  last = live;
-                  return SingleChildScrollView(
-                    child: CopiesTable(
-                      copies: rankCopies(
-                        copies,
-                        sources,
-                        pings: live.done ? live.byFile : const {},
+              child: MediaSessionsScope(
+                sessions: sessions,
+                child: CopyPings(
+                  copies: copies,
+                  sources: sources,
+                  builder: (context, live) {
+                    last = live;
+                    return SingleChildScrollView(
+                      child: CopiesTable(
+                        copies: rankCopies(
+                          copies,
+                          sources,
+                          pings: live.done ? live.byFile : const {},
+                        ),
+                        sources: sources,
+                        pings: live.byFile,
+                        onPlay: (_) {},
                       ),
-                      sources: sources,
-                      pings: live.byFile,
-                      onPlay: (_) {},
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
           ),
@@ -220,17 +226,15 @@ void main() {
 
   testWidgets('a copy that cannot be played is not asked', (tester) async {
     video('/film.mkv');
-    final emby = Source(
-      id: 'e',
-      name: 'Emby',
-      type: SourceType.emby,
-      category: SourceCategory.movies,
-      baseUrls: [Uri.parse('http://127.0.0.1/e/')],
+    final withPassword = TitleCopy(
+      fileId: 1,
+      sourceId: 'a',
+      name: 'film.mkv',
+      path: '/film.mkv',
+      url: server.url('/film.mkv').replace(userInfo: 'user:pw'),
     );
-    sources = SourceStore(starter: [emby]);
-    await sources.setEnabled(['e'], enabled: true);
 
-    await pump(tester, [copy(1, 'e', '/film.mkv')]);
+    await pump(tester, [withPassword]);
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 100)),
     );
@@ -238,5 +242,51 @@ void main() {
 
     expect(last!.ping, isNull);
     expect(server.requests, isEmpty);
+  });
+
+  testWidgets('a file of a media server is asked for with its session', (
+    tester,
+  ) async {
+    final emby = FakeEmby(server);
+    final media = Source(
+      id: 'e',
+      name: 'Emby',
+      type: SourceType.emby,
+      category: SourceCategory.movies,
+      baseUrls: [server.url('/')],
+    );
+    sources = SourceStore(starter: [media]);
+    await sources.setEnabled(['e'], enabled: true);
+    final sessions = MediaSessions(deviceId: 'dhara-test', sources: sources);
+    addTearDown(sessions.close);
+    final film = copy(1, 'e', '/Videos/101/stream.mkv');
+
+    // Without a session the server refuses the file.
+    await pump(tester, [film]);
+    await until(tester, () => last!.done);
+    expect(last!.byFile[1]!.ok, isFalse);
+    expect(find.text('No answer'), findsOneWidget);
+    expect(emby.signIns, isEmpty);
+
+    // With one (the app signs in as the guest) it is there.
+    await tester.pumpWidget(const SizedBox());
+    await pump(tester, [film], sessions: sessions);
+    await until(tester, () => last!.done);
+    expect(last!.byFile[1]!.ok, isTrue);
+    expect(find.textContaining(' ms'), findsOneWidget);
+    expect(emby.signIns, hasLength(1));
+
+    // The server stops taking that session: the copy is refused once,
+    // and the next ping signs in afresh.
+    emby.token = 'token-2';
+    await tester.runAsync(() async => last!.ping!());
+    await tester.pump();
+    await until(tester, () => last!.done);
+    expect(last!.byFile[1]!.ok, isFalse);
+    await tester.runAsync(() async => last!.ping!());
+    await tester.pump();
+    await until(tester, () => last!.done);
+    expect(last!.byFile[1]!.ok, isTrue);
+    expect(emby.signIns, hasLength(2));
   });
 }

@@ -12,6 +12,7 @@ class CopyProbe {
     this.address,
     this.problem,
     this.blocked = false,
+    this.refused = false,
   });
 
   /// The address that was asked for.
@@ -32,6 +33,10 @@ class CopyProbe {
   /// The server sends the video somewhere the app may not go (see
   /// `SafeHttpClient`): it must not be opened, not even unchecked.
   final bool blocked;
+
+  /// The server wants a sign-in for it (401 or 403): for a media server,
+  /// the session it was asked with is no longer taken.
+  final bool refused;
 
   /// The server answered, and has the video.
   bool get ok => problem == null && time != null && address != null;
@@ -74,7 +79,14 @@ class CopyProber {
   /// Asks for every one of [urls] at the same time and reports each as
   /// soon as its server has answered, so the fastest comes first. Never
   /// fails: what went wrong is in the [CopyProbe].
-  Stream<CopyProbe> probe(Iterable<Uri> urls) {
+  ///
+  /// [headers] are the request headers of the addresses that need any (a
+  /// media server's session, see `MediaSessions`); they go to the host of
+  /// that address only, not to where it redirects.
+  Stream<CopyProbe> probe(
+    Iterable<Uri> urls, {
+    Map<Uri, Map<String, String>> headers = const {},
+  }) {
     final results = StreamController<CopyProbe>();
     final list = urls.toSet();
     var left = list.length;
@@ -84,7 +96,7 @@ class CopyProber {
     }
     for (final url in list) {
       unawaited(
-        probeOne(url).then((result) {
+        probeOne(url, headers: headers[url] ?? const {}).then((result) {
           if (!results.isClosed) results.add(result);
           if (--left == 0) unawaited(results.close());
         }),
@@ -94,9 +106,12 @@ class CopyProber {
   }
 
   /// Asks for one video. Never throws.
-  Future<CopyProbe> probeOne(Uri url) async {
+  Future<CopyProbe> probeOne(
+    Uri url, {
+    Map<String, String> headers = const {},
+  }) async {
     try {
-      final answer = await _client.probe(url);
+      final answer = await _client.probe(url, headers: headers);
       final problem = switch (answer.statusCode) {
         200 || 206 => null,
         404 || 410 => 'The video is not on the server any more.',
@@ -108,6 +123,7 @@ class CopyProber {
         time: answer.responseTime,
         address: answer.url,
         problem: problem,
+        refused: answer.statusCode == 401 || answer.statusCode == 403,
       );
     } on SafeHttpException catch (error) {
       return switch (error.failure) {

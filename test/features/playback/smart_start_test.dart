@@ -240,6 +240,62 @@ void main() {
       expect(other.url, server.url('/fast.mkv'));
     });
 
+    test('a copy that needs a session is asked with its headers, and '
+        'played with them', () async {
+      server.routes['/private.mkv'] = (request) async {
+        final allowed = request.headers.value('x-emby-token') == 'token-1';
+        request.response.statusCode = allowed
+            ? HttpStatus.partialContent
+            : HttpStatus.unauthorized;
+        await request.response.close();
+      };
+      const session = {'X-Emby-Token': 'token-1'};
+      final copy = at('/private.mkv');
+
+      final refused = await chooseCopy(prober(), [copy]);
+      expect(refused.answeredIn, isNull);
+      expect(refused.headers, isEmpty);
+      // Said, so that the session can be signed in for afresh.
+      expect(refused.refused, [copy.url]);
+
+      final choice = await chooseCopy(
+        prober(),
+        [copy],
+        headers: {copy.url: session},
+      );
+      expect(choice.answeredIn, isNotNull);
+      expect(choice.address, copy.url);
+      expect(choice.headers, session);
+      expect(choice.refused, isEmpty);
+    });
+
+    test('a session does not follow a redirect to another host', () async {
+      video('/video.mkv');
+      final elsewhere = server.url('/video.mkv').replace(host: 'localhost');
+      server.redirect('/private.mkv', '$elsewhere');
+      final both = CopyProber(
+        isAllowedHost: {'127.0.0.1', 'localhost'}.contains,
+      );
+      addTearDown(both.close);
+      final copy = at('/private.mkv');
+
+      final choice = await chooseCopy(
+        both,
+        [copy],
+        headers: {
+          copy.url: {'X-Emby-Token': 'token-1'},
+        },
+      );
+
+      expect(choice.address, elsewhere);
+      // Neither the ping nor the player carries it there.
+      expect(choice.headers, isEmpty);
+      final asked = server.requests.map(
+        (request) => (request.uri.path, request.headers.value('x-emby-token')),
+      );
+      expect(asked, [('/private.mkv', 'token-1'), ('/video.mkv', null)]);
+    });
+
     test('a single address is asked too, for where it leads', () async {
       video('/video.mkv');
       server.redirect('/play/42', '/video.mkv');
@@ -319,6 +375,7 @@ void main() {
       int? episode,
       int? part,
       ExtraKind? extra,
+      String? url,
     }) {
       final id = ++ids;
       return TitleCopy(
@@ -326,7 +383,7 @@ void main() {
         sourceId: on,
         name: 'file$id.mkv',
         path: 'Movies',
-        url: Uri.parse('http://10.0.0.1/$on/file$id.mkv'),
+        url: Uri.parse(url ?? 'http://10.0.0.1/$on/file$id.mkv'),
         height: height,
         season: season,
         episode: episode,
@@ -355,11 +412,19 @@ void main() {
         uhd,
         fullHd,
         copy('b', height: 1080, extra: ExtraKind.trailer),
-        copy('emby', height: 2160),
+        copy('a', height: 2160, url: 'ftp://10.0.0.1/a/film.mkv'),
       ];
 
-      // The trailer and the copy that needs a sign-in are no alternatives.
+      // The trailer and the copy at no web address are no alternatives.
       expect(sameVideo(hd, all, sources), [hd, uhd, fullHd]);
+      // A copy on a media server is one: the app signs in for it.
+      final onEmby = copy('emby', height: 480);
+      expect(sameVideo(hd, [...all, onEmby], sources), [
+        hd,
+        uhd,
+        fullHd,
+        onEmby,
+      ]);
       expect(sameVideo(hd, all, sources, preferred: PreferredQuality.fullHd), [
         hd,
         fullHd,

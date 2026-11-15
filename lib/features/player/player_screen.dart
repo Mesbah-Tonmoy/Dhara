@@ -4,6 +4,7 @@ import 'package:dhara/core/net/media_url.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/core/window/fullscreen.dart';
 import 'package:dhara/features/playback/copy_probe.dart';
+import 'package:dhara/features/playback/media_sessions.dart';
 import 'package:dhara/features/playback/smart_start.dart';
 import 'package:dhara/features/player/playback_progress.dart';
 import 'package:dhara/features/player/player_tuning.dart';
@@ -82,6 +83,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   late final VideoController _video = createVideoController(_player, _tuning);
   late final ResumeStore _resume = ResumeStoreScope.of(context);
   late final SourceStore _sources;
+
+  /// Signs in to the media servers among the sources (Emby, Jellyfin),
+  /// whose files are only given to a session; `null` in tests.
+  MediaSessions? _sessions;
 
   /// What is asking the servers for the current video, while it does.
   CopyProber? _asking;
@@ -180,6 +185,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     // Looked up now: the redirect check may still be running when this
     // screen is gone, and must not touch the widget tree then.
     _sources = SourcesScope.read(context).store;
+    _sessions = MediaSessionsScope.read(context);
     final stream = _player.stream;
     _subscriptions.addAll([
       stream.error.listen(_showError),
@@ -368,17 +374,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
         isAllowedHost: _mayPlayFrom,
         timeout: _askTimeout,
       );
+      final preferred = SettingsScope.read(context).preferredQuality;
       try {
         choice = await chooseCopy(
           asking,
           candidates,
-          preferred: SettingsScope.read(context).preferredQuality,
+          preferred: preferred,
           resume: resumeUrl,
+          headers: await _headersFor(candidates),
         );
       } on PlaybackBlocked catch (refused) {
         blocked = refused.message;
       } finally {
         asking.close();
+      }
+      // A session a media server no longer takes: signed in afresh the
+      // next time.
+      for (final url in choice?.refused ?? const <Uri>[]) {
+        _sessions?.forget(url);
       }
       // The user may have left or moved on while the servers were asked.
       if (!mounted || opening != _opening) return;
@@ -436,7 +449,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
     // Resume positions and titles stay tied to the copy that was chosen;
     // only the player is pointed at where it leads.
-    final media = Media(choice.address.toString());
+    final media = Media(
+      choice.address.toString(),
+      // A media server's session; for its own host only (see CopyChoice).
+      httpHeaders: choice.headers.isEmpty ? null : choice.headers,
+    );
     _watch.restart(_clock.elapsed);
     if (resumeFrom == null) {
       await _player.open(media, play: !staysPaused);
@@ -460,6 +477,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
     await _player.seek(resumeFrom);
     if (!staysPaused) await _player.play();
   }
+
+  /// The request headers of the copies that are files of a media server.
+  Future<Map<Uri, Map<String, String>>> _headersFor(
+    List<PlayCandidate> candidates,
+  ) async =>
+      await _sessions?.headersForAll([
+        for (final copy in candidates) copy.url,
+      ]) ??
+      const {};
 
   /// Forgets the state of the video that was open: [url] is opened now,
   /// to start at [from] (the beginning if `null`).
@@ -508,12 +534,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
       isAllowedHost: _mayPlayFrom,
       timeout: _askTimeout,
     );
+    final preferred = SettingsScope.read(context).preferredQuality;
     try {
       final choice = await chooseCopy(
         asking,
         candidates,
-        preferred: SettingsScope.read(context).preferredQuality,
+        preferred: preferred,
         resume: resumeUrl,
+        headers: await _headersFor(candidates),
       );
       if (mounted && _index + 1 == index && choice.answeredIn != null) {
         _ready = (index: index, choice: choice, at: _clock.elapsed);

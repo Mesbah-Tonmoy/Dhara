@@ -5,6 +5,8 @@
 // files, the two ran side by side in two processes, and every few runs
 // one of them stopped without a word (seen 2026-11-16, five times in a
 // day, never while there was one file).
+import 'dart:io';
+
 import 'package:dhara/features/player/player_tuning.dart';
 import 'package:dhara/features/player/secure_player.dart';
 import 'package:dhara/features/player/seek_math.dart';
@@ -117,6 +119,45 @@ void main() {
         final back = await after(['seek', '-2.000', 'relative+keyframes']);
         expect(back, lessThan(forward - 2));
         expect(duration.inSeconds, greaterThan(10));
+      },
+      skip: noVideo,
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
+
+    test(
+      'a video that needs a session is fetched with its headers',
+      () async {
+        final server = await LocalServer.start();
+        addTearDown(server.close);
+        server.serveFile('/film.mkv', sampleVideo);
+        final tokens = <String?>[];
+        // As a media server: the file only for the token of a session.
+        server.routes['/private.mkv'] = (request) async {
+          final token = request.headers.value('x-emby-token');
+          tokens.add(token);
+          if (token != 'token-1') {
+            request.response.statusCode = HttpStatus.unauthorized;
+            await request.response.close();
+            return;
+          }
+          await server.routes['/film.mkv']!(request);
+        };
+        await hardenPlayer(player);
+        await tunePlayer(player, const PlayerTuning());
+
+        await player.open(
+          Media(
+            '${server.url('/private.mkv')}',
+            httpHeaders: const {'X-Emby-Token': 'token-1'},
+          ),
+        );
+        final position = await player.stream.position.firstWhere(
+          (p) => p >= const Duration(seconds: 1),
+        );
+
+        expect(position.inSeconds, inInclusiveRange(1, 3));
+        expect(tokens, isNotEmpty);
+        expect(tokens, everyElement('token-1'));
       },
       skip: noVideo,
       timeout: const Timeout(Duration(seconds: 30)),

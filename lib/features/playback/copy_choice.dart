@@ -90,15 +90,13 @@ Source? sourceOf(TitleCopy copy, SourceStore sources) {
 }
 
 /// Whether the player can be given this copy: a plain `http`/`https`
-/// address without credentials, on a server that needs no sign-in.
+/// address without credentials. (A file of an Emby or Jellyfin server is
+/// asked for with the session the app signs in for, see `MediaSessions`.)
 bool canPlayCopy(TitleCopy copy, SourceStore sources) {
   final url = copy.url;
-  final type = sourceOf(copy, sources)?.type;
   return allowedUrlSchemes.contains(url.scheme) &&
       url.host.isNotEmpty &&
-      url.userInfo.isEmpty &&
-      type != SourceType.emby &&
-      type != SourceType.jellyfin;
+      url.userInfo.isEmpty;
 }
 
 /// [copies] in the order to offer them: the best first (see above), what

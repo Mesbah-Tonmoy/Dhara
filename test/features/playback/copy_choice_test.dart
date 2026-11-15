@@ -97,14 +97,20 @@ void main() {
     });
 
     test('puts what cannot be played last, however good', () async {
-      await tested('emby', reachable: true, ms: 1);
-      final needsSignIn = _copy('emby', height: 2160);
+      await tested('fast', reachable: true, ms: 1);
+      final withPassword = _copy(
+        'fast',
+        height: 2160,
+        url: 'http://user:pw@10.0.0.1/b.mkv',
+      );
       final odd = _copy('fast', height: 2160, url: 'ftp://10.0.0.1/a.mkv');
       final plain = _copy('new', height: 480);
 
-      expect(rankCopies([needsSignIn, odd, plain], sources).first, plain);
-      expect(canPlayCopy(needsSignIn, sources), isFalse);
+      expect(rankCopies([withPassword, odd, plain], sources).first, plain);
+      expect(canPlayCopy(withPassword, sources), isFalse);
       expect(canPlayCopy(odd, sources), isFalse);
+      // A file of a media server can be played: the app signs in for it.
+      expect(canPlayCopy(_copy('emby', height: 2160), sources), isTrue);
       expect(
         canPlayCopy(
           _copy('fast', url: 'http://user:pw@10.0.0.1/a.mkv'),
@@ -276,7 +282,13 @@ void main() {
         bestCopy([trailer, film, _copy('new', height: 1080)], sources),
         film,
       );
-      expect(bestCopy([trailer, _copy('emby')], sources), isNull);
+      expect(
+        bestCopy([
+          trailer,
+          _copy('fast', url: 'ftp://10.0.0.1/a.mkv'),
+        ], sources),
+        isNull,
+      );
       expect(bestCopy(const [], sources), isNull);
     });
   });
@@ -315,7 +327,12 @@ void main() {
       final e2other = _copy('fast', season: 1, episode: 2, height: 2160);
       final e3 = _copy('fast', season: 1, episode: 3, height: 480);
       final e3better = _copy('new', season: 1, episode: 3, height: 1080);
-      final e4 = _copy('emby', season: 1, episode: 4);
+      final e4 = _copy(
+        'fast',
+        season: 1,
+        episode: 4,
+        url: 'ftp://10.0.0.1/e4.mkv',
+      );
       final s2 = _copy('new', season: 2, episode: 1);
       final all = [s2, e4, e3better, e3, e2other, e2, e1];
 

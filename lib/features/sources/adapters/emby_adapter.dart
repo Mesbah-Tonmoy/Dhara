@@ -59,8 +59,7 @@ Future<MediaServerInfo?> probeMediaServer(
 /// Folder entries get a URL of this adapter's own making
 /// (`<base>Items?ParentId=<id>`); pass it back to [list] to look inside.
 /// File entries point at the original file (`Videos/<id>/stream?static=true`).
-/// Fetching one needs the session token as a header, which playback does
-/// not send yet.
+/// Fetching one needs the session token as a header: [playbackHeaders].
 class EmbyAdapter implements SourceAdapter {
   EmbyAdapter(
     this._client, {
@@ -68,10 +67,10 @@ class EmbyAdapter implements SourceAdapter {
     required String deviceId,
     String? username,
     String password = '',
-  })  : _root = _api(baseUrl, ''),
-        _deviceId = deviceId,
-        _username = username,
-        _password = password {
+  }) : _root = _api(baseUrl, ''),
+       _deviceId = deviceId,
+       _username = username,
+       _password = password {
     // It goes into a header, so it must not be able to break out of one.
     if (!isValidDeviceId(deviceId)) {
       throw ArgumentError.value(deviceId, 'deviceId', 'letters, digits, "-"');
@@ -157,8 +156,9 @@ class EmbyAdapter implements SourceAdapter {
     final name = cleanServerText(rawName, 200);
     if (name.isEmpty) return null;
     final created = item['DateCreated'];
-    final modified =
-        created is String ? DateTime.tryParse(created)?.toLocal() : null;
+    final modified = created is String
+        ? DateTime.tryParse(created)?.toLocal()
+        : null;
     final year = item['ProductionYear'];
 
     if (item['IsFolder'] == true) {
@@ -176,14 +176,16 @@ class EmbyAdapter implements SourceAdapter {
     final source = sources is List && sources.isNotEmpty ? sources.first : null;
     final sourceId = source is Map<String, dynamic> ? source['Id'] : null;
     final size = source is Map<String, dynamic> ? source['Size'] : null;
-    final container =
-        source is Map<String, dynamic> ? source['Container'] : null;
+    final container = source is Map<String, dynamic>
+        ? source['Container']
+        : null;
 
     final path = item['Path'];
     final diskName = path is String
         ? cleanServerText(path.split(_pathSeparator).last, 300)
         : '';
-    final extension = _extensionOf(diskName) ??
+    final extension =
+        _extensionOf(diskName) ??
         // Emby reports "mov,mp4,m4a,3gp,3g2,mj2" for an MP4 file.
         (container is String
             ? _extensionOf('.${container.split(',')[0]}')
@@ -197,7 +199,8 @@ class EmbyAdapter implements SourceAdapter {
     if (diskName.isNotEmpty) {
       fileName = diskName;
     } else if (series is String && season is int && episode is int) {
-      fileName = '${cleanServerText(series, 200)} '
+      fileName =
+          '${cleanServerText(series, 200)} '
           'S${'$season'.padLeft(2, '0')}E${'$episode'.padLeft(2, '0')} '
           '$name$dotExtension';
     } else {
@@ -217,13 +220,20 @@ class EmbyAdapter implements SourceAdapter {
     );
   }
 
+  /// The request headers a file of this server is fetched with (by the
+  /// player, or to ping it): signs in first if that was not done yet.
+  /// They hold the session token: for this server alone, and never to be
+  /// saved or logged.
+  Future<Map<String, String>> playbackHeaders() async =>
+      _headers((await _currentSession()).token);
+
   /// A signed-in GET that returns a JSON object. If the server no longer
   /// accepts the token, signs in again once.
   Future<Map<String, dynamic>> _getJson(
     String path,
     Map<String, String> Function(_Session session) query,
   ) async {
-    for (var attempt = 0;; attempt++) {
+    for (var attempt = 0; ; attempt++) {
       final session = await _currentSession();
       final response = await _client.get(
         _api(_root, path, query(session)),
@@ -306,7 +316,8 @@ class EmbyAdapter implements SourceAdapter {
   /// Who is asking, in the form both servers understand. Emby reads
   /// `X-Emby-*`; Jellyfin prefers `Authorization`.
   Map<String, String> _headers(String? token) {
-    final identity = 'MediaBrowser Client="Dhara", Device="Dhara", '
+    final identity =
+        'MediaBrowser Client="Dhara", Device="Dhara", '
         'DeviceId="$_deviceId", Version="1"'
         '${token == null ? '' : ', Token="$token"'}';
     return {

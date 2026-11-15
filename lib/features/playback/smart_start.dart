@@ -57,6 +57,8 @@ class CopyChoice {
     required this.asked,
     required this.answered,
     this.answeredIn,
+    this.headers = const {},
+    this.refused = const [],
   });
 
   /// The copy that was chosen (one of the candidates).
@@ -74,6 +76,14 @@ class CopyChoice {
   /// answered with the video by the time this one was chosen.
   final int asked;
   final int answered;
+
+  /// The copies whose server wanted a sign-in (see `CopyProbe.refused`).
+  final List<Uri> refused;
+
+  /// The request headers the player must fetch it with: a media server's
+  /// session. Empty where [address] is on another host than [url]: the
+  /// session is for the server that gave it, and for no other.
+  final Map<String, String> headers;
 }
 
 /// Decides which copy to play while the answers of a live ping come in.
@@ -166,16 +176,22 @@ class CopyPick {
 /// blocked is opened unchecked: the player then reports the real problem.
 /// Throws [PlaybackBlocked] if every copy is redirected to where the app
 /// may not go.
+///
+/// [headers] are the request headers of the copies that need any (see
+/// `MediaSessions`); the chosen copy's come back in the [CopyChoice].
 Future<CopyChoice> chooseCopy(
   CopyProber prober,
   List<PlayCandidate> candidates, {
   PreferredQuality preferred = PreferredQuality.best,
   Uri? resume,
+  Map<Uri, Map<String, String>> headers = const {},
 }) async {
   final pick = CopyPick(candidates, preferred: preferred, resume: resume);
   final chosen = Completer<PlayCandidate?>();
   final answers = prober
-      .probe([for (final candidate in candidates) candidate.url])
+      .probe([
+        for (final candidate in candidates) candidate.url,
+      ], headers: headers)
       .listen(
         (probe) {
           final certain = pick.add(probe);
@@ -190,14 +206,23 @@ Future<CopyChoice> chooseCopy(
   unawaited(answers.cancel());
 
   final asked = {for (final candidate in candidates) candidate.url}.length;
+  final refused = [
+    for (final candidate in candidates)
+      if (pick.answerOf(candidate.url)?.refused ?? false) candidate.url,
+  ];
   if (copy != null) {
     final answer = pick.answerOf(copy.url)!;
+    final address = answer.address!;
     return CopyChoice(
       url: copy.url,
-      address: answer.address!,
+      address: address,
       answeredIn: answer.time,
       asked: asked,
       answered: pick.answered,
+      headers: address.host == copy.url.host
+          ? headers[copy.url] ?? const {}
+          : const {},
+      refused: refused,
     );
   }
   // No server answered with the video.
@@ -209,6 +234,8 @@ Future<CopyChoice> chooseCopy(
       address: candidate.url,
       asked: asked,
       answered: 0,
+      headers: headers[candidate.url] ?? const {},
+      refused: refused,
     );
   }
   throw PlaybackBlocked(

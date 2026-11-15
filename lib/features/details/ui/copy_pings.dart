@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dhara/features/metadata/metadata_store.dart';
 import 'package:dhara/features/playback/copy_choice.dart';
 import 'package:dhara/features/playback/copy_probe.dart';
+import 'package:dhara/features/playback/media_sessions.dart';
 import 'package:dhara/features/sources/source_store.dart';
 import 'package:flutter/widgets.dart';
 
@@ -55,7 +56,11 @@ class CopyPings extends StatefulWidget {
 
 class _CopyPingsState extends State<CopyPings> {
   CopyProber? _prober;
+  MediaSessions? _sessions;
   StreamSubscription<CopyProbe>? _answers;
+
+  // Counts the pings: an earlier one that is still signing in is dropped.
+  int _pings = 0;
   var _byFile = const <int, CopyProbe>{};
   var _pinging = false;
   var _started = false;
@@ -71,8 +76,11 @@ class _CopyPingsState extends State<CopyPings> {
     if (_started) return;
     _started = true;
     _prober = CopyProbeScope.newProber(context);
+    _sessions = MediaSessionsScope.read(context);
     final count = _askable.length;
-    if (_prober != null && count > 0 && count <= CopyPings.autoLimit) _ping();
+    if (_prober != null && count > 0 && count <= CopyPings.autoLimit) {
+      unawaited(_ping());
+    }
   }
 
   @override
@@ -82,19 +90,29 @@ class _CopyPingsState extends State<CopyPings> {
     super.dispose();
   }
 
-  void _ping() {
+  Future<void> _ping() async {
     final prober = _prober;
     final copies = _askable;
     if (prober == null || copies.isEmpty) return;
+    final ping = ++_pings;
     unawaited(_answers?.cancel());
     setState(() {
       _byFile = const {};
       _pinging = true;
     });
+    // Files of a media server are asked for with its session.
+    final urls = [for (final copy in copies) copy.url];
+    final headers =
+        await _sessions?.headersForAll(urls) ??
+        const <Uri, Map<String, String>>{};
+    if (!mounted || ping != _pings) return;
     _answers = prober
-        .probe([for (final copy in copies) copy.url])
+        .probe(urls, headers: headers)
         .listen(
           (probe) {
+            // A session the server no longer takes: signed in afresh the
+            // next time.
+            if (probe.refused) _sessions?.forget(probe.url);
             if (!mounted) return;
             setState(() {
               _byFile = {
@@ -116,7 +134,9 @@ class _CopyPingsState extends State<CopyPings> {
     LivePings(
       byFile: _byFile,
       pinging: _pinging,
-      ping: _prober == null || _askable.isEmpty ? null : _ping,
+      ping: _prober == null || _askable.isEmpty
+          ? null
+          : () => unawaited(_ping()),
     ),
   );
 }

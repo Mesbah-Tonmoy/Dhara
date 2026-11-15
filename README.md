@@ -20,7 +20,7 @@ A Bangla + English README is written in Phase 8.
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
 | 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests), frame rate while scrolling, and cold start |
-| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, Settings has a preferred quality, Play starts on the fastest copy, a video that stalls goes on from another copy by itself, and the next episode's copy is chosen before this one ends (see [Smart playback](#smart-playback)). Still to come: Emby and Jellyfin files, and the last measurements |
+| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, Settings has a preferred quality, Play starts on the fastest copy, a video that stalls goes on from another copy by itself, and the next episode's copy is chosen before this one ends (see [Smart playback](#smart-playback)). Still to come: the last measurements |
 | 8–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -151,6 +151,36 @@ its own. A copy picked from a title's list, and a pasted address, are
 played from exactly there (one request, for where it leads). The answer
 is also where the player is sent: it replaces the redirect check that
 ran before every video.
+
+### Files of Emby and Jellyfin servers
+
+A folder listing gives its files to anyone; a media server gives them to
+a signed-in session only. `MediaSessions`
+(`lib/features/playback/media_sessions.dart`) signs in to such a server
+the first time one of its videos is pinged or played (the adapter's
+sign-in: the server's guest user) and hands out the request headers of
+that session. The live ping and the player send them with every request
+for a file of that server:
+
+- the token is kept in memory only: never saved, never logged, and gone
+  when the app closes
+- it goes to the server that gave it and to no other host. The app's own
+  requests do not carry headers across a redirect to another host, and
+  where the chosen copy leads to another host the player is given no
+  headers. What is left is the gap named under
+  [Player hardening](#player-hardening): FFmpeg follows a redirect the
+  server sends the player itself, and would take the headers along
+- if the sign-in does not work (no guest user, server down), the file is
+  asked for without a session, the server refuses it, and the copy counts
+  as not answering
+- if the server no longer takes a session (it answers 401 or 403), that
+  copy counts as not answering this once, and the app signs in afresh
+  the next time
+
+Checked with a stand-in server in the automated tests, and with the real
+libmpv fetching a file that is only given for the right header. **Not yet
+tried on a real Emby or Jellyfin server** (none of the enabled servers is
+one).
 
 ### The next episode, ahead of time
 
@@ -568,9 +598,10 @@ turned out to be, and listing it worked. Each run uses an HTTP client that
 only knows the hosts of the sources being tested: no port scanning, no
 address sweeps, and a redirect to any other host is refused.
 
-Known gaps: Emby/Jellyfin video URLs need the session token as a request
-header, which playback does not send yet; `https` servers with self-signed
-certificates are refused.
+Emby/Jellyfin video URLs need the session token as a request header; the
+player and the live ping send it (see
+[Files of Emby and Jellyfin servers](#files-of-emby-and-jellyfin-servers)).
+Known gap: `https` servers with self-signed certificates are refused.
 
 ## Home
 
@@ -641,7 +672,7 @@ genres, about the same year and language).
   that suits the **Preferred quality** of Settings best, then the quicker
   server, then the larger file. "Auto (best)" takes the sharpest; a named
   quality takes that one, then the nearest below it, then the nearest
-  above. Copies on Emby or Jellyfin cannot be played yet.
+  above.
 - **What Play plays** (`lib/features/details/next_to_play.dart`): the video
   watched last if it was left unfinished; after an episode that ended, the
   next one; otherwise the film, or the first episode. After an episode the
@@ -793,8 +824,8 @@ Known gaps:
 - In this screen's search the same file on two servers is two entries; the
   Search page has them under one title. The Emby server at
   `146.196.48.9` holds the same files as the folder-listing source
-  `146.196.48.10`, and its files cannot be played yet (see the Emby gap
-  above), so it is best left disabled for now.
+  `146.196.48.10`, so with both enabled every film of theirs has two
+  copies.
 - The 20 custom websites in the starter list have no adapter and are not
   indexed.
 

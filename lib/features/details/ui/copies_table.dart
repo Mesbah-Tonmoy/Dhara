@@ -388,13 +388,9 @@ class _CopyLineState extends State<_CopyLine> {
                       : DharaButtonStyle.glass,
                   onPressed: widget.onPlay,
                 )
-              : Text(
-                  // A media server wants a sign-in, which the player
-                  // cannot give yet; anything else is no address to play.
-                  source?.type == SourceType.emby ||
-                          source?.type == SourceType.jellyfin
-                      ? 'Needs sign-in'
-                      : 'Cannot be played',
+              : const Text(
+                  // No address the player may be given.
+                  'Cannot be played',
                   textAlign: TextAlign.right,
                   style: small,
                 ),

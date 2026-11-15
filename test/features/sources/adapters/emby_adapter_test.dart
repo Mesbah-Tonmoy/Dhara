@@ -42,6 +42,35 @@ void main() {
             .having((e) => e.message, 'message', contains(part)),
       );
 
+  test('playbackHeaders signs in and carries the session token', () async {
+    final headers = await adapter().playbackHeaders();
+
+    expect(headers['X-Emby-Token'], 'token-1');
+    expect(headers['Authorization'], contains('Token="token-1"'));
+    expect(headers['Authorization'], contains('DeviceId="dhara-test-1"'));
+    expect(emby.signIns, hasLength(1));
+
+    // With them the server gives the file; without, it does not.
+    final file = server.url('/Videos/101/stream.mkv');
+    expect((await client.probe(file, headers: headers)).statusCode, 206);
+    expect((await client.probe(file)).statusCode, 401);
+  });
+
+  test('playbackHeaders uses the session the listing signed in for', () async {
+    final one = adapter();
+    await one.list(server.url('/'));
+    await one.playbackHeaders();
+    await one.playbackHeaders();
+
+    expect(emby.signIns, hasLength(1));
+  });
+
+  test('playbackHeaders fails where the sign-in does', () async {
+    emby.publicUsers = '[]';
+
+    await expectLater(adapter().playbackHeaders(), refuses('no guest user'));
+  });
+
   group('probeMediaServer', () {
     test('recognises Emby from its real public answer', () async {
       final info = await probeMediaServer(client, server.url('/'));

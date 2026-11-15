@@ -90,7 +90,8 @@ class FakeEmby {
       )
       ..routes['$prefix/Users/Public'] = _users
       ..routes['$prefix/Users/AuthenticateByName'] = _authenticate
-      ..routes['$prefix/Items'] = _items;
+      ..routes['$prefix/Items'] = _items
+      ..routes['$prefix/Videos/101/stream.mkv'] = _stream;
   }
 
   final LocalServer server;
@@ -149,6 +150,24 @@ class FakeEmby {
       'Items': all.skip(start).take(limit).toList(),
       'TotalRecordCount': all.length,
     });
+  }
+
+  /// A video file: given to a signed-in session only, as the real server
+  /// does (written from the API documentation, not a capture).
+  Future<void> _stream(HttpRequest request) async {
+    if (request.headers.value('x-emby-token') != token) {
+      request.response.statusCode = 401;
+      return request.response.close();
+    }
+    request.response
+      ..statusCode = HttpStatus.partialContent
+      ..headers.contentType = ContentType('video', 'x-matroska')
+      ..add(List.filled(1024, 0));
+    try {
+      await request.response.close();
+    } on Object {
+      // The client hung up.
+    }
   }
 
   List<HttpRequest> requestsTo(String path) => [

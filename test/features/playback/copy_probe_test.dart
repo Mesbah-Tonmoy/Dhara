@@ -89,6 +89,8 @@ void main() {
     expect(gone.problem, contains('not on the server'));
     expect(gone.blocked, isFalse);
     expect(refused.problem, contains('does not let'));
+    expect(refused.refused, isTrue);
+    expect(gone.refused, isFalse);
     expect(broken.problem, 'The server answered 500.');
   });
 
