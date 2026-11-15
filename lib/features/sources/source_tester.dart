@@ -5,6 +5,7 @@ import 'package:dhara/features/sources/adapters/directory_listing_adapter.dart';
 import 'package:dhara/features/sources/adapters/emby_adapter.dart';
 import 'package:dhara/features/sources/adapters/h5ai_adapter.dart';
 import 'package:dhara/features/sources/adapters/source_adapter.dart';
+import 'package:dhara/features/sources/portal_links.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:html/parser.dart' as html;
 
@@ -18,6 +19,7 @@ class UrlTestResult {
     this.software,
     this.entryCount,
     this.sample = const [],
+    this.links = const [],
     this.problem,
   });
 
@@ -41,6 +43,10 @@ class UrlTestResult {
 
   /// The first few names found (for a custom site: the page title).
   final List<String> sample;
+
+  /// For a web page of some other kind: the other servers it links to
+  /// (see [portalLinks]). They are only named, never asked.
+  final List<PortalLink> links;
 
   /// Why this URL cannot be used, in plain English; `null` when it can.
   final String? problem;
@@ -186,6 +192,7 @@ class SourceTester {
     SourceType? type;
     var entries = const <RemoteEntry>[];
     List<String>? sample;
+    var links = const <PortalLink>[];
     String? problem;
     try {
       if (!page.isOk) {
@@ -204,6 +211,7 @@ class SourceTester {
           type = SourceType.customSite;
           final title = document.querySelector('title')?.text ?? '';
           sample = [if (title.trim().isNotEmpty) cleanServerText(title, 80)];
+          links = portalLinks(document, page.url);
         } else {
           type = server.type;
           final product = type == SourceType.jellyfin ? 'Jellyfin' : 'Emby';
@@ -234,6 +242,7 @@ class SourceTester {
       entryCount: sample == null && problem == null ? entries.length : null,
       sample:
           sample ?? [for (final entry in entries.take(sampleSize)) entry.name],
+      links: links,
       problem: problem,
     );
   }

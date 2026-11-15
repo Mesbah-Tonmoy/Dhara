@@ -371,7 +371,7 @@
       "category": "mixed",
       "baseUrls": ["http://10.1.1.1/"],
       "portalUrl": null,
-      "notes": "Local media portal."
+      "notes": "A front page with no media of its own; it links to other servers (Server Discovery lists them after a test)."
     },
     {
       "id": "radiant-media",

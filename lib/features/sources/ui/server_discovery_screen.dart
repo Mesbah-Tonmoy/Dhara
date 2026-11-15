@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:dhara/features/sources/portal_links.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_list.dart';
 import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
 import 'package:dhara/features/sources/source_tester.dart';
+import 'package:dhara/features/sources/ui/linked_servers_dialog.dart';
 import 'package:dhara/features/sources/ui/source_form_dialog.dart';
 import 'package:dhara/features/sources/ui/source_list_files.dart';
 import 'package:dhara/shell/page_bleed.dart';
@@ -37,7 +39,7 @@ enum _Filter {
   };
 }
 
-enum _RowAction { test, edit, remove }
+enum _RowAction { test, links, edit, remove }
 
 /// Server Discovery, the BDIX Tester: every known source with what the
 /// last test found, and the tools to test, enable, add, edit, remove,
@@ -217,10 +219,51 @@ class _ServerDiscoveryScreenState extends State<ServerDiscoveryScreen> {
     }
   }
 
+  /// Lists the servers the website [source] links to, as its last test
+  /// found them, and adds the one the user picks: through the same form
+  /// as any new source, so nothing is added unseen. It is not tested or
+  /// switched on by that.
+  Future<void> _showLinks(Source source) async {
+    final links = _linksOf(_tests.resultOf(source.id));
+    if (links.isEmpty) return;
+    final link = await showLinkedServersDialog(
+      context,
+      source: source,
+      links: links,
+      sources: _store.sources,
+    );
+    if (link == null || !mounted) return;
+    final added = await showSourceFormDialog(
+      context,
+      takenIds: _ids,
+      suggested: Source(
+        id: 'suggested',
+        name: link.label == link.url.host
+            ? link.url.host
+            : '${source.name}: ${link.label}',
+        type: SourceType.directoryListing,
+        category: source.category,
+        baseUrls: [link.url],
+        provider: source.provider,
+        isp: source.isp,
+        portalUrl: source.baseUrls.first,
+        notes: 'Linked from ${source.name}.',
+      ),
+    );
+    if (added == null) return;
+    await _change(() => _store.add(added));
+    _say(
+      '${added.name} is in the list. "Test now" in its menu shows what '
+      'kind of server it is.',
+    );
+  }
+
   void _onRowAction(Source source, _RowAction action) {
     switch (action) {
       case _RowAction.test:
         unawaited(_tests.test([source]));
+      case _RowAction.links:
+        unawaited(_showLinks(source));
       case _RowAction.edit:
         unawaited(_edit(source));
       case _RowAction.remove:
@@ -907,6 +950,12 @@ class _SourceRowState extends State<_SourceRow> {
                   enabled: !tests.isTesting,
                   child: const Text('Test now'),
                 ),
+                // A website that turned out to be a page of links.
+                if (_linksOf(result).isNotEmpty)
+                  const PopupMenuItem(
+                    value: _RowAction.links,
+                    child: Text('Linked servers'),
+                  ),
                 const PopupMenuItem(
                   value: _RowAction.edit,
                   child: Text('Edit'),
@@ -948,9 +997,25 @@ String _sampleText(
   }
   // Answered and is fine, but it is a kind of site without an adapter.
   final title = result.urls.expand((url) => url.sample).firstOrNull;
-  return title == null
-      ? 'A website the app cannot read yet'
-      : 'Website: $title';
+  final links = _linksOf(result).length;
+  return [
+    // A front page: said first, the column is narrow. What it is good for
+    // is in the row's menu.
+    if (links > 0) 'Links to $links other ${links == 1 ? 'server' : 'servers'}',
+    title == null ? 'A website the app cannot read yet' : 'Website: $title',
+  ].join(' · ');
+}
+
+/// The other servers a tested website links to (see [portalLinks]), the
+/// first of each host over all its addresses.
+List<PortalLink> _linksOf(SourceTestResult? result) {
+  if (result == null) return const [];
+  final hosts = <String>{};
+  return [
+    for (final url in result.urls)
+      for (final link in url.links)
+        if (hosts.add('${link.url.host}:${link.url.port}')) link,
+  ];
 }
 
 const _monthNames = [

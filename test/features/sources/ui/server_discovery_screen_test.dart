@@ -39,17 +39,16 @@ Source _source(
   SourceType type = SourceType.h5ai,
   List<String>? urls,
   String? isp,
-}) =>
-    Source(
-      id: id,
-      name: name ?? 'Server $id',
-      isp: isp,
-      type: type,
-      category: SourceCategory.movies,
-      baseUrls: [
-        for (final url in urls ?? ['http://10.0.0.1/$id/']) Uri.parse(url),
-      ],
-    );
+}) => Source(
+  id: id,
+  name: name ?? 'Server $id',
+  isp: isp,
+  type: type,
+  category: SourceCategory.movies,
+  baseUrls: [
+    for (final url in urls ?? ['http://10.0.0.1/$id/']) Uri.parse(url),
+  ],
+);
 
 SourceHealth _health({bool reachable = true, bool readable = true, int? ms}) =>
     SourceHealth(
@@ -238,18 +237,16 @@ void main() {
     await tester.tap(find.byKey(const Key('enable-alpha')));
     await tester.pumpAndSettle();
     expect(controller.store.isEnabled('alpha'), isTrue);
-    expect(
-      tester.widget<DharaSwitch>(find.byType(DharaSwitch)).value,
-      isTrue,
-    );
+    expect(tester.widget<DharaSwitch>(find.byType(DharaSwitch)).value, isTrue);
 
     await tester.tap(find.byKey(const Key('enable-alpha')));
     await tester.pumpAndSettle();
     expect(controller.store.isEnabled('alpha'), isFalse);
   });
 
-  testWidgets('says so when a website is switched on that it cannot read',
-      (tester) async {
+  testWidgets('says so when a website is switched on that it cannot read', (
+    tester,
+  ) async {
     final controller = await show(
       tester,
       sources: [
@@ -284,15 +281,16 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('"Enable all reachable" enables what the app can read',
-      (tester) async {
+  testWidgets('"Enable all reachable" enables what the app can read', (
+    tester,
+  ) async {
     final controller = await show(
       tester,
       sources: [
         _source('up'),
         _source('site'),
         _source('down'),
-        _source('new')
+        _source('new'),
       ],
       health: {
         'up': _health(ms: 10),
@@ -316,8 +314,9 @@ void main() {
     expect(find.textContaining('No more reachable servers'), findsOneWidget);
   });
 
-  testWidgets('"Test all" runs the tester and shows each outcome',
-      (tester) async {
+  testWidgets('"Test all" runs the tester and shows each outcome', (
+    tester,
+  ) async {
     // Widget tests answer every HTTP request with status 400, so each
     // server counts as "answered, but with an error".
     final controller = await show(
@@ -372,8 +371,10 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('4 items · 3D Movies · English Movies · '
-          'Foreign Language Movies · Kolkata Bangla Movies'),
+      find.text(
+        '4 items · 3D Movies · English Movies · '
+        'Foreign Language Movies · Kolkata Bangla Movies',
+      ),
       findsOneWidget,
     );
     expect(find.text('h5ai'), findsNWidgets(2), reason: 'detected, not listed');
@@ -385,9 +386,100 @@ void main() {
     expect(find.text('1 the app can read'), findsOneWidget);
   });
 
+  testWidgets('a website that is a page of links says so, lists them, and '
+      'adds one as a source', (tester) async {
+    // Real HTTP against a local server instead of the canned 400 answers.
+    final overrides = HttpOverrides.current;
+    HttpOverrides.global = null;
+    addTearDown(() => HttpOverrides.global = overrides);
+    late LocalServer server;
+    await tester.runAsync(() async => server = await LocalServer.start());
+    addTearDown(() => server.close());
+    // The front page of FTPmedia, as it really is.
+    server.serve('/', fixture('listings/ftpmedia_portal.html'));
+    final portal = Source(
+      id: 'ftpmedia',
+      name: 'FTPmedia',
+      provider: 'FTPmedia',
+      type: SourceType.customSite,
+      category: SourceCategory.mixed,
+      baseUrls: [server.url('/')],
+    );
+    final flix = Source(
+      id: 'dhakaflix-7',
+      name: 'DhakaFlix 7',
+      type: SourceType.h5ai,
+      category: SourceCategory.movies,
+      baseUrls: [Uri.parse('http://172.16.50.7/DHAKA-FLIX-7/')],
+      portalUrl: Uri.parse('http://172.16.50.4/'),
+    );
+
+    final controller = await show(tester, sources: [portal, flix]);
+    // Before a test nothing is known of its links.
+    await tester.tap(find.byKey(const Key('menu-ftpmedia')));
+    await tester.pumpAndSettle();
+    expect(find.text('Linked servers'), findsNothing);
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+
+    // Only the front page itself is tested.
+    await tester.runAsync(() => controller.test([portal]));
+    await tester.pump();
+    expect(
+      find.textContaining('Links to 6 other servers · Website: FTPmedia.net'),
+      findsOneWidget,
+    );
+
+    await chooseFromMenu(tester, 'ftpmedia', 'Linked servers');
+    expect(find.text('Servers FTPmedia links to'), findsOneWidget);
+    expect(find.text('Media Live Movies'), findsOneWidget);
+    expect(find.text('http://10.50.50.51/'), findsOneWidget);
+    // The one that is DhakaFlix's front page is known, and not offered.
+    expect(find.text('In your list: DhakaFlix 7'), findsOneWidget);
+    expect(find.byKey(const Key('linked-add-172.16.50.4')), findsNothing);
+
+    await tester.ensureVisible(find.byKey(const Key('linked-add-10.50.50.51')));
+    await tester.tap(find.byKey(const Key('linked-add-10.50.50.51')));
+    await tester.pumpAndSettle();
+    // The form any new source goes through, filled in to be looked over.
+    // (The page's own button is called the same.)
+    expect(find.text('Add source'), findsNWidgets(2));
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('source-name')))
+          .controller!
+          .text,
+      'FTPmedia: Media Live Movies',
+    );
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('source-urls')))
+          .controller!
+          .text,
+      'http://10.50.50.51/',
+    );
+    await tester.tap(find.byKey(const Key('source-save')));
+    await tester.pumpAndSettle();
+
+    final added = controller.store.sources.last;
+    expect(added.id, 'ftpmedia-media-live-movies');
+    expect(added.baseUrls.single, Uri.parse('http://10.50.50.51/'));
+    expect(added.provider, 'FTPmedia');
+    expect(added.portalUrl, server.url('/'));
+    expect(added.notes, 'Linked from FTPmedia.');
+    // In the list, but neither tested nor switched on.
+    expect(controller.store.isEnabled(added.id), isFalse);
+    expect(controller.resultOf(added.id), isNull);
+    expect(find.textContaining('is in the list'), findsOneWidget);
+    expect(server.requests.map((request) => request.headers.host).toSet(), {
+      '127.0.0.1',
+    });
+  });
+
   group('adding and editing', () {
-    testWidgets('a new source goes through the form into the list',
-        (tester) async {
+    testWidgets('a new source goes through the form into the list', (
+      tester,
+    ) async {
       final controller = await show(tester, sources: [_source('my-server')]);
 
       await tester.tap(find.byKey(const Key('add-source')));
@@ -449,8 +541,9 @@ void main() {
       expect(find.text('Name: is missing.'), findsOneWidget);
     });
 
-    testWidgets('editing keeps the id and replaces the details',
-        (tester) async {
+    testWidgets('editing keeps the id and replaces the details', (
+      tester,
+    ) async {
       final controller = await show(
         tester,
         sources: [_source('alpha')],
@@ -505,8 +598,9 @@ void main() {
     String listOf(List<Source> sources) =>
         SourceStore(starter: sources).exportJson();
 
-    testWidgets('an import shows what will change, then applies it',
-        (tester) async {
+    testWidgets('an import shows what will change, then applies it', (
+      tester,
+    ) async {
       final files = _FakeFiles(
         toRead: listOf([
           _source('alpha'),
@@ -532,10 +626,12 @@ void main() {
       await tester.tap(find.byKey(const Key('confirm-import')));
       await tester.pumpAndSettle();
 
-      expect(
-        controller.store.sources.map((s) => s.id),
-        ['alpha', 'beta', 'one', 'two'],
-      );
+      expect(controller.store.sources.map((s) => s.id), [
+        'alpha',
+        'beta',
+        'one',
+        'two',
+      ]);
       expect(controller.store.sources[1].name, 'Beta, renamed');
       expect(find.text('Imported: 2 added, 1 replaced.'), findsOneWidget);
     });
@@ -574,8 +670,9 @@ void main() {
       expect(controller.store.sources, hasLength(1));
     });
 
-    testWidgets('a file that is too large or unreadable is refused',
-        (tester) async {
+    testWidgets('a file that is too large or unreadable is refused', (
+      tester,
+    ) async {
       await show(
         tester,
         sources: const [],
@@ -623,8 +720,9 @@ void main() {
       expect(find.byType(AlertDialog), findsNothing);
     });
 
-    testWidgets('an export writes the whole list as a source list',
-        (tester) async {
+    testWidgets('an export writes the whole list as a source list', (
+      tester,
+    ) async {
       final files = _FakeFiles();
       final controller = await show(
         tester,
@@ -728,8 +826,10 @@ void main() {
   group('uniqueSourceId', () {
     test('makes an id from the name', () {
       expect(uniqueSourceId('My Server!', {}), 'my-server');
-      expect(uniqueSourceId('  DhakaFlix   7 (Movies) ', {}),
-          'dhakaflix-7-movies');
+      expect(
+        uniqueSourceId('  DhakaFlix   7 (Movies) ', {}),
+        'dhakaflix-7-movies',
+      );
       expect(uniqueSourceId('ICC_FTP#3', {}), 'icc-ftp-3');
     });
 

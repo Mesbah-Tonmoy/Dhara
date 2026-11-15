@@ -41,20 +41,34 @@ String uniqueSourceId(String name, Set<String> taken) {
 
 /// Asks for the details of a new source, or of [source] when editing.
 /// Returns the checked source, or `null` if the user cancels.
+///
+/// A new source can start from [suggested] (a server a front page links
+/// to, say): its details fill the form, to be looked over and changed;
+/// its id is not used.
 Future<Source?> showSourceFormDialog(
   BuildContext context, {
   Source? source,
+  Source? suggested,
   required Set<String> takenIds,
 }) =>
     showDialog<Source>(
       context: context,
-      builder: (_) => _SourceFormDialog(source: source, takenIds: takenIds),
+      builder: (_) => _SourceFormDialog(
+        source: source,
+        suggested: suggested,
+        takenIds: takenIds,
+      ),
     );
 
 class _SourceFormDialog extends StatefulWidget {
-  const _SourceFormDialog({required this.source, required this.takenIds});
+  const _SourceFormDialog({
+    required this.source,
+    required this.suggested,
+    required this.takenIds,
+  });
 
   final Source? source;
+  final Source? suggested;
   final Set<String> takenIds;
 
   @override
@@ -62,18 +76,20 @@ class _SourceFormDialog extends StatefulWidget {
 }
 
 class _SourceFormDialogState extends State<_SourceFormDialog> {
-  late final _name = TextEditingController(text: widget.source?.name);
+  /// What the form starts with: the source being edited, or a suggestion.
+  late final Source? _start = widget.source ?? widget.suggested;
+  late final _name = TextEditingController(text: _start?.name);
   late final _urls = TextEditingController(
-    text: widget.source?.baseUrls.join('\n'),
+    text: _start?.baseUrls.join('\n'),
   );
-  late final _provider = TextEditingController(text: widget.source?.provider);
-  late final _isp = TextEditingController(text: widget.source?.isp);
+  late final _provider = TextEditingController(text: _start?.provider);
+  late final _isp = TextEditingController(text: _start?.isp);
   late final _portal = TextEditingController(
-    text: widget.source?.portalUrl?.toString(),
+    text: _start?.portalUrl?.toString(),
   );
-  late final _notes = TextEditingController(text: widget.source?.notes);
-  late var _type = widget.source?.type ?? SourceType.directoryListing;
-  late var _category = widget.source?.category ?? SourceCategory.mixed;
+  late final _notes = TextEditingController(text: _start?.notes);
+  late var _type = _start?.type ?? SourceType.directoryListing;
+  late var _category = _start?.category ?? SourceCategory.mixed;
   String? _error;
 
   @override

@@ -16,6 +16,13 @@ each):
 | `h5ai_files.html` | h5ai 0.29.0, files with sizes | DhakaFlix 7 `172.16.50.7` |
 | `h5ai_0_29_2.html` | h5ai 0.29.2 | CircleFTP `index2.circleftp.net` |
 
+A front page, not a listing (2026-11-16): it has no files, only links to
+other servers, which `portal_links_test.dart` reads from it.
+
+| File | What | From |
+|---|---|---|
+| `ftpmedia_portal.html` | static page on nginx 1.20.1 | FTPmedia `10.1.1.1` |
+
 Written by hand, in the format the server software documents, because no
 reachable server produced them. Titles are made up:
 

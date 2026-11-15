@@ -615,6 +615,13 @@ test found and offers:
   but stay off: there is no adapter for them yet. One can still be switched
   on by hand; the app then says that nothing of it will be in the library,
   and Library index lists it as a website it cannot read.
+- **Linked servers**, in the menu of a website whose test found links to
+  other hosts. Some entries are an operator's front page with no videos of
+  its own (FTPmedia at `http://10.1.1.1/` is one: it points to five other
+  servers). The row says "Links to 5 other servers"; the dialog lists them
+  by what the page calls them, says which are in the list already, and
+  "Add as source" opens the usual form filled in. A linked server is only
+  named, never contacted, until it is a source of its own and tested.
 - **Add source**, and Edit / Remove from a row's menu. The form uses the
   same checks as the list parser.
 - **Import** and **Export** of the list as JSON. An import shows how many
@@ -635,6 +642,9 @@ reports each source as soon as it is done:
   Emby/Jellyfin (asked through its public info address), or "other website"
 - the server software, how many entries the first page lists and the first
   few names
+- for an "other website": its title and the other servers it links to
+  (`portalLinks` in `lib/features/sources/portal_links.dart`: `http`/`https`
+  links to another host, the first per host, at most 12)
 - for anything unusable, the reason in plain English
 
 A source is *readable* when it answered, an adapter exists for what it
@@ -871,7 +881,11 @@ Known gaps:
   `146.196.48.10`, so with both enabled every film of theirs has two
   copies.
 - The 20 custom websites in the starter list have no adapter and are not
-  indexed.
+  indexed. FTPmedia (`http://10.1.1.1/`) was looked at on 2026-11-16: it is
+  a front page with no media, so no adapter can read it; what it links to
+  can be added from Server Discovery. Its "Media Live Movies" server
+  (`http://10.50.50.51/`) did not answer from the connection it was tried
+  on.
 
 ## Titles and metadata
 

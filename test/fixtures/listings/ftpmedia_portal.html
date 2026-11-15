@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FTPmedia.net | লোকাল মিডিয়া পোর্টাল</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #0d0f12;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* অ্যানিমেটেড গ্লোয়িং ব্যানার সেকশন */
+        .hero-banner {
+            background-image: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.9)), url('banner-bg.jpg');
+            background-size: cover;
+            background-position: center;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 70px 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        /* লোগোকে আগের মতো জীবন্ত করতে ডাইনামিক সাইনিং ও গ্লো ইফেক্ট */
+        .hero-banner h1 {
+            font-size: 5rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            margin-bottom: 25px;
+            display: inline-block;
+            
+            /* জীবন্ত গ্রাডিয়েন্ট টেক্সট এবং সাইন ইফেক্ট */
+            background: linear-gradient(45deg, #ffffff 0%, #38bdf8 25%, #0284c7 50%, #38bdf8 75%, #ffffff 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            
+            /* টেক্সট ও সাইন অ্যানিমেশন */
+            animation: shineText 4s linear infinite, cinematicGlow 4s infinite ease-in-out;
+        }
+
+        /* টেক্সট অ্যানিমেশন কন্টেইনার */
+        .animated-text-container {
+            display: block;
+            position: relative;
+            padding-bottom: 12px;
+            margin-top: 10px;
+        }
+
+        .animated-text-box {
+            display: inline-block;
+            overflow: hidden;
+            border-right: 3px solid #38bdf8;
+            white-space: nowrap;
+            margin: 0 auto;
+            letter-spacing: 1px;
+            font-size: 1.25rem;
+            font-weight: 600;
+            animation: 
+                typingCycle 15s infinite ease-in-out,
+                blink-caret 2s step-end infinite;
+        }
+
+        .glow-text {
+            animation: textFlash 3s infinite ease-in-out;
+        }
+
+        /* অ্যানিমেটেড আন্ডারলাইন */
+        .animated-underline {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            height: 3px;
+            background: linear-gradient(90deg, #0284c7, #38bdf8, #0284c7);
+            box-shadow: 0 0 15px #38bdf8;
+            border-radius: 2px;
+            animation: underlineCycle 65s infinite ease-in-out;
+        }
+
+        /* লোগোর শান্ত আইস-ব্লু গ্লো ইফেক্ট */
+        @keyframes cinematicGlow {
+            0%, 100% {
+                filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.3)) drop-shadow(0 0 20px rgba(56, 189, 248, 0.1));
+                transform: scale(1);
+            }
+            50% {
+                filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.7)) drop-shadow(0 0 40px rgba(56, 189, 248, 0.3));
+                transform: scale(1.02); /* হালকা স্মুথ পালস */
+            }
+        }
+
+        /* লোগো টেক্সটের চলমান আলো (Shine) */
+        @keyframes shineText {
+            to { background-position: 200% center; }
+        }
+
+        /* টাইপরাইটার লুপ */
+        @keyframes typingCycle {
+            0% { width: 0; }
+            7.6% { width: 100%; }     
+            92.4% { width: 100%; }    
+            100% { width: 0; }        
+        }
+
+        @keyframes underlineCycle {
+            0% { width: 0; }
+            7.6% { width: 100%; }
+            92.4% { width: 100%; }
+            100% { width: 0; }
+        }
+
+        @keyframes blink-caret { from, to { border-color: transparent } 50% { border-color: #38bdf8; } }
+
+        @keyframes textFlash {
+            0%, 100% { color: #38bdf8; text-shadow: 0 0 8px rgba(56, 189, 248, 0.4); opacity: 1; }
+            45% { color: #38bdf8; text-shadow: 0 0 4px rgba(56, 189, 248, 0.2); opacity: 0.9; }
+            50% { color: #ffffff; text-shadow: 0 0 20px #38bdf8; opacity: 1; }
+            55% { color: #38bdf8; text-shadow: 0 0 8px rgba(56, 189, 248, 0.4); opacity: 1; }
+        }
+
+        /* গ্রিড লেআউট */
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px;
+        }
+
+        /* সম্পূর্ণ ক্লিকেবল এবং রেসপনসিভ মিডিয়া কার্ড */
+        .media-card {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), border-color 0.4s ease, box-shadow 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .card-image-wrapper {
+            width: 100%;
+            height: 170px;
+            overflow: hidden;
+            background-color: #0f172a;
+            border-bottom: 1px solid #334155;
+            position: relative;
+        }
+
+        /* কার্ডের ভেতরের ছবির লাইটিং ইফেক্ট */
+        .media-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(80%) brightness(0.7);
+            transition: transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1), filter 0.6s ease;
+        }
+
+        /* হোভার করলে পুরো কার্ডে গ্লো ইফেক্ট ও ডাইনামিক মুভমেন্ট */
+        .media-card:hover {
+            transform: translateY(-8px);
+            border-color: #38bdf8;
+            box-shadow: 0 15px 35px rgba(56, 189, 248, 0.25);
+        }
+
+        .media-card:hover img {
+            filter: grayscale(0%) brightness(1.05);
+            transform: scale(1.08); /* ইমেজ জুম ইন */
+        }
+
+        .card-content {
+            padding: 20px;
+            text-align: center;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(180deg, #1e293b 0%, #151f30 100%);
+        }
+
+        /* ইন্টারেক্টিভ নিয়ন অ্যাকশন বাটন */
+        .btn {
+            display: inline-block;
+            width: 100%;
+            background-color: rgba(2, 132, 199, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-size: 0.95rem;
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* হোভারে বাটনের গ্লো ও রিফ্লেকশন */
+        .media-card:hover .btn {
+            background-color: #38bdf8;
+            color: #0f172a;
+            border-color: #38bdf8;
+            box-shadow: 0 0 25px #38bdf8, 0 4px 10px rgba(56, 189, 248, 0.4);
+            transform: scale(1.02);
+        }
+
+        @media (max-width: 900px) {
+            .media-grid { grid-template-columns: repeat(2, 1fr); }
+            .hero-banner h1 { font-size: 3.5rem; }
+            .animated-text-box { white-space: normal; border-right: none; animation: textFlash 3s infinite ease-in-out; }
+            .animated-underline { display: none; }
+        }
+
+        @media (max-width: 600px) {
+            .media-grid { grid-template-columns: 1fr; }
+            .hero-banner h1 { font-size: 2.6rem; letter-spacing: 3px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- ব্যানার -->
+        <header class="hero-banner">
+            <h1>FTPmedia.net</h1>
+            <div class="animated-text-container">
+                <div class="animated-text-box">
+                    <p class="glow-text">আমাদের লোকাল হাইস্পিড নেটওয়ার্ক সার্ভারে আপনাকে স্বাগতম</p>
+                </div>
+                <div class="animated-underline"></div>
+            </div>
+        </header>
+
+        <!-- ৬টি সম্পূর্ণ ক্লিকেবল জীবন্ত কার্ডের গ্রিড -->
+        <main class="media-grid">
+            
+            <!-- কার্ড 1 -->
+            <a href="http://10.1.1.1" class="media-card">
+                <div class="card-image-wrapper">
+                    <img src="./FTPmedia.net_files/pic01.jpg" alt="FTP Media">
+                </div>
+                <div class="card-content">
+                    <span class="btn">FTP MEDIA</span>
+                </div>
+            </a>
+
+            <!-- কার্ড 2 -->
+            <a href="http://10.50.50.51" class="media-card">
+                <div class="card-image-wrapper">
+                    <img src="./FTPmedia.net_files/pic02.jpg" alt="Media Live Movies">
+                </div>
+                <div class="card-content">
+                    <span class="btn">Media Live Movies</span>
+                </div>
+            </a>
+
+            			
+			
+			<!-- কার্ড 3 -->
+            <a href="http://172.16.50.4//" class="media-card">
+                <div class="card-image-wrapper">
+                    <img src="./FTPmedia.net_files/pic04.jpg" alt="Live TV">
+                </div>
+                <div class="card-content">
+                    <span class="btn">Download</span>
+                </div>
+            </a>
+			
+			
+			<!-- কার্ড ৩ -->
+            <a href="http://172.16.15.5/" class="media-card">
+                <div class="card-image-wrapper">
+                    <img src="./FTPmedia.net_files/pic03.jpg" alt="Live TV">
+                </div>
+                <div class="card-content">
+                    <span class="btn">Streming LIVE.....</span>
+                </div>
+            </a>
+			
+			
+			<!-- কার্ড 5 -->
+            <a href="http://172.16.14.3/" class="media-card">
+                <div class="card-image-wrapper">
+                    <img src="./FTPmedia.net_files/pic05.jpg" alt="Live TV">
+                </div>
+                <div class="card-content">
+                    <span class="btn">LIVE </span>
+                </div>
+            </a>
+			
+			
+			
+			<!-- কার্ড 6 -->
+            <a href="http://172.16.14.1" class="media-card">
+                <div class="card-image-wrapper">
+                    <img src="./FTPmedia.net_files/pic06.jpg" alt="Live TV">
+                </div>
+                <div class="card-content">
+                    <span class="btn">OTT Live.....</span>
+                </div>
+            </a>
+
+            
