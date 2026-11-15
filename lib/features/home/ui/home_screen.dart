@@ -238,6 +238,7 @@ class _RowsState extends State<_Rows> {
             child: CardRow(
               key: const Key('home-row-continue'),
               title: 'Continue Watching',
+              onSeeAll: () => shell.open(ShellDestination.history),
               leftInset: left,
               itemWidth: DharaLayout.wideCardWidth,
               itemAspectRatio: 16 / 9,

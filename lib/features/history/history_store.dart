@@ -1,4 +1,5 @@
 import 'package:dhara/core/db/library_db.dart';
+import 'package:dhara/features/home/home_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sqlite3/sqlite3.dart';
 
@@ -106,4 +107,114 @@ class HistoryStore {
     );
     return _db.updatedRows;
   }
+}
+
+/// A video of the history with what the library knows about it, for the
+/// History page.
+@immutable
+class HistoryItem {
+  const HistoryItem({
+    required this.video,
+    this.title,
+    this.fileName,
+    this.sourceId,
+    this.season,
+    this.episode,
+    this.episodeName,
+    this.stillPath,
+  });
+
+  /// When and how far it was watched. Its position is where the player
+  /// would go on, if it still can.
+  final WatchedVideo video;
+
+  /// The film or show it is a copy of; `null` for a video that is not in
+  /// the index (played from a pasted address) or is neither.
+  final TitleCard? title;
+
+  /// Its name in the index and the source it is on, if it is there.
+  /// Server-controlled text.
+  final String? fileName;
+  final String? sourceId;
+  final int? season;
+  final int? episode;
+  final String? episodeName;
+  final String? stillPath;
+}
+
+/// The history with titles, and the changes the History page makes.
+extension HistoryPage on HistoryStore {
+  /// The [limit] videos watched last, the latest first, each with its
+  /// title if it has one. [sourceIds] are the enabled sources: a title's
+  /// card counts only their videos (the history itself lists everything).
+  List<HistoryItem> items({
+    required Iterable<String> sourceIds,
+    int limit = 300,
+  }) {
+    final rows = _db.select(
+      'SELECT h.url, h.watched_at, h.finished, h.duration_ms, '
+      // What can be resumed is where the player would go on.
+      'ifnull(p.position_ms, h.position_ms) AS position_ms, '
+      'f.name, s.source_id, m.title, m.season, m.episode, '
+      'coalesce(e.name, m.episode_name) AS episode_name, e.still_path '
+      'FROM (SELECT * FROM watch_history ORDER BY watched_at DESC LIMIT ?) h '
+      'LEFT JOIN playback p ON p.url = h.url '
+      'LEFT JOIN files f ON f.id = (SELECT min(id) FROM files '
+      'WHERE url = h.url) '
+      'LEFT JOIN folders d ON d.id = f.folder '
+      'LEFT JOIN sources s ON s.id = d.source '
+      'LEFT JOIN file_meta m ON m.file = f.id '
+      'LEFT JOIN episodes e ON e.title = m.title AND e.season = m.season '
+      'AND e.episode = m.episode '
+      'ORDER BY h.watched_at DESC, h.url',
+      [limit],
+    );
+    final titles = {
+      for (final card in HomeStore(_library, sourceIds: sourceIds).cards(
+        {
+          for (final row in rows)
+            if (row['title'] case final int title) title,
+        }.toList(),
+        whateverItsState: true,
+        evenWithoutVideos: true,
+      ))
+        card.id: card,
+    };
+    return [
+      for (final row in rows)
+        HistoryItem(
+          video: WatchedVideo(
+            url: row['url'] as String,
+            watchedAt: DateTime.fromMillisecondsSinceEpoch(
+              row['watched_at'] as int,
+            ),
+            position: Duration(milliseconds: row['position_ms'] as int),
+            duration: Duration(milliseconds: row['duration_ms'] as int),
+            finished: row['finished'] == 1,
+          ),
+          title: titles[row['title']],
+          fileName: row['name'] as String?,
+          sourceId: row['source_id'] as String?,
+          season: row['season'] as int?,
+          episode: row['episode'] as int?,
+          episodeName: row['episode_name'] as String?,
+          stillPath: row['still_path'] as String?,
+        ),
+    ];
+  }
+
+  /// Takes [url] out of the history and forgets where it was left, so that
+  /// it does not come back as something to continue.
+  void forget(String url) => _library.transaction(() {
+    _db
+      ..execute('DELETE FROM watch_history WHERE url = ?', [url])
+      ..execute('DELETE FROM playback WHERE url = ?', [url]);
+  });
+
+  /// Empties the history and forgets every position.
+  void forgetAll() => _library.transaction(() {
+    _db
+      ..execute('DELETE FROM watch_history')
+      ..execute('DELETE FROM playback');
+  });
 }

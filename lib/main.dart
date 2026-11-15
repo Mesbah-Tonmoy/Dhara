@@ -12,6 +12,7 @@ import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/core/window/native_window.dart';
 import 'package:dhara/core/window/window_controller.dart';
 import 'package:dhara/features/browse/browse_controller.dart';
+import 'package:dhara/features/history/history_controller.dart';
 import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/anime_controller.dart';
@@ -135,6 +136,12 @@ Future<void> main() async {
         myList: myList,
         // Asked when Search is first used; follows Home after that.
         browse: BrowseController(library: library, titles: titles, home: home),
+        history: HistoryController(
+          library: library,
+          titles: titles,
+          resume: resumeStore,
+          home: home,
+        ),
         filmDetails: filmDetails,
         images: images,
       ),

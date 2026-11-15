@@ -7,6 +7,7 @@ import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/core/window/window_controller.dart';
 import 'package:dhara/features/browse/browse_controller.dart';
+import 'package:dhara/features/history/history_controller.dart';
 import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/anime_controller.dart';
@@ -50,9 +51,16 @@ import 'package:flutter/widgets.dart';
     tmdbKey: tmdbKey,
   );
   final home = HomeController(library: library, titles: titles, match: match);
+  final resume = ResumeStore();
   final Widget app = DharaApp(
     settings: SettingsController(MemoryKeyValueStore()),
-    resumeStore: ResumeStore(),
+    resumeStore: resume,
+    history: HistoryController(
+      library: library,
+      titles: titles,
+      resume: resume,
+      home: home,
+    ),
     sourceTests: SourceTestController(
       store: store,
       tester: SourceTester(deviceId: 'dhara-test'),

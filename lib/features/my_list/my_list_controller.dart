@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dhara/core/db/library_db.dart';
 import 'package:dhara/core/db/library_isolate.dart';
+import 'package:dhara/features/home/home_store.dart';
 import 'package:dhara/features/my_list/my_list_store.dart';
 import 'package:flutter/widgets.dart';
 
@@ -51,6 +52,17 @@ class MyListController extends ChangeNotifier {
     return on;
   }
 
+  /// The titles on the list as cards, the one added last first. A title
+  /// whose videos are gone from the sources in [sourceIds] (the enabled
+  /// ones) is still listed, with no videos. Never throws.
+  Future<List<TitleCard>> cards(List<String> sourceIds) async {
+    try {
+      return await _library.run(_readCards, (ids, sourceIds));
+    } on LibraryWorkException {
+      return const [];
+    }
+  }
+
   @override
   void dispose() {
     _disposed = true;
@@ -88,6 +100,14 @@ class MyListScope extends InheritedNotifier<MyListController> {
 // What follows runs in the library isolate.
 
 List<int> _readIds(LibraryDb db, Object? _) => MyListStore(db).ids();
+
+List<TitleCard> _readCards(LibraryDb db, (List<int>, List<String>) request) {
+  final (ids, sourceIds) = request;
+  return HomeStore(
+    db,
+    sourceIds: sourceIds,
+  ).cards(ids, whateverItsState: true, evenWithoutVideos: true);
+}
 
 void _write(LibraryDb db, (int, bool) change) {
   final (title, on) = change;

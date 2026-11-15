@@ -13,6 +13,8 @@ enum ShellDestination {
   /// Search, which is also how Movies and Series are browsed.
   search('Search', DharaIcons.search),
   anime('Anime', DharaIcons.anime),
+  myList('My List', DharaIcons.myList),
+  history('History', DharaIcons.history),
 
   /// The working screen of the earlier phases: how many titles there are,
   /// the TMDB key, matching and Needs review.

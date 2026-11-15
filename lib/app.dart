@@ -2,6 +2,7 @@ import 'package:dhara/core/images/image_store.dart';
 import 'package:dhara/core/images/remote_image.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/browse/browse_controller.dart';
+import 'package:dhara/features/history/history_controller.dart';
 import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/anime_controller.dart';
@@ -35,6 +36,7 @@ class DharaApp extends StatelessWidget {
     required this.home,
     required this.myList,
     required this.browse,
+    required this.history,
     this.filmDetails,
     this.images,
   });
@@ -51,6 +53,7 @@ class DharaApp extends StatelessWidget {
   final HomeController home;
   final MyListController myList;
   final BrowseController browse;
+  final HistoryController history;
 
   /// Says how far the reading of film details is; without it, nothing
   /// does.
@@ -62,62 +65,36 @@ class DharaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final filmDetails = this.filmDetails;
-    final app = _scopes();
-    return filmDetails == null
-        ? app
-        : FilmDetailsScope(controller: filmDetails, child: app);
-  }
-
-  Widget _scopes() {
-    return SettingsScope(
-      settings: settings,
-      child: ResumeStoreScope(
-        store: resumeStore,
-        child: SourcesScope(
-          controller: sourceTests,
-          child: IndexScope(
-            controller: index,
-            child: TitlesScope(
-              controller: titles,
-              child: TmdbKeyScope(
-                controller: tmdbKey,
-                child: MatchScope(
-                  controller: match,
-                  child: ReviewScope(
-                    controller: review,
-                    child: AnimeScope(
-                      controller: anime,
-                      child: HomeScope(
-                        controller: home,
-                        child: MyListScope(
-                          controller: myList,
-                          child: BrowseScope(
-                            controller: browse,
-                            child: ImageStoreScope(
-                              store: images,
-                              child: MaterialApp(
-                                title: 'Dhara',
-                                debugShowCheckedModeBanner: false,
-                                theme: buildDharaTheme(),
-                                // Above the Navigator, so that dialogs and
-                                // menus grow with the window as well, and
-                                // a message outlives the page that sent it.
-                                builder: (context, child) =>
-                                    DharaScale(child: ToastHost(child: child!)),
-                                home: const AppShell(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+    Widget app = MaterialApp(
+      title: 'Dhara',
+      debugShowCheckedModeBanner: false,
+      theme: buildDharaTheme(),
+      // Above the Navigator, so that dialogs and menus grow with the window
+      // as well, and a message outlives the page that sent it.
+      builder: (context, child) => DharaScale(child: ToastHost(child: child!)),
+      home: const AppShell(),
     );
+    // What every page can reach, the innermost first.
+    for (final scope in <Widget Function(Widget child)>[
+      (child) => ImageStoreScope(store: images, child: child),
+      (child) => HistoryScope(controller: history, child: child),
+      (child) => BrowseScope(controller: browse, child: child),
+      (child) => MyListScope(controller: myList, child: child),
+      (child) => HomeScope(controller: home, child: child),
+      (child) => AnimeScope(controller: anime, child: child),
+      (child) => ReviewScope(controller: review, child: child),
+      (child) => MatchScope(controller: match, child: child),
+      (child) => TmdbKeyScope(controller: tmdbKey, child: child),
+      (child) => TitlesScope(controller: titles, child: child),
+      (child) => IndexScope(controller: index, child: child),
+      (child) => SourcesScope(controller: sourceTests, child: child),
+      (child) => ResumeStoreScope(store: resumeStore, child: child),
+      (child) => SettingsScope(settings: settings, child: child),
+      if (filmDetails != null)
+        (child) => FilmDetailsScope(controller: filmDetails, child: child),
+    ]) {
+      app = scope(app);
+    }
+    return app;
   }
 }

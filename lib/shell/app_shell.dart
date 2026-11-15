@@ -6,6 +6,7 @@ import 'package:dhara/features/home/ui/home_screen.dart';
 import 'package:dhara/features/indexer/ui/index_screen.dart';
 import 'package:dhara/features/metadata/ui/anime_screen.dart';
 import 'package:dhara/features/metadata/ui/titles_screen.dart';
+import 'package:dhara/features/my_list/ui/lists_screen.dart';
 import 'package:dhara/features/player/open_url_dialog.dart';
 import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
 import 'package:dhara/shell/nav_rail.dart';
@@ -56,6 +57,8 @@ class _AppShellState extends State<AppShell> {
         ShellDestination.search => const BrowseScreen(),
         ShellDestination.titles => TitlesScreen(initialQuery: query),
         ShellDestination.anime => const AnimeScreen(),
+        ShellDestination.myList => const ListsScreen(tab: ListsTab.myList),
+        ShellDestination.history => const ListsScreen(tab: ListsTab.history),
         ShellDestination.library => const IndexScreen(),
         ShellDestination.discovery => const ServerDiscoveryScreen(),
       };

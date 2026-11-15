@@ -137,6 +137,10 @@ class ResumeStore {
     if (_entries.remove(key) != null) _write(_deletePosition, key);
   }
 
+  /// Forgets every position, for this run: the History page empties the
+  /// database itself when it clears the history.
+  void clearAll() => _entries.clear();
+
   // The fragment never reaches the server, so it is not part of the identity.
   static String _keyFor(Uri url) => url.removeFragment().toString();
 
