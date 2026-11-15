@@ -20,9 +20,20 @@ class ToastHost extends StatefulWidget {
   /// Shows [message], replacing the one on screen. [lead] is set in front
   /// of it, highlighted: the title something was done to.
   ///
+  /// It stays for [showFor]: longer for a message that says what went
+  /// wrong, which takes reading.
+  ///
   /// Does nothing if there is no [ToastHost] above [context].
-  static void show(BuildContext context, String message, {String? lead}) =>
-      context.findAncestorStateOfType<_ToastHostState>()?._show(lead, message);
+  static void show(
+    BuildContext context,
+    String message, {
+    String? lead,
+    Duration showFor = ToastHost.showFor,
+  }) => context.findAncestorStateOfType<_ToastHostState>()?._show(
+    lead,
+    message,
+    showFor,
+  );
 
   @override
   State<ToastHost> createState() => _ToastHostState();
@@ -34,9 +45,9 @@ class _ToastHostState extends State<ToastHost> {
   var _visible = false;
   Timer? _hide;
 
-  void _show(String? lead, String message) {
+  void _show(String? lead, String message, Duration showFor) {
     _hide?.cancel();
-    _hide = Timer(ToastHost.showFor, () {
+    _hide = Timer(showFor, () {
       if (mounted) setState(() => _visible = false);
     });
     setState(() {

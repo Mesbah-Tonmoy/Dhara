@@ -26,6 +26,8 @@ import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
 import 'package:dhara/features/sources/ui/source_form_dialog.dart';
 import 'package:dhara/features/sources/ui/source_list_files.dart';
 import 'package:dhara/theme/theme.dart';
+import 'package:dhara/widgets/chips.dart';
+import 'package:dhara/widgets/toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -107,6 +109,8 @@ void main() {
         controller: controller,
         child: MaterialApp(
           theme: buildDharaTheme(),
+          // What the screen has to say is shown by the app's message host.
+          builder: (context, child) => ToastHost(child: child!),
           home: ServerDiscoveryScreen(files: files),
         ),
       ),
@@ -234,7 +238,10 @@ void main() {
     await tester.tap(find.byKey(const Key('enable-alpha')));
     await tester.pumpAndSettle();
     expect(controller.store.isEnabled('alpha'), isTrue);
-    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+    expect(
+      tester.widget<DharaSwitch>(find.byType(DharaSwitch)).value,
+      isTrue,
+    );
 
     await tester.tap(find.byKey(const Key('enable-alpha')));
     await tester.pumpAndSettle();
@@ -569,7 +576,14 @@ void main() {
       await tester.tap(find.byKey(const Key('import-sources')));
       await tester.pumpAndSettle();
 
-      expect(find.byType(SnackBar), findsNothing);
+      // Nothing was said either.
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('toast')),
+          matching: find.text(''),
+        ),
+        findsOneWidget,
+      );
       expect(find.byType(AlertDialog), findsNothing);
     });
 
@@ -669,7 +683,8 @@ void main() {
     expect(find.text('Server Discovery'), findsOneWidget);
     expect(find.text('Server alpha'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Back'));
+    // The page has no Back of its own: the title bar's leads back.
+    await tester.tap(find.byKey(const Key('shell-back')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('home')), findsOneWidget);
   });

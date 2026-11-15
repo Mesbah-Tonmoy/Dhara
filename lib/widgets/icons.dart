@@ -24,6 +24,10 @@ abstract final class DharaIcons {
   static const check = Icons.check_rounded;
   static const add = Icons.add_rounded;
   static const minus = Icons.remove_rounded;
+  static const stop = Icons.stop_rounded;
+  static const more = Icons.more_horiz_rounded;
+  static const importFile = Icons.file_upload_outlined;
+  static const exportFile = Icons.file_download_outlined;
   static const remove = Icons.delete_outline_rounded;
   static const refresh = Icons.refresh_rounded;
   static const info = Icons.info_outline_rounded;

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dhara/features/player/widgets/glass.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_list.dart';
 import 'package:dhara/features/sources/source_store.dart';
@@ -9,7 +8,14 @@ import 'package:dhara/features/sources/source_test_controller.dart';
 import 'package:dhara/features/sources/source_tester.dart';
 import 'package:dhara/features/sources/ui/source_form_dialog.dart';
 import 'package:dhara/features/sources/ui/source_list_files.dart';
+import 'package:dhara/shell/page_bleed.dart';
 import 'package:dhara/theme/tokens.dart';
+import 'package:dhara/widgets/buttons.dart';
+import 'package:dhara/widgets/chips.dart';
+import 'package:dhara/widgets/icons.dart';
+import 'package:dhara/widgets/pressable.dart';
+import 'package:dhara/widgets/surfaces.dart';
+import 'package:dhara/widgets/toast.dart';
 import 'package:flutter/material.dart';
 
 enum _Filter {
@@ -23,12 +29,12 @@ enum _Filter {
   final String label;
 
   bool shows(SourceStatus status, {required bool enabled}) => switch (this) {
-        all => true,
-        reachable =>
-          status == SourceStatus.readable || status == SourceStatus.unreadable,
-        unreachable => status == SourceStatus.unreachable,
-        _Filter.enabled => enabled,
-      };
+    all => true,
+    reachable =>
+      status == SourceStatus.readable || status == SourceStatus.unreadable,
+    unreachable => status == SourceStatus.unreachable,
+    _Filter.enabled => enabled,
+  };
 }
 
 enum _RowAction { test, edit, remove }
@@ -60,9 +66,9 @@ class _ServerDiscoveryScreenState extends State<ServerDiscoveryScreen> {
 
   void _say(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    // Longer than a passing note: these say what was done to the list, or
+    // what went wrong.
+    ToastHost.show(context, message, showFor: const Duration(seconds: 5));
   }
 
   /// Runs a change to the source list and says so if it could not be
@@ -119,14 +125,18 @@ class _ServerDiscoveryScreenState extends State<ServerDiscoveryScreen> {
           'for search or playback.',
         ),
         actions: [
-          TextButton(
+          DharaButton(
+            label: 'Cancel',
+            small: true,
+            autofocus: true,
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
           ),
-          FilledButton(
+          DharaButton(
             key: const Key('confirm-remove'),
+            label: 'Remove',
+            small: true,
+            danger: true,
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Remove'),
           ),
         ],
       ),
@@ -163,14 +173,18 @@ class _ServerDiscoveryScreenState extends State<ServerDiscoveryScreen> {
           'changed server is switched off until it is tested again.',
         ),
         actions: [
-          TextButton(
+          DharaButton(
+            label: 'Cancel',
+            small: true,
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
           ),
-          FilledButton(
+          DharaButton(
             key: const Key('confirm-import'),
+            label: 'Import',
+            small: true,
+            style: DharaButtonStyle.primary,
+            autofocus: true,
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Import'),
           ),
         ],
       ),
@@ -214,93 +228,106 @@ class _ServerDiscoveryScreenState extends State<ServerDiscoveryScreen> {
           source,
     ];
 
-    return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, box) {
-          // ISP and content columns need room; drop them on small windows.
-          final wide = box.maxWidth >= 1180;
-          final gutter = box.maxWidth >= 900 ? 40.0 : 20.0;
-          final sides = EdgeInsets.symmetric(horizontal: gutter);
-          return CustomScrollView(
-            slivers: [
-              SliverPadding(
-                padding: sides.copyWith(top: 28),
-                sliver: SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _Header(
-                        tests: tests,
-                        onTest: _toggleTesting,
-                        onEnableAll: _enableAllReachable,
-                        onAdd: _add,
-                        onImport: _import,
-                        onExport: _export,
-                      ),
-                      const SizedBox(height: 22),
-                      _Stats(
-                          tests: tests, columns: box.maxWidth >= 860 ? 4 : 2),
-                      const SizedBox(height: 18),
-                      _ProgressBar(tests: tests),
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          for (final filter in _Filter.values)
-                            DharaChip(
-                              key: Key('filter-${filter.name}'),
-                              selected: filter == _filter,
-                              onTap: () => setState(() => _filter = filter),
-                              child: Text(filter.label),
-                            ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Enabled servers are re-tested weekly, when the '
-                            'app starts.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: DharaColors.text3,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      _TableHead(wide: wide),
-                    ],
-                  ),
-                ),
-              ),
-              SliverPadding(
-                padding: sides,
-                sliver: shown.isEmpty
-                    ? const SliverToBoxAdapter(child: _EmptyRow())
-                    : SliverList.builder(
-                        itemCount: shown.length,
-                        itemBuilder: (context, index) {
-                          final source = shown[index];
-                          return _SourceRow(
-                            key: ValueKey(source.id),
-                            source: source,
-                            tests: tests,
-                            wide: wide,
-                            isLast: index == shown.length - 1,
-                            onEnabled: (enabled) => _change(
-                              () => _store.setEnabled(
-                                [source.id],
-                                enabled: enabled,
+    return ColoredBox(
+      key: const Key('discovery'),
+      color: DharaColors.bg,
+      // The row menus and tooltips are Material's.
+      child: Material(
+        type: MaterialType.transparency,
+        child: LayoutBuilder(
+          builder: (context, box) {
+            const sides = EdgeInsets.only(
+              left: PageInsets.contentLeft,
+              right: DharaLayout.pageRight,
+            );
+            final room = box.maxWidth - sides.horizontal;
+            // ISP and content columns need room; drop them on small windows.
+            final wide = room >= 68 * rem;
+            return CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: sides.copyWith(top: 1.8 * rem),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _Header(
+                          tests: tests,
+                          onTest: _toggleTesting,
+                          onEnableAll: _enableAllReachable,
+                          onAdd: _add,
+                          onImport: _import,
+                          onExport: _export,
+                        ),
+                        const SizedBox(height: 1.4 * rem),
+                        _Stats(tests: tests, columns: room >= 48 * rem ? 4 : 2),
+                        const SizedBox(height: 1.2 * rem),
+                        _ProgressBar(tests: tests),
+                        const SizedBox(height: rem),
+                        Wrap(
+                          spacing: .5 * rem,
+                          runSpacing: .5 * rem,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            for (final filter in _Filter.values)
+                              PillChip(
+                                key: Key('filter-${filter.name}'),
+                                label: filter.label,
+                                small: true,
+                                selected: filter == _filter,
+                                onPressed: () =>
+                                    setState(() => _filter = filter),
+                              ),
+                            const SizedBox(width: .5 * rem),
+                            const Text(
+                              'Enabled servers are re-tested weekly, when the '
+                              'app starts.',
+                              style: TextStyle(
+                                fontFamily: DharaFonts.ui,
+                                fontSize: DharaType.xs,
+                                color: DharaColors.text3,
                               ),
                             ),
-                            onAction: (action) => _onRowAction(source, action),
-                          );
-                        },
-                      ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 36)),
-            ],
-          );
-        },
+                          ],
+                        ),
+                        const SizedBox(height: rem),
+                        _TableHead(wide: wide),
+                      ],
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  padding: sides,
+                  sliver: shown.isEmpty
+                      ? const SliverToBoxAdapter(child: _EmptyRow())
+                      : SliverList.builder(
+                          itemCount: shown.length,
+                          itemBuilder: (context, index) {
+                            final source = shown[index];
+                            return _SourceRow(
+                              key: ValueKey(source.id),
+                              source: source,
+                              tests: tests,
+                              wide: wide,
+                              isLast: index == shown.length - 1,
+                              onEnabled: (enabled) => _change(
+                                () => _store.setEnabled([
+                                  source.id,
+                                ], enabled: enabled),
+                              ),
+                              onAction: (action) =>
+                                  _onRowAction(source, action),
+                            );
+                          },
+                        ),
+                ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: DharaSpace.s7),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -328,77 +355,81 @@ class _Header extends StatelessWidget {
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
       crossAxisAlignment: WrapCrossAlignment.end,
-      spacing: 16,
-      runSpacing: 14,
+      spacing: rem,
+      runSpacing: rem,
       children: [
         ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: Row(
+          constraints: const BoxConstraints(maxWidth: 40 * rem),
+          child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              IconButton(
-                tooltip: 'Back',
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(Icons.arrow_back_rounded),
+              Text(
+                'Server Discovery',
+                key: Key('discovery-heading'),
+                style: TextStyle(
+                  fontFamily: DharaFonts.display,
+                  fontSize: DharaType.xxl,
+                  fontWeight: DharaType.bold,
+                  letterSpacing: -.03 * DharaType.xxl,
+                  height: 1.1,
+                  color: DharaColors.text,
+                ),
               ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Server Discovery',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'BDIX Tester: checks every source in this list from '
-                      'your connection. Only these addresses are contacted. '
-                      'No port or IP-range scanning.',
-                      style: TextStyle(fontSize: 13, color: DharaColors.text2),
-                    ),
-                  ],
+              SizedBox(height: .3 * rem),
+              Text(
+                'BDIX Tester: checks every source in this list from '
+                'your connection. Only these addresses are contacted. '
+                'No port or IP-range scanning.',
+                style: TextStyle(
+                  fontFamily: DharaFonts.ui,
+                  fontSize: DharaType.sm,
+                  height: 1.45,
+                  color: DharaColors.text2,
                 ),
               ),
             ],
           ),
         ),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: .5 * rem,
+          runSpacing: .5 * rem,
           children: [
-            DharaPillButton(
+            DharaButton(
               key: const Key('test-all'),
-              primary: true,
-              icon:
-                  tests.isTesting ? Icons.stop_rounded : Icons.refresh_rounded,
+              style: DharaButtonStyle.primary,
+              small: true,
+              icon: tests.isTesting ? DharaIcons.stop : DharaIcons.refresh,
               label: tests.isTesting
                   ? 'Stop · ${tests.done} / ${tests.total}'
                   : 'Test all',
               onPressed: onTest,
             ),
-            DharaPillButton(
+            DharaButton(
               key: const Key('enable-all'),
-              icon: Icons.check_rounded,
+              small: true,
+              icon: DharaIcons.check,
               label: 'Enable all reachable',
               onPressed: onEnableAll,
             ),
-            DharaPillButton(
+            DharaButton(
               key: const Key('add-source'),
-              icon: Icons.add_rounded,
+              small: true,
+              icon: DharaIcons.add,
               label: 'Add source',
               onPressed: onAdd,
             ),
-            DharaPillButton(
+            DharaButton(
               key: const Key('import-sources'),
-              icon: Icons.file_upload_outlined,
+              small: true,
+              icon: DharaIcons.importFile,
               label: 'Import',
               onPressed: onImport,
             ),
-            DharaPillButton(
+            DharaButton(
               key: const Key('export-sources'),
-              icon: Icons.file_download_outlined,
+              small: true,
+              icon: DharaIcons.exportFile,
               label: 'Export',
               onPressed: onExport,
             ),
@@ -441,23 +472,23 @@ class _Stats extends StatelessWidget {
     final enabled = sources.where((s) => store.isEnabled(s.id)).length;
 
     final cards = [
-      StatCard(
+      _Stat(
         label: 'Candidates',
         value: '${sources.length}',
         note: '$types server ${types == 1 ? 'type' : 'types'}',
       ),
-      StatCard(
+      _Stat(
         label: 'Reachable',
         value: '$reachable',
         valueColor: DharaColors.good,
         note: '$readable the app can read',
       ),
-      StatCard(
+      _Stat(
         label: 'Enabled',
         value: '$enabled',
         note: 'used for search and playback',
       ),
-      StatCard(
+      _Stat(
         label: 'Fastest',
         value: fastestPing == null ? '–' : '${fastestPing.inMilliseconds} ms',
         note: fastest?.name ?? 'no server reachable',
@@ -466,17 +497,89 @@ class _Stats extends StatelessWidget {
     return Column(
       children: [
         for (var start = 0; start < cards.length; start += columns) ...[
-          if (start > 0) const SizedBox(height: 14),
+          if (start > 0) const SizedBox(height: rem),
           Row(
             children: [
               for (var i = start; i < start + columns; i++) ...[
-                if (i > start) const SizedBox(width: 14),
+                if (i > start) const SizedBox(width: rem),
                 Expanded(child: cards[i]),
               ],
             ],
           ),
         ],
       ],
+    );
+  }
+}
+
+/// One number about the list, with what it counts above and a note below.
+class _Stat extends StatelessWidget {
+  const _Stat({
+    required this.label,
+    required this.value,
+    required this.note,
+    this.valueColor = DharaColors.text,
+  });
+
+  final String label;
+  final String value;
+  final String note;
+  final Color valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 1.2 * rem, vertical: rem),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _HeadText(label),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: DharaFonts.display,
+              fontSize: DharaType.xxl,
+              fontWeight: DharaType.bold,
+              height: 1.2,
+              color: valueColor,
+            ),
+          ),
+          Text(
+            note,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontFamily: DharaFonts.ui,
+              fontSize: DharaType.xs,
+              color: DharaColors.text2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The small spaced capitals over a stat and over the table's columns.
+class _HeadText extends StatelessWidget {
+  const _HeadText(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        fontFamily: DharaFonts.ui,
+        fontSize: DharaType.xs,
+        letterSpacing: .12 * DharaType.xs,
+        color: DharaColors.text3,
+      ),
     );
   }
 }
@@ -490,9 +593,10 @@ class _ProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fraction = tests.total == 0 ? 0.0 : tests.done / tests.total;
+    final duration = motion(context, DharaMotion.base);
     return AnimatedOpacity(
       opacity: tests.isTesting ? 1 : 0,
-      duration: DharaMotion.base,
+      duration: duration,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(3),
         child: SizedBox(
@@ -502,7 +606,7 @@ class _ProgressBar extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: AnimatedFractionallySizedBox(
-                duration: DharaMotion.base,
+                duration: duration,
                 widthFactor: fraction.clamp(0, 1).toDouble(),
                 heightFactor: 1,
                 child: const DecoratedBox(
@@ -520,13 +624,14 @@ class _ProgressBar extends StatelessWidget {
 }
 
 // Column widths shared by the table head and its rows.
-const _switchWidth = 62.0;
-const _typeWidth = 124.0;
-const _contentWidth = 76.0;
-const _statusWidth = 124.0;
-const _pingWidth = 70.0;
-const _menuWidth = 40.0;
-const _cellGap = SizedBox(width: 14);
+const _switchWidth = 3.6 * rem;
+const _typeWidth = 8.2 * rem;
+const _contentWidth = 5 * rem;
+const _statusWidth = 7.6 * rem;
+const _pingWidth = 4.6 * rem;
+const _menuWidth = 2.6 * rem;
+const _cellGap = SizedBox(width: rem);
+const _rowSides = EdgeInsets.only(left: 1.1 * rem, right: .5 * rem);
 
 /// Lays out one line of the table: the same columns for head and rows.
 class _Cells extends StatelessWidget {
@@ -588,23 +693,28 @@ class _TableHead extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 11, 8, 11),
+      padding: _rowSides.copyWith(top: .7 * rem, bottom: .7 * rem),
       decoration: const BoxDecoration(
         color: DharaColors.surface,
+        border: Border(
+          top: BorderSide(color: DharaColors.stroke),
+          left: BorderSide(color: DharaColors.stroke),
+          right: BorderSide(color: DharaColors.stroke),
+        ),
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(DharaRadii.md),
+          top: Radius.circular(DharaRadii.lg),
         ),
       ),
       child: _Cells(
         wide: wide,
-        toggle: const PanelHeading('On'),
-        server: const PanelHeading('Server'),
-        type: const PanelHeading('Type'),
-        content: const PanelHeading('Content'),
-        isp: const PanelHeading('ISP'),
-        status: const PanelHeading('Status'),
-        ping: const PanelHeading('Ping'),
-        sample: const PanelHeading('Sample found'),
+        toggle: const _HeadText('On'),
+        server: const _HeadText('Server'),
+        type: const _HeadText('Type'),
+        content: const _HeadText('Content'),
+        isp: const _HeadText('ISP'),
+        status: const _HeadText('Status'),
+        ping: const _HeadText('Ping'),
+        sample: const _HeadText('Sample found'),
         menu: const SizedBox.shrink(),
       ),
     );
@@ -617,17 +727,22 @@ class _EmptyRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 44),
+      padding: const EdgeInsets.symmetric(vertical: 3 * rem),
       decoration: _rowDecoration(isLast: true),
       alignment: Alignment.center,
       child: const Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.dns_outlined, color: DharaColors.text3, size: 30),
-          SizedBox(height: 8),
+          Icon(DharaIcons.servers, color: DharaColors.text3, size: 2 * rem),
+          SizedBox(height: .5 * rem),
           Text(
             'No servers in this view',
-            style: TextStyle(fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontFamily: DharaFonts.ui,
+              fontSize: DharaType.md,
+              fontWeight: DharaType.semibold,
+              color: DharaColors.text,
+            ),
           ),
         ],
       ),
@@ -635,17 +750,23 @@ class _EmptyRow extends StatelessWidget {
   }
 }
 
-BoxDecoration _rowDecoration({required bool isLast}) => BoxDecoration(
-      color: DharaColors.surface,
-      border: const Border(top: BorderSide(color: DharaColors.stroke)),
-      borderRadius: isLast
-          ? const BorderRadius.vertical(
-              bottom: Radius.circular(DharaRadii.md),
-            )
-          : null,
-    );
+/// The ground of a row: the table is one card, its rows parted by a line.
+BoxDecoration _rowDecoration({required bool isLast, bool lit = false}) {
+  const line = BorderSide(color: DharaColors.stroke);
+  final corners = isLast
+      ? const BorderRadius.vertical(bottom: Radius.circular(DharaRadii.lg))
+      : null;
+  return BoxDecoration(
+    color: lit ? DharaColors.surface2 : DharaColors.surface,
+    // A border with rounded corners has to be the same on every side.
+    border: isLast
+        ? Border.all(color: DharaColors.stroke)
+        : const Border(top: line, left: line, right: line),
+    borderRadius: corners,
+  );
+}
 
-class _SourceRow extends StatelessWidget {
+class _SourceRow extends StatefulWidget {
   const _SourceRow({
     super.key,
     required this.source,
@@ -664,120 +785,128 @@ class _SourceRow extends StatelessWidget {
   final ValueChanged<_RowAction> onAction;
 
   @override
+  State<_SourceRow> createState() => _SourceRowState();
+}
+
+class _SourceRowState extends State<_SourceRow> {
+  var _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
+    final source = widget.source;
+    final tests = widget.tests;
     final id = source.id;
     final status = tests.statusOf(id);
     final result = tests.resultOf(id);
     final ping = tests.pingOf(id);
     final dead = status == SourceStatus.unreachable;
     final plain = TextStyle(
-      fontSize: 13,
+      fontFamily: DharaFonts.ui,
+      fontSize: DharaType.sm,
       color: dead ? DharaColors.text3 : DharaColors.text2,
     );
     final more = source.baseUrls.length - 1;
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-      decoration: _rowDecoration(isLast: isLast),
-      child: DefaultTextStyle.merge(
-        style: plain,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        child: _Cells(
-          wide: wide,
-          toggle: Align(
-            alignment: Alignment.centerLeft,
-            child: Transform.scale(
-              scale: .78,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      // Not animated: a row that becomes the last one changes the shape of
+      // its border, which cannot be drawn half-way.
+      child: Container(
+        padding: _rowSides.copyWith(top: .55 * rem, bottom: .55 * rem),
+        decoration: _rowDecoration(isLast: widget.isLast, lit: _hovered),
+        child: DefaultTextStyle.merge(
+          style: plain,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          child: _Cells(
+            wide: widget.wide,
+            toggle: Align(
               alignment: Alignment.centerLeft,
-              child: Semantics(
+              child: DharaSwitch(
+                key: Key('enable-$id'),
                 label: 'Enable ${source.name}',
-                child: Switch(
-                  key: Key('enable-$id'),
-                  value: tests.store.isEnabled(id),
-                  onChanged: onEnabled,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  thumbColor: const WidgetStatePropertyAll(Colors.white),
-                  trackColor: WidgetStateProperty.resolveWith(
-                    (states) => states.contains(WidgetState.selected)
-                        ? DharaColors.accent
-                        : DharaColors.surface2,
-                  ),
-                  trackOutlineColor: const WidgetStatePropertyAll(
-                    DharaColors.strokeStrong,
-                  ),
-                ),
+                value: tests.store.isEnabled(id),
+                onChanged: widget.onEnabled,
               ),
             ),
-          ),
-          server: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                source.name,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  color: dead ? DharaColors.text2 : DharaColors.text,
-                ),
-              ),
-              Text(
-                '${source.baseUrls.first}${more > 0 ? '  +$more more' : ''}',
-                style:
-                    const TextStyle(fontSize: 11.5, color: DharaColors.text3),
-              ),
-            ],
-          ),
-          type: _TypeTag(source: source, detected: result?.detectedType),
-          content: Text(sourceCategoryLabel(source.category)),
-          isp: Text(source.isp ?? source.provider ?? '–'),
-          status: _StatusLabel(
-            status: status,
-            isWebsite:
-                (result?.detectedType ?? source.type) == SourceType.customSite,
-          ),
-          ping: ping == null || dead
-              ? const Text('–')
-              : Text(
-                  '${ping.inMilliseconds} ms',
+            server: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  source.name,
                   style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: switch (ping.inMilliseconds) {
-                      < 60 => DharaColors.good,
-                      < 200 => DharaColors.warn,
-                      _ => DharaColors.bad,
-                    },
+                    fontWeight: DharaType.semibold,
+                    color: dead ? DharaColors.text2 : DharaColors.text,
                   ),
                 ),
-          sample: Text(
-            _sampleText(status, result, tests.store.healthOf(id)),
-            style: const TextStyle(fontSize: 12),
-          ),
-          menu: PopupMenuButton<_RowAction>(
-            key: Key('menu-$id'),
-            tooltip: 'More',
-            padding: EdgeInsets.zero,
-            iconSize: 20,
-            icon: const Icon(Icons.more_horiz_rounded),
-            // Keeps the rows compact: the default 48 px target sets their
-            // height otherwise.
-            style: const ButtonStyle(
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              minimumSize: WidgetStatePropertyAll(Size.square(34)),
+                Text(
+                  '${source.baseUrls.first}${more > 0 ? '  +$more more' : ''}',
+                  style: const TextStyle(
+                    fontFamily: DharaFonts.mono,
+                    fontFamilyFallback: DharaFonts.monoFallback,
+                    fontSize: DharaType.xs,
+                    color: DharaColors.text3,
+                  ),
+                ),
+              ],
             ),
-            onSelected: onAction,
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: _RowAction.test,
-                enabled: !tests.isTesting,
-                child: const Text('Test now'),
+            type: _TypeTag(source: source, detected: result?.detectedType),
+            content: Text(sourceCategoryLabel(source.category)),
+            isp: Text(source.isp ?? source.provider ?? '–'),
+            status: _StatusLabel(
+              status: status,
+              isWebsite:
+                  (result?.detectedType ?? source.type) ==
+                  SourceType.customSite,
+            ),
+            ping: ping == null || dead
+                ? const Text('–')
+                : Text(
+                    '${ping.inMilliseconds} ms',
+                    style: TextStyle(
+                      fontWeight: DharaType.semibold,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      color: switch (ping.inMilliseconds) {
+                        < 60 => DharaColors.good,
+                        < 200 => DharaColors.warn,
+                        _ => DharaColors.bad,
+                      },
+                    ),
+                  ),
+            sample: Text(
+              _sampleText(status, result, tests.store.healthOf(id)),
+              style: const TextStyle(fontSize: DharaType.xs),
+            ),
+            menu: PopupMenuButton<_RowAction>(
+              key: Key('menu-$id'),
+              tooltip: 'More',
+              padding: EdgeInsets.zero,
+              iconSize: 1.3 * rem,
+              icon: const Icon(DharaIcons.more, color: DharaColors.text2),
+              // Keeps the rows compact: the default 48 px target sets their
+              // height otherwise.
+              style: const ButtonStyle(
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                minimumSize: WidgetStatePropertyAll(Size.square(2.2 * rem)),
               ),
-              const PopupMenuItem(value: _RowAction.edit, child: Text('Edit')),
-              const PopupMenuItem(
-                value: _RowAction.remove,
-                child: Text('Remove'),
-              ),
-            ],
+              onSelected: widget.onAction,
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: _RowAction.test,
+                  enabled: !tests.isTesting,
+                  child: const Text('Test now'),
+                ),
+                const PopupMenuItem(
+                  value: _RowAction.edit,
+                  child: Text('Edit'),
+                ),
+                const PopupMenuItem(
+                  value: _RowAction.remove,
+                  child: Text('Remove'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -838,24 +967,32 @@ class _TypeTag extends StatelessWidget {
     final differs = detected != null && detected != source.type;
     final tag = Align(
       alignment: Alignment.centerLeft,
-      child: DecoratedBox(
+      child: Container(
+        height: 1.4 * rem,
+        padding: const EdgeInsets.symmetric(horizontal: .5 * rem),
         decoration: BoxDecoration(
           color: DharaColors.surface2,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(.35 * rem),
           border: differs ? Border.all(color: DharaColors.warn) : null,
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        // As wide as its text, not as its column.
+        child: Center(
+          widthFactor: 1,
           child: Text(
             sourceTypeLabel(detected ?? source.type),
-            style: const TextStyle(fontSize: 11.5, color: DharaColors.text),
+            style: const TextStyle(
+              fontSize: DharaType.xs,
+              height: 1.1,
+              color: DharaColors.text,
+            ),
           ),
         ),
       ),
     );
     if (!differs) return tag;
     return Tooltip(
-      message: 'The test found ${sourceTypeLabel(detected)}; the list says '
+      message:
+          'The test found ${sourceTypeLabel(detected)}; the list says '
           '${sourceTypeLabel(source.type)}. Edit the source to correct it.',
       child: tag,
     );
@@ -877,16 +1014,16 @@ class _StatusLabel extends StatelessWidget {
       SourceStatus.testing => ('Testing…', DharaColors.text2),
       SourceStatus.readable => ('Reachable', DharaColors.good),
       SourceStatus.unreadable => (
-          isWebsite ? 'No adapter' : 'Problem',
-          DharaColors.warn,
-        ),
+        isWebsite ? 'No adapter' : 'Problem',
+        DharaColors.warn,
+      ),
       SourceStatus.unreachable => ('Unreachable', DharaColors.bad),
     };
     return Row(
       children: [
         if (status == SourceStatus.testing)
           const SizedBox.square(
-            dimension: 11,
+            dimension: .8 * rem,
             child: CircularProgressIndicator(
               strokeWidth: 2,
               color: DharaColors.accent2,
@@ -894,17 +1031,17 @@ class _StatusLabel extends StatelessWidget {
           )
         else
           Container(
-            width: 8,
-            height: 8,
+            width: .5 * rem,
+            height: .5 * rem,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-        const SizedBox(width: 7),
+        const SizedBox(width: .4 * rem),
         Flexible(
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontSize: DharaType.xs,
+              fontWeight: DharaType.semibold,
               color: color,
             ),
           ),
