@@ -19,7 +19,7 @@ A Bangla + English README is written in Phase 8.
 | 3. Sources and server discovery | Done: starter list of 38 checked servers, Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet |
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
-| 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery has the new look. Not yet: the new look for Library index and matching. "Titles and matching" and Library index are still the working screens of the earlier phases, opened from Settings |
+| 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests), frame rate while scrolling, and cold start |
 | 7–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -142,6 +142,8 @@ not built yet (preferred quality, buffer size) are not shown.
   window gives), whether the banner on Home rotates, and Reduce motion
   (hover zooms, fades and the banner change at once; the system's own
   setting does the same).
+- **Keyboard:** the keys that do something, in the app and in the player
+  (see [Keyboard](#keyboard)).
 - **Library and metadata / Sources:** the way to "Titles and matching"
   (TMDB key, matching, Needs review), "Library index" and Server
   Discovery. The first two have no icon on the rail any more; Back leads
@@ -188,7 +190,10 @@ for the window size to pick a font size.
 the tokens: `DharaButton` and `DharaIconButton`, `PillChip`,
 `SegmentedPills`, `DharaBadge`, `DharaSwitch`, `GlassCard`, `Skeleton`
 (the loading shimmer), `EmptyState`, `ToastHost` (short messages at the
-bottom of the window) and `DharaLogo`.
+bottom of the window) and `DharaLogo`. `page_parts.dart` has what the
+working pages share: `PageHead`, `StatTile`, `NoticeBar`, `RowCard` (a
+line of a list, a button if it can be opened), `DharaField` (the text
+field) and `DharaDialog`.
 
 Everything clickable is built on `Pressable`: it reacts to the mouse, is
 reached by Tab and the arrow keys, is pressed by Enter or Space, and shows
@@ -217,13 +222,25 @@ the bar is clear over it, and once the page has scrolled the bar blurs what
 passes beneath. These two and the copies sheet are the only places that
 blur what is behind them.
 
+### Keyboard
+
+Everything can be done without the mouse; Settings lists these keys too.
+
 | Key | Action |
 |---|---|
-| Ctrl+K or / | Put the keyboard into the search field; the results follow what is typed (Enter lets go of the keyboard) |
+| Ctrl+K or / | Put the keyboard into the search field; the results follow what is typed |
+| Enter or ↓ in the search field | Go to the first result, past the filters; the arrow keys walk on from there |
 | Ctrl+O | Play a URL |
 | Alt+← , the mouse's back button | Back |
-| Esc | Leave a text field, otherwise Back |
-| Tab, arrow keys, Enter / Space | Move between and press buttons |
+| Esc | Leave a text field or close a dialog, otherwise Back |
+| Tab, arrow keys, Enter / Space | Move between and press buttons, cards and rows |
+| Page Up, Page Down, Home, End | Scroll the page, wherever the keyboard is (`lib/shell/page_keys.dart`); in a text field Home and End move the caret |
+
+Tab goes through a page first, then the title bar, then the rail. On
+Settings it walks the list on the left before the settings themselves.
+What takes the keyboard is scrolled into view, and Back returns it to the
+card or row it left from. The player has its own keys (see
+[Player keyboard shortcuts](#player-keyboard-shortcuts)).
 
 On Windows the app draws the title bar itself. The runner
 (`windows/runner/flutter_window.cpp`) takes the caption out of the window
@@ -314,7 +331,9 @@ test found and offers:
 
 - **Test all** (or "Test now" on one row), and **Enable all reachable**,
   which switches on every source the app could read. Custom websites answer
-  but stay off: there is no adapter for them yet.
+  but stay off: there is no adapter for them yet. One can still be switched
+  on by hand; the app then says that nothing of it will be in the library,
+  and Library index lists it as a website it cannot read.
 - **Add source**, and Edit / Remove from a row's menu. The form uses the
   same checks as the list parser.
 - **Import** and **Export** of the list as JSON. An import shows how many
@@ -387,8 +406,8 @@ is the banner when no title has a backdrop (no TMDB key yet).
 - The rows walk an index in the order they are shown in and stop when they
   are full. In the automated test, all of Home is read from 100,000 videos
   (20,000 titles) in 10 to 30 ms on the development PC, the slower end
-  while other tests run beside it (the aim was 50 ms);
-  it has not been timed on the real library yet.
+  while other tests run beside it (the aim was 50 ms). On the real library
+  (23,393 videos, 19,750 titles, three servers) it takes about 11 ms.
 - Posters are fetched in TMDB's `w342` size, decoded no larger than they
   are drawn, and not asked for while a row is being flung. Cards never blur
   what is behind them.
@@ -452,8 +471,16 @@ Series open it with the type set.
 - Measured in the automated test, on 20,000 titles with 100,000 videos, on
   the development PC: a search 20 to 25 ms, listing everything 35 to 45 ms,
   several filters at once about 40 ms, a page of 60 cards about 1 ms (the
-  aims were 100 ms for a search and 20 ms for a page). Not yet timed on
-  the real library.
+  aims were 100 ms for a search and 20 ms for a page).
+- On a copy of the real library (23,393 videos, 19,750 titles), best of
+  five: a search for a name ("spider man") 0.3 ms, for one letter 32 ms,
+  three filters at once 17 ms, listing everything 66 ms, a title page
+  13 ms. Before two changes the same took 57, 83, 91, 73 and 36 ms:
+  how many titles there are in all, and which genres, is now asked once
+  and again only when the library has changed (counting took longer than
+  searching), and SQLite may keep 16 MB of the file in memory instead of
+  2 MB. The very first read after the PC starts waits for the disk and
+  took over a second in one measurement.
 
 ## Library index
 
@@ -525,13 +552,15 @@ enabled sources through their adapters and keeps the index in step
 
 ### Library index screen
 
-Open it from the rail. It lists the enabled servers with what the
+Open it from Settings. It lists the enabled servers with what the
 index holds of each, shows the progress of a crawl, and offers **Update
 index**, **Stop** and **Full re-check** (reads every folder again, also
-those that look unchanged). The search box searches file names and folder
-paths while you type (every word must match, the last one may be
-unfinished); a result opens in the player. It is a working screen until the
-real Home and Search screens arrive in Phase 6.
+those that look unchanged). An enabled source without an adapter (a custom
+website) is listed too, as one the app cannot read: it is not crawled and
+not counted in "Servers indexed". The search box searches file names and
+folder paths while you type (every word must match, the last one may be
+unfinished); a result opens in the player. Titles are looked for on the
+Search page; this box is for finding a file.
 
 Once the index has been built, the app brings it up to date by itself: 15
 seconds after start-up, if an enabled server was last crawled to the end
@@ -550,7 +579,7 @@ Known gaps:
 - Subtitles kept in one folder per episode (`Subs/<episode>/English.srt`)
   are not linked to their videos.
 - In this screen's search the same file on two servers is two entries; the
-  Films and shows screen has them under one title. The Emby server at
+  Search page has them under one title. The Emby server at
   `146.196.48.9` holds the same files as the folder-listing source
   `146.196.48.10`, and its files cannot be played yet (see the Emby gap
   above), so it is best left disabled for now.
@@ -584,7 +613,7 @@ paths and names with the expected result.
 ### TMDB key
 
 Posters and descriptions come from The Movie Database, with your own key:
-Films and shows, "Add TMDB key". Paste the *API Read Access Token* (or the
+Settings, "Titles and matching", "Add TMDB key". Paste the *API Read Access Token* (or the
 v3 API key) from your TMDB account settings. The key is kept in **Windows
 Credential Manager** (entry `Dhara/tmdb`), through `win32` and `ffi`
 directly; it is never written to the settings file, the database or a log,
@@ -595,7 +624,8 @@ This product uses the TMDB API but is not endorsed or certified by TMDB.
 
 ### Matching
 
-"Match now" on the Films and shows screen looks every title up
+"Match now" on the "Titles and matching" page (opened from Settings; it
+also counts the films, shows and other videos) looks every title up
 (`MatchController`, `title_matcher.dart`): by name and year, then without
 the year, then by the name the file gives it. Candidates get up to 70
 points for the name, 20 for the year and 10 for standing clear of the
@@ -626,7 +656,8 @@ seasons the library has (`EpisodesController`), and again every 14 days.
 
 ### Needs review
 
-Lists the unsure and not-found titles. A title opens with the candidates
+Opened from "Titles and matching". Lists the unsure and not-found titles.
+A title opens with the candidates
 TMDB offered (no new request); pick one, search by another name and year,
 or leave the title as its files name it. A decision made by hand is final:
 no later run changes it.

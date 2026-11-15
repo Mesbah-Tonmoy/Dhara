@@ -253,6 +253,11 @@ void main() {
       expect(here.find(const BrowseQuery()).total, 1);
       expect(names(const BrowseQuery(minHeight: 2160), here), isEmpty);
       expect(names(const BrowseQuery(minHeight: 2160)), ['Both']);
+      // A total that the caller knows is not counted again.
+      final told = here.find(const BrowseQuery(text: 'both'), knownTotal: 42);
+      expect(told.total, 42);
+      expect(told.ids, here.find(const BrowseQuery(text: 'both')).ids);
+
       expect(store([]).find(const BrowseQuery()).ids, isEmpty);
       expect(store([]).find(const BrowseQuery(text: 'both')).total, 0);
     });

@@ -158,12 +158,18 @@ class BrowseStore {
   Database get _db => _library.db;
 
   /// The titles that fit [query], and how many there are in all.
-  BrowseResult find(BrowseQuery query) {
+  ///
+  /// Counting them all takes many times longer than a search does, so a
+  /// caller that knows the number, because the library has not changed
+  /// since it last asked, passes it as [knownTotal].
+  BrowseResult find(BrowseQuery query, {int? knownTotal}) {
     final watch = Stopwatch()..start();
     final ids = _ids(query);
-    final total = query.text.trim().isEmpty && query.hasNoFilters
-        ? ids.length
-        : _ids(const BrowseQuery(), countOnly: true).first;
+    final total =
+        knownTotal ??
+        (query.text.trim().isEmpty && query.hasNoFilters
+            ? ids.length
+            : _ids(const BrowseQuery(), countOnly: true).first);
     watch.stop();
     return BrowseResult(ids: ids, total: total, took: watch.elapsed);
   }

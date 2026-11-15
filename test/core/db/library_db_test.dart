@@ -342,6 +342,10 @@ void main() {
         ['wal'],
       );
       expect(second.db.select('PRAGMA foreign_keys').single.values, [1]);
+      // Room in memory for more of the file than SQLite takes by default.
+      expect(second.db.select('PRAGMA cache_size').single.values, [
+        -LibraryDb.pageCacheKb,
+      ]);
     });
 
     test('made by version 1 is upgraded and keeps what it held', () {

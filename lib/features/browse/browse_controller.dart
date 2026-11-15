@@ -43,6 +43,13 @@ class BrowseController extends ChangeNotifier {
   var _query = const BrowseQuery();
   BrowseResult? _result;
   var _genres = const <String>[];
+
+  /// How many titles there are in all, and for which enabled sources that
+  /// was counted; `null` once the library may have changed. While it is
+  /// known, a search neither counts again nor reads the genres again: on
+  /// a large library those two take far longer than the search itself.
+  int? _total;
+  String? _totalFor;
   final _cards = <int, TitleCard>{};
   final _pagesAsked = <int>{};
   Timer? _typing;
@@ -127,6 +134,7 @@ class BrowseController extends ChangeNotifier {
     final rows = home.content?.movies;
     if (identical(rows, _seenLibrary)) return;
     _seenLibrary = rows;
+    _total = null;
     _ask();
   }
 
@@ -138,8 +146,11 @@ class BrowseController extends ChangeNotifier {
     scheduleMicrotask(_notify);
     BrowseResult? result;
     List<String>? genres;
+    final sources = _enabledIds();
+    final countedFor = sources.join('\n');
+    final known = _totalFor == countedFor ? _total : null;
     try {
-      (result, genres) = await _library.run(_find, (query, _enabledIds()));
+      (result, genres) = await _library.run(_find, (query, sources, known));
     } on LibraryWorkException {
       // Dealt with below.
     }
@@ -150,6 +161,8 @@ class BrowseController extends ChangeNotifier {
     if (result != null) {
       _result = result;
       _genres = genres ?? _genres;
+      _total = result.total;
+      _totalFor = countedFor;
       // Cards may have changed with the library; they are read again.
       _cards.clear();
       _pagesAsked.clear();
@@ -220,13 +233,18 @@ class BrowseScope extends InheritedNotifier<BrowseController> {
 
 // What follows runs in the library isolate.
 
-(BrowseResult, List<String>) _find(
+/// The answer to a query and, unless the total is known already (then the
+/// genres are too), every genre of the library.
+(BrowseResult, List<String>?) _find(
   LibraryDb db,
-  (BrowseQuery, List<String>) request,
+  (BrowseQuery, List<String>, int?) request,
 ) {
-  final (query, sourceIds) = request;
+  final (query, sourceIds, knownTotal) = request;
   final store = BrowseStore(db, sourceIds: sourceIds);
-  return (store.find(query), store.genres());
+  return (
+    store.find(query, knownTotal: knownTotal),
+    knownTotal == null ? store.genres() : null,
+  );
 }
 
 List<TitleCard> _readCards(LibraryDb db, (List<int>, List<String>) request) {
