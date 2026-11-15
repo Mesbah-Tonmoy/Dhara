@@ -7,6 +7,7 @@ import 'package:dhara/features/home/ui/poster_card.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:dhara/widgets/chips.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/test_app.dart';
@@ -136,6 +137,61 @@ void main() {
     await tester.enterText(_search, '');
     await _typed(tester);
     expect(_shown(tester), hasLength(5));
+  });
+
+  group('from the search field', () {
+    /// The title of the card that holds the keyboard, if one does.
+    String? focusedCard() => FocusManager.instance.primaryFocus?.context
+        ?.findAncestorWidgetOfExactType<PosterCard>()
+        ?.title
+        .name;
+
+    testWidgets('Enter hands the keyboard to the first result, past the '
+        'filters', (tester) async {
+      await _open(tester, _library());
+      await tester.tap(_search);
+      await tester.enterText(_search, 'film');
+      await _typed(tester);
+      expect(focusedCard(), isNull);
+
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+
+      final first = _shown(tester).first;
+      expect(focusedCard(), first);
+
+      // From there the arrow keys walk the results.
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(focusedCard(), _shown(tester)[1]);
+    });
+
+    testWidgets('so does the down arrow', (tester) async {
+      await _open(tester, _library());
+      await tester.tap(_search);
+      await tester.enterText(_search, 'film');
+      await _typed(tester);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+
+      expect(focusedCard(), _shown(tester).first);
+    });
+
+    testWidgets('with nothing found the keyboard stays where it was', (
+      tester,
+    ) async {
+      await _open(tester, _library());
+      await tester.tap(_search);
+      await tester.enterText(_search, 'zzz');
+      await _typed(tester);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+
+      expect(focusedCard(), isNull);
+      expect(tester.widget<TextField>(_search).focusNode!.hasFocus, isTrue);
+    });
   });
 
   testWidgets('the filters narrow the grid at once, and can be reset', (

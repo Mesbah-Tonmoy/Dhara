@@ -3,6 +3,7 @@ import 'package:dhara/features/browse/browse_store.dart';
 import 'package:dhara/features/details/ui/details_screen.dart';
 import 'package:dhara/features/home/ui/poster_card.dart';
 import 'package:dhara/shell/page_bleed.dart';
+import 'package:dhara/shell/shell_controller.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:dhara/widgets/buttons.dart';
 import 'package:dhara/widgets/chips.dart';
@@ -38,12 +39,25 @@ class BrowseScreen extends StatefulWidget {
 class _BrowseScreenState extends State<BrowseScreen> {
   var _asked = false;
 
+  /// The first card of the grid: where the keyboard goes from the search
+  /// field (Enter or ↓), past the filters.
+  final _firstResult = FocusNode(debugLabel: 'first-result');
+  ShellController? _shell;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_asked) return;
     _asked = true;
     BrowseScope.read(context).ensureLoaded();
+    _shell = ShellScope.maybeRead(context)?..setFirstResult(_firstResult);
+  }
+
+  @override
+  void dispose() {
+    _shell?.clearFirstResult(_firstResult);
+    _firstResult.dispose();
+    super.dispose();
   }
 
   @override
@@ -172,6 +186,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                       return PosterCard(
                         key: ValueKey(card.id),
                         title: card,
+                        focusNode: index == 0 ? _firstResult : null,
                         onOpen: () => openDetails(context, card),
                       );
                     },

@@ -6,6 +6,7 @@ import 'package:dhara/features/settings/ui/settings_screen.dart';
 import 'package:dhara/theme/scale.dart';
 import 'package:dhara/widgets/chips.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/test_app.dart';
@@ -192,6 +193,52 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.getRect(about).bottom, lessThanOrEqualTo(view.bottom + 1));
+  });
+
+  testWidgets('Tab walks the list on the left first, then the settings', (
+    tester,
+  ) async {
+    await _boot(tester, MemoryKeyValueStore());
+
+    /// The key of what holds the keyboard, or of what it is part of.
+    String? focused() {
+      final context = FocusManager.instance.primaryFocus?.context;
+      String? found;
+      context?.visitAncestorElements((element) {
+        final key = element.widget.key;
+        if (key is! ValueKey<String>) return true;
+        found = key.value;
+        return false;
+      });
+      return found;
+    }
+
+    final order = <String?>[];
+    for (var i = 0; i < SettingsGroup.values.length + 1; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      order.add(focused());
+    }
+
+    expect(order, [
+      for (final group in SettingsGroup.values) 'settings-nav-${group.name}',
+      'step-back-5',
+    ]);
+  });
+
+  testWidgets('lists the keys that do something', (tester) async {
+    await _boot(tester, MemoryKeyValueStore());
+    final keys = find.byKey(const Key('settings-group-keyboard'));
+    await tester.ensureVisible(keys);
+    await tester.pumpAndSettle();
+
+    for (final key in ['Ctrl K', 'PgDn', 'Esc', 'Ctrl O', 'Space']) {
+      expect(
+        find.descendant(of: keys, matching: find.text(key)),
+        findsOneWidget,
+        reason: key,
+      );
+    }
   });
 
   test('says the version that pubspec.yaml has', () {

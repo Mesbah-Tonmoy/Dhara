@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 enum SettingsGroup {
   playback('Playback'),
   appearance('Appearance'),
+  keyboard('Keyboard'),
   library('Library and metadata'),
   sources('Sources'),
   privacy('Privacy and security'),
@@ -177,6 +178,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ]),
+      group(SettingsGroup.keyboard, const [
+        _SetRow(
+          label: 'Search',
+          hint:
+              'Puts the keyboard in the search field. Enter or ↓ there '
+              'goes to the first result.',
+          control: _Keys(['Ctrl K', '/']),
+        ),
+        _SetRow(
+          label: 'Move around',
+          hint:
+              'Tab walks through everything on a page; the arrow keys '
+              'move between cards, rows and buttons. Enter opens or '
+              'presses.',
+          control: _Keys(['Tab', '← ↑ ↓ →', 'Enter']),
+        ),
+        _SetRow(
+          label: 'Scroll the page',
+          hint: 'Wherever the keyboard is on the page.',
+          control: _Keys(['PgUp', 'PgDn', 'Home', 'End']),
+        ),
+        _SetRow(
+          label: 'Go back',
+          hint: 'Esc also leaves a text field and closes a dialog.',
+          control: _Keys(['Esc', 'Alt ←']),
+        ),
+        _SetRow(
+          label: 'Play a URL',
+          hint: 'Opens the box to paste a video address into.',
+          control: _Keys(['Ctrl O']),
+        ),
+        _SetRow(
+          label: 'In the player',
+          hint:
+              'Space plays or pauses, ← → skip by the seek steps above, '
+              '↑ ↓ change the volume. F is fullscreen, M mute, S the next '
+              'subtitle, N the next episode. Esc leaves fullscreen, then '
+              'the player.',
+          control: _Keys(['Space', '← →', '↑ ↓', 'F', 'M', 'S', 'N']),
+        ),
+      ]),
       group(SettingsGroup.library, [
         _SetRow(
           label: 'Titles and matching',
@@ -320,24 +362,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Tab walks the list first, then the settings: each
+                      // is a group of its own, or the order would jump
+                      // between the two columns.
                       if (withNav)
                         SizedBox(
                           width: 13 * rem,
-                          child: _Nav(onShow: _show),
+                          child: FocusTraversalGroup(
+                            child: _Nav(onShow: _show),
+                          ),
                         ),
                       Expanded(
-                        child: SingleChildScrollView(
-                          key: const Key('settings-scroll'),
-                          padding: const EdgeInsets.only(bottom: DharaSpace.s7),
-                          child: Align(
-                            alignment: Alignment.topLeft,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                maxWidth: 52 * rem,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: groups,
+                        child: FocusTraversalGroup(
+                          child: SingleChildScrollView(
+                            key: const Key('settings-scroll'),
+                            padding: const EdgeInsets.only(
+                              bottom: DharaSpace.s7,
+                            ),
+                            child: Align(
+                              alignment: Alignment.topLeft,
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 52 * rem,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: groups,
+                                ),
                               ),
                             ),
                           ),
@@ -516,6 +568,51 @@ class _SetRow extends StatelessWidget {
               child: FittedBox(fit: BoxFit.scaleDown, child: control),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// The keys that do something, each drawn as a key cap.
+class _Keys extends StatelessWidget {
+  const _Keys(this.keys);
+
+  final List<String> keys;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: keys.join(', '),
+      child: ExcludeSemantics(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final (index, key) in keys.indexed) ...[
+              if (index > 0) const SizedBox(width: .35 * rem),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: .5 * rem,
+                  vertical: .2 * rem,
+                ),
+                decoration: BoxDecoration(
+                  color: DharaColors.surface2,
+                  borderRadius: BorderRadius.circular(.35 * rem),
+                  border: Border.all(color: DharaColors.strokeStrong),
+                ),
+                child: Text(
+                  key,
+                  style: const TextStyle(
+                    fontFamily: DharaFonts.ui,
+                    fontSize: DharaType.xs,
+                    fontWeight: DharaType.semibold,
+                    height: 1.3,
+                    color: DharaColors.text,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

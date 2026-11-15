@@ -47,6 +47,7 @@ class PosterCard extends StatefulWidget {
     required this.onOpen,
     this.rank,
     this.autofocus = false,
+    this.focusNode,
   });
 
   final TitleCard title;
@@ -55,6 +56,10 @@ class PosterCard extends StatefulWidget {
   /// Its place in a ranked row ("#1"), if it has one.
   final int? rank;
   final bool autofocus;
+
+  /// To hand the keyboard to this card from elsewhere (the first result
+  /// of a search).
+  final FocusNode? focusNode;
 
   @override
   State<PosterCard> createState() => _PosterCardState();
@@ -81,6 +86,7 @@ class _PosterCardState extends State<PosterCard> {
     return Pressable(
       onPressed: widget.onOpen,
       autofocus: widget.autofocus,
+      focusNode: widget.focusNode,
       semanticLabel: title.name,
       builder: (context, state) {
         final active = state.active;

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dhara/widgets/icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// The places the navigation rail leads to.
 ///
@@ -68,7 +69,10 @@ class ShellController extends ChangeNotifier {
   final navigatorKey = GlobalKey<NavigatorState>();
 
   /// The search field of the title bar.
-  final searchFocus = FocusNode(debugLabel: 'title-bar-search');
+  late final searchFocus = FocusNode(
+    debugLabel: 'title-bar-search',
+    onKeyEvent: _onSearchKey,
+  );
   final searchText = TextEditingController();
 
   late final NavigatorObserver observer = _StackObserver(this);
@@ -86,6 +90,45 @@ class ShellController extends ChangeNotifier {
 
   /// False on Home, where there is nothing to go back to.
   bool get canGoBack => _stack.length > 1;
+
+  /// The page on screen, for looking inside it (which list to scroll);
+  /// `null` before the first page is up.
+  BuildContext? get pageContext {
+    if (_stack.isEmpty) return null;
+    final route = _stack.last;
+    return route is ModalRoute ? route.subtreeContext : null;
+  }
+
+  FocusNode? _firstResult;
+
+  /// The Search page says which of its cards is the first result, so that
+  /// the keyboard can be handed to it from the search field.
+  void setFirstResult(FocusNode node) => _firstResult = node;
+
+  /// The page whose first result [node] was is gone.
+  void clearFirstResult(FocusNode node) {
+    if (identical(_firstResult, node)) _firstResult = null;
+  }
+
+  /// Puts the keyboard on the first result. False if there is none on
+  /// screen: nothing was found, or the results are scrolled away.
+  bool focusResults() {
+    final node = _firstResult;
+    if (node == null || node.context == null) return false;
+    node.requestFocus();
+    return true;
+  }
+
+  /// ↓ in the search field goes to the results, as Enter does.
+  KeyEventResult _onSearchKey(FocusNode node, KeyEvent event) {
+    final down =
+        event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.arrowDown;
+    if (down && current == ShellDestination.search && focusResults()) {
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
 
   final _artUnderBar = <Route<dynamic>>{};
 
@@ -189,12 +232,16 @@ class ShellController extends ChangeNotifier {
     });
   }
 
-  /// Enter in the search field: shows the results and lets go of the
-  /// keyboard, so that the arrow keys walk the results.
+  /// Enter in the search field: shows the results and hands the keyboard
+  /// to the first of them, so that the arrow keys walk the results.
   void submitSearch() {
     if (searchText.text.trim().isEmpty) return;
     searchChanged();
     searchFocus.unfocus();
+    // After this frame: the field has let go, and the results are built.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed) focusResults();
+    });
   }
 
   static ShellDestination? _placeOf(Route<dynamic> route) {

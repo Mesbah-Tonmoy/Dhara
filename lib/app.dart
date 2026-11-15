@@ -15,6 +15,7 @@ import 'package:dhara/features/my_list/my_list_controller.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
 import 'package:dhara/shell/app_shell.dart';
+import 'package:dhara/shell/page_keys.dart';
 import 'package:dhara/theme/scale.dart';
 import 'package:dhara/theme/theme.dart';
 import 'package:dhara/widgets/toast.dart';
@@ -81,7 +82,7 @@ class DharaApp extends StatelessWidget {
           ),
           child: DharaScale(
             userScale: settings.interfaceScalePercent / 100,
-            child: ToastHost(child: child!),
+            child: ToastHost(child: PageScrollKeys(child: child!)),
           ),
         );
       },
