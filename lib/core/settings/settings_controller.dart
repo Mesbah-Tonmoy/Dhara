@@ -19,6 +19,35 @@ enum PreferredQuality {
   final int? height;
 }
 
+/// The subtitles a video starts with, if it has them.
+enum SubtitleLanguage {
+  /// None; they can still be switched on while it plays.
+  off('Off', []),
+  english('English', ['eng', 'en']),
+  bangla('Bangla', ['ben', 'bn']);
+
+  const SubtitleLanguage(this.label, this.codes);
+
+  final String label;
+
+  /// The language codes files use for it (ISO 639-2 and 639-1).
+  final List<String> codes;
+}
+
+/// The sound track a video starts with, where it has several.
+enum AudioLanguage {
+  /// The one the file puts first.
+  original('Original', []),
+  english('English', ['eng', 'en']),
+  bangla('Bangla', ['ben', 'bn']),
+  hindi('Hindi', ['hin', 'hi']);
+
+  const AudioLanguage(this.label, this.codes);
+
+  final String label;
+  final List<String> codes;
+}
+
 /// The user's settings: loaded once at start-up, changed through the setters
 /// below, and saved as soon as they change.
 ///
@@ -41,6 +70,16 @@ class SettingsController extends ChangeNotifier {
       _autoplayNext = _loadSwitch(_store.getInt(_autoplayNextKey), true),
       _bufferMegabytes = _loadBuffer(_store.getInt(_bufferKey)),
       _preferredQuality = _loadQuality(_store.getInt(_preferredQualityKey)),
+      _subtitleLanguage = _loadNamed(
+        SubtitleLanguage.values,
+        _store.getString(_subtitleLanguageKey),
+        SubtitleLanguage.english,
+      ),
+      _audioLanguage = _loadNamed(
+        AudioLanguage.values,
+        _store.getString(_audioLanguageKey),
+        AudioLanguage.original,
+      ),
       _hardwareDecoding = _loadSwitch(
         _store.getInt(_hardwareDecodingKey),
         true,
@@ -82,6 +121,8 @@ class SettingsController extends ChangeNotifier {
   static const _autoplayNextKey = 'player.autoplayNext';
   static const _bufferKey = 'player.bufferMegabytes';
   static const _preferredQualityKey = 'player.preferredQualityHeight';
+  static const _subtitleLanguageKey = 'player.subtitleLanguage';
+  static const _audioLanguageKey = 'player.audioLanguage';
   static const _hardwareDecodingKey = 'player.hardwareDecoding';
   static const _rotateFeaturedKey = 'look.rotateFeatured';
   static const _reduceMotionKey = 'look.reduceMotion';
@@ -95,6 +136,8 @@ class SettingsController extends ChangeNotifier {
   bool _autoplayNext;
   int _bufferMegabytes;
   PreferredQuality _preferredQuality;
+  SubtitleLanguage _subtitleLanguage;
+  AudioLanguage _audioLanguage;
   bool _hardwareDecoding;
   bool _rotateFeatured;
   bool _reduceMotion;
@@ -122,6 +165,30 @@ class SettingsController extends ChangeNotifier {
     notifyListeners();
     // Kept as the picture height, 0 for the sharpest.
     unawaited(_store.setInt(_preferredQualityKey, value.height ?? 0));
+  }
+
+  /// The subtitles a video starts with: those in this language if it has
+  /// them (else the ones its file marks as the default, if any), or none.
+  /// Counts from the next video that is opened.
+  SubtitleLanguage get subtitleLanguage => _subtitleLanguage;
+
+  void setSubtitleLanguage(SubtitleLanguage value) {
+    if (value == _subtitleLanguage) return;
+    _subtitleLanguage = value;
+    notifyListeners();
+    unawaited(_store.setString(_subtitleLanguageKey, value.name));
+  }
+
+  /// The sound track a video with several starts with: the one in this
+  /// language if it has one, else the one the file puts first. Counts
+  /// from the next video that is opened.
+  AudioLanguage get audioLanguage => _audioLanguage;
+
+  void setAudioLanguage(AudioLanguage value) {
+    if (value == _audioLanguage) return;
+    _audioLanguage = value;
+    notifyListeners();
+    unawaited(_store.setString(_audioLanguageKey, value.name));
   }
 
   /// How much of a video the player may keep in memory (what lies ahead
@@ -252,6 +319,19 @@ class SettingsController extends ChangeNotifier {
       return defaultSubtitleScalePercent;
     }
     return _snapSubtitleScale(stored);
+  }
+
+  /// The one of [values] that is called [stored]; [fallback] for any
+  /// other text.
+  static T _loadNamed<T extends Enum>(
+    List<T> values,
+    String? stored,
+    T fallback,
+  ) {
+    for (final value in values) {
+      if (value.name == stored) return value;
+    }
+    return fallback;
   }
 
   static PreferredQuality _loadQuality(int? stored) {

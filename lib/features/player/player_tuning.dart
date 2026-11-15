@@ -14,16 +14,21 @@ class PlayerTuning {
   const PlayerTuning({
     this.bufferMegabytes = SettingsController.defaultBufferMegabytes,
     this.hardwareDecoding = true,
+    this.subtitles = SubtitleLanguage.english,
+    this.audio = AudioLanguage.original,
   }) : assert(
          bufferMegabytes >= SettingsController.minBufferMegabytes &&
              bufferMegabytes <= SettingsController.maxBufferMegabytes,
        );
 
-  /// As the user's settings say (Buffer size, Hardware decoding).
+  /// As the user's settings say (Buffer size, Hardware decoding, Default
+  /// subtitles, Preferred audio).
   PlayerTuning.of(SettingsController settings)
     : this(
         bufferMegabytes: settings.bufferMegabytes,
         hardwareDecoding: settings.hardwareDecoding,
+        subtitles: settings.subtitleLanguage,
+        audio: settings.audioLanguage,
       );
 
   /// The memory the player may fill with video it has read from the
@@ -33,6 +38,11 @@ class PlayerTuning {
 
   /// The graphics card decodes the picture where mpv counts that as safe.
   final bool hardwareDecoding;
+
+  /// The subtitles a video starts with, and the sound track where it has
+  /// several.
+  final SubtitleLanguage subtitles;
+  final AudioLanguage audio;
 
   static const _megabyte = 1024 * 1024;
 
@@ -70,6 +80,17 @@ class PlayerTuning {
     // An exact seek decodes from the keyframe before its target; frames
     // on the way there need not be finished (media_kit turns this off).
     'hr-seek-framedrop': 'yes',
+    // Which tracks a video starts with. mpv takes the first track in one
+    // of these languages; with none named (Original), the one the file
+    // puts first.
+    'alang': audio.codes.join(','),
+    'slang': subtitles.codes.join(','),
+    // Without subtitles in the wanted language: those the file marks as
+    // its default (the lines of a foreign passage, say), and no others.
+    // (media_kit would take any.)
+    'subs-fallback': 'default',
+    // Off: none to start with; they can be switched on in the player.
+    'sid': subtitles == SubtitleLanguage.off ? 'no' : 'auto',
   };
 }
 

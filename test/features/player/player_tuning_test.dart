@@ -38,6 +38,23 @@ void main() {
     expect(tuning.mpvOptions['hwdec'], 'no');
   });
 
+  test('the tracks a video starts with are asked for by language', () {
+    final usual = const PlayerTuning().mpvOptions;
+    expect(usual['slang'], 'eng,en');
+    expect(usual['alang'], '');
+    expect(usual['sid'], 'auto');
+    // Not any subtitles there are: the wanted ones, or the file's default.
+    expect(usual['subs-fallback'], 'default');
+
+    final off = const PlayerTuning(
+      subtitles: SubtitleLanguage.off,
+      audio: AudioLanguage.bangla,
+    ).mpvOptions;
+    expect(off['sid'], 'no');
+    expect(off['slang'], '');
+    expect(off['alang'], 'ben,bn');
+  });
+
   test('follows the settings', () {
     final settings = SettingsController(MemoryKeyValueStore());
     expect(PlayerTuning.of(settings).bufferMegabytes, 150);
@@ -45,8 +62,12 @@ void main() {
 
     settings
       ..setBufferMegabytes(400)
-      ..setHardwareDecoding(false);
+      ..setHardwareDecoding(false)
+      ..setSubtitleLanguage(SubtitleLanguage.bangla)
+      ..setAudioLanguage(AudioLanguage.hindi);
     final tuning = PlayerTuning.of(settings);
+    expect(tuning.mpvOptions['slang'], 'ben,bn');
+    expect(tuning.mpvOptions['alang'], 'hin,hi');
     expect(tuning.forwardBytes + tuning.backBytes, 400 * megabyte);
     expect(tuning.mpvOptions['hwdec'], 'no');
   });

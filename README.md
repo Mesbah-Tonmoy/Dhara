@@ -327,16 +327,18 @@ on the rail.
 ## Settings
 
 The cog at the foot of the rail (`lib/features/settings/ui/settings_screen.dart`).
-Every control does something now and is saved as it is changed
-(`lib/core/settings/settings_controller.dart`); settings whose feature is
-not built yet (languages) are not shown.
+Every control does something and is saved as it is changed
+(`lib/core/settings/settings_controller.dart`).
 
 - **Playback:** the seek step back and forward (5/10/15/30/60/90/120 s or
   a typed 1–600 s; the same values the player's own panel changes), the
   preferred quality (Auto, 4K, 1080p, 720p; see [Title page](#title-page)),
-  autoplay of the next episode, subtitle size, the player's buffer size
-  (50–500 MB) and hardware decoding (both count from the next video; see
-  [Streaming set-up](#streaming-set-up)).
+  autoplay of the next episode, subtitle size, the default subtitles
+  (Off, English, Bangla) and the preferred audio (Original, English,
+  Bangla, Hindi; see [Subtitles and audio tracks](#subtitles-and-audio-tracks)),
+  the player's buffer size (50–500 MB) and hardware decoding (see
+  [Streaming set-up](#streaming-set-up)). The last four count from the
+  next video.
 - **Appearance:** interface size (90/100/110/125%, on top of the size the
   window gives), whether the banner on Home rotates, and Reduce motion
   (hover zooms, fades and the banner change at once; the system's own
@@ -355,6 +357,15 @@ not built yet (languages) are not shown.
   picture-based ones (PGS, VobSub) work. They move up while the control bar
   is showing.
 - Size (50–200%) is saved; delay (±0.1 s steps) applies to the current video.
+- Which tracks a video starts with follows Settings: **Default
+  subtitles** asks mpv for that language (`slang`); a video without it
+  gets the subtitles its file marks as the default, if any
+  (`subs-fallback=default`; media_kit's own setting takes any subtitles
+  there are), and "Off" starts without (`sid=no`). **Preferred audio**
+  asks for the sound track in that language (`alang`); "Original" leaves
+  the choice to the file. Both are only where a video starts: the
+  panels change them while it plays. Checked that libmpv takes the
+  options; not yet tried on a file with several languages.
 - The bundled libmpv has no decoder for Dolby TrueHD (or MLP), the first
   sound track of many 4K films. Such a track says "cannot be played" in the
   list, and when libmpv picks one, the player switches to another track by

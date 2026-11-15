@@ -7,6 +7,7 @@
 // day, never while there was one file).
 import 'dart:io';
 
+import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/player/player_tuning.dart';
 import 'package:dhara/features/player/secure_player.dart';
 import 'package:dhara/features/player/seek_math.dart';
@@ -158,6 +159,43 @@ void main() {
         expect(position.inSeconds, inInclusiveRange(1, 3));
         expect(tokens, isNotEmpty);
         expect(tokens, everyElement('token-1'));
+      },
+      skip: noVideo,
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
+
+    test(
+      'the track languages are taken, and "Off" lasts through an open',
+      () async {
+        // With a language, mpv is left to choose the track.
+        expect(
+          await tunePlayer(
+            player,
+            const PlayerTuning(subtitles: SubtitleLanguage.bangla),
+          ),
+          isEmpty,
+        );
+        expect(await native.getProperty('slang'), 'ben,bn');
+        expect(await native.getProperty('alang'), '');
+        expect(await native.getProperty('sid'), 'auto');
+
+        const tuning = PlayerTuning(
+          subtitles: SubtitleLanguage.off,
+          audio: AudioLanguage.hindi,
+        );
+        expect(await tunePlayer(player, tuning), isEmpty);
+        expect(await native.getProperty('alang'), 'hin,hi');
+        expect(await native.getProperty('slang'), '');
+        expect(await native.getProperty('subs-fallback'), 'default');
+        expect(await native.getProperty('sid'), 'no');
+
+        final loaded = player.stream.duration.firstWhere(
+          (d) => d > Duration.zero,
+        );
+        await player.open(Media(sampleVideo.path), play: false);
+        await loaded;
+        // media_kit does not switch subtitles back on by itself.
+        expect(await native.getProperty('sid'), 'no');
       },
       skip: noVideo,
       timeout: const Timeout(Duration(seconds: 30)),

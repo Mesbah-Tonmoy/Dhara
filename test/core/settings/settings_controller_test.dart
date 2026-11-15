@@ -54,6 +54,52 @@ void main() {
     ]);
   });
 
+  test('subtitles start in English and the sound as the file has it; both '
+      'are saved', () {
+    final store = MemoryKeyValueStore();
+    final settings = SettingsController(store);
+    expect(settings.subtitleLanguage, SubtitleLanguage.english);
+    expect(settings.audioLanguage, AudioLanguage.original);
+
+    var changes = 0;
+    settings
+      ..addListener(() => changes++)
+      ..setSubtitleLanguage(SubtitleLanguage.off)
+      ..setAudioLanguage(AudioLanguage.hindi)
+      ..setAudioLanguage(AudioLanguage.hindi);
+    expect(changes, 2);
+    expect(store.getString('player.subtitleLanguage'), 'off');
+    expect(store.getString('player.audioLanguage'), 'hindi');
+    final next = SettingsController(store);
+    expect(next.subtitleLanguage, SubtitleLanguage.off);
+    expect(next.audioLanguage, AudioLanguage.hindi);
+
+    // A name that is none of the choices is not trusted.
+    final odd = SettingsController(
+      MemoryKeyValueStore({
+        'player.subtitleLanguage': 'klingon',
+        'player.audioLanguage': '',
+      }),
+    );
+    expect(odd.subtitleLanguage, SubtitleLanguage.english);
+    expect(odd.audioLanguage, AudioLanguage.original);
+  });
+
+  test('every language names the codes files use for it', () {
+    expect(SubtitleLanguage.off.codes, isEmpty);
+    expect(SubtitleLanguage.bangla.codes, ['ben', 'bn']);
+    expect(AudioLanguage.original.codes, isEmpty);
+    expect(AudioLanguage.hindi.codes, ['hin', 'hi']);
+    expect(
+      [for (final language in AudioLanguage.values) language.label],
+      ['Original', 'English', 'Bangla', 'Hindi'],
+    );
+    expect(
+      [for (final language in SubtitleLanguage.values) language.label],
+      ['Off', 'English', 'Bangla'],
+    );
+  });
+
   test('the buffer starts at 150 MB with hardware decoding on', () {
     final settings = SettingsController(MemoryKeyValueStore());
 

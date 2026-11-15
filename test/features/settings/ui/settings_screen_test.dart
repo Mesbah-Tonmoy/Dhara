@@ -50,8 +50,13 @@ void main() {
       );
     }
     // Not built yet, so not offered.
-    for (final absent in ['Default subtitles', 'Preferred audio']) {
-      expect(find.textContaining(absent, skipOffstage: false), findsNothing);
+    // Everything the prototype's Settings offered is there now.
+    for (final row in [
+      'Preferred quality',
+      'Default subtitles',
+      'Buffer size',
+    ]) {
+      expect(find.text(row, skipOffstage: false), findsOneWidget);
     }
   });
 
@@ -145,6 +150,39 @@ void main() {
 
     expect(selected(), PreferredQuality.fullHd);
     expect(store.getInt('player.preferredQualityHeight'), 1080);
+  });
+
+  testWidgets('the languages a video starts in are picked and saved', (
+    tester,
+  ) async {
+    final store = MemoryKeyValueStore();
+    await _boot(tester, store);
+    final subtitles = find.byKey(const Key('set-subtitles'));
+    final audio = find.byKey(const Key('set-audio'));
+    expect(
+      tester.widget<SegmentedPills<SubtitleLanguage>>(subtitles).selected,
+      SubtitleLanguage.english,
+    );
+    expect(
+      tester.widget<SegmentedPills<AudioLanguage>>(audio).selected,
+      AudioLanguage.original,
+    );
+
+    await _tap(
+      tester,
+      find.descendant(of: subtitles, matching: find.text('Off')),
+    );
+    await _tap(
+      tester,
+      find.descendant(of: audio, matching: find.text('Bangla')),
+    );
+
+    expect(store.getString('player.subtitleLanguage'), 'off');
+    expect(store.getString('player.audioLanguage'), 'bangla');
+    expect(
+      tester.widget<SegmentedPills<AudioLanguage>>(audio).selected,
+      AudioLanguage.bangla,
+    );
   });
 
   testWidgets('buffer size and hardware decoding are saved as they change', (

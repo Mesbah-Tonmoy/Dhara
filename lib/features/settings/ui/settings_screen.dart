@@ -34,7 +34,7 @@ enum SettingsGroup {
 /// to the tools (matching, the library index, Server Discovery).
 ///
 /// Every control here does something now and is saved as it is changed;
-/// settings whose feature is not built yet (languages) are not shown.
+/// there is none whose feature is not built.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -152,6 +152,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         SettingsController.subtitleScaleStepPercent,
                   )
                 : null,
+          ),
+        ),
+        _SetRow(
+          label: 'Default subtitles',
+          hint:
+              'A video starts with subtitles in this language if it has '
+              'them, else with those its file marks as the default. They '
+              'can always be changed in the player.',
+          control: SegmentedPills<SubtitleLanguage>(
+            key: const Key('set-subtitles'),
+            choices: {
+              for (final language in SubtitleLanguage.values)
+                language: language.label,
+            },
+            selected: settings.subtitleLanguage,
+            onSelected: settings.setSubtitleLanguage,
+          ),
+        ),
+        _SetRow(
+          label: 'Preferred audio',
+          hint:
+              'Where a video has several sound tracks, it starts with the '
+              'one in this language; Original is the one the file puts '
+              'first.',
+          control: SegmentedPills<AudioLanguage>(
+            key: const Key('set-audio'),
+            choices: {
+              for (final language in AudioLanguage.values)
+                language: language.label,
+            },
+            selected: settings.audioLanguage,
+            onSelected: settings.setAudioLanguage,
           ),
         ),
         _SetRow(
