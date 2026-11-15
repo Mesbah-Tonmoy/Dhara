@@ -2,6 +2,24 @@ import 'package:dhara/features/player/playback_progress.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('the next video is got ready in the last minute of this one', () {
+    const film = Duration(hours: 2);
+
+    expect(nearEnd(const Duration(hours: 1, minutes: 58), film), isFalse);
+    expect(nearEnd(const Duration(hours: 1, minutes: 59), film), isTrue);
+    expect(
+      nearEnd(const Duration(hours: 1, minutes: 59, seconds: 59), film),
+      isTrue,
+    );
+    // At the end there is nothing left to get ready for.
+    expect(nearEnd(film, film), isFalse);
+    // A clip shorter than a minute: from its start.
+    expect(nearEnd(Duration.zero, const Duration(seconds: 12)), isTrue);
+    // Not before the length is known.
+    expect(nearEnd(const Duration(seconds: 5), Duration.zero), isFalse);
+    expect(readyNextAhead, const Duration(seconds: 60));
+  });
+
   group('isResumable', () {
     const movie = Duration(hours: 2);
 
@@ -77,10 +95,7 @@ void main() {
 
     test('is null at and after the end, and for an unknown duration', () {
       expect(upNextSecondsLeft(duration, duration), isNull);
-      expect(
-        upNextSecondsLeft(const Duration(minutes: 21), duration),
-        isNull,
-      );
+      expect(upNextSecondsLeft(const Duration(minutes: 21), duration), isNull);
       expect(upNextSecondsLeft(Duration.zero, Duration.zero), isNull);
     });
   });

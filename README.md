@@ -20,7 +20,7 @@ A Bangla + English README is written in Phase 8.
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
 | 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests), frame rate while scrolling, and cold start |
-| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, Settings has a preferred quality, Play starts on the fastest copy, and a video that stalls goes on from another copy by itself (see [Smart playback](#smart-playback)). Still to come: the next episode ahead of time |
+| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, Settings has a preferred quality, Play starts on the fastest copy, a video that stalls goes on from another copy by itself, and the next episode's copy is chosen before this one ends (see [Smart playback](#smart-playback)). Still to come: Emby and Jellyfin files, and the last measurements |
 | 8–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -151,6 +151,22 @@ its own. A copy picked from a title's list, and a pasted address, are
 played from exactly there (one request, for where it leads). The answer
 is also where the player is sent: it replaces the redirect check that
 ran before every video.
+
+### The next episode, ahead of time
+
+In the last 60 seconds of a video that has a successor in the queue, the
+player asks the servers for the copies of that next video and chooses one,
+exactly as it would on Play (`_readyNext` in
+`lib/features/player/player_screen.dart`). When the next video starts,
+by itself or with **Next**, it is opened from that copy at once, without
+the wait for the servers. The answer counts for five minutes; each video
+is asked for ahead of time once, and if nothing answered it is asked
+again when it is opened. The info panel says "asked ahead of time".
+
+Only the choice is made ahead: the video itself is not opened or read
+before its turn. (mpv's own `prefetch-playlist` would do that, but its
+manual calls it highly experimental, and the app does not hand mpv a
+playlist.)
 
 ### When a video does not play on
 

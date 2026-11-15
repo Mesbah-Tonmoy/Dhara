@@ -75,6 +75,14 @@ void main() {
     expect(copies(0, 0), isEmpty);
   });
 
+  test('says when the server was asked ahead of time', () {
+    const info = PlaybackInfo(
+      serverAnswered: Duration(milliseconds: 41),
+      askedAhead: true,
+    );
+    expect(info.rows, [('Server answered in', '41 ms, asked ahead of time')]);
+  });
+
   test('says when the processor decodes', () {
     final info = PlaybackInfo.fromMpv({..._real, 'hwdec-current': 'no'});
     expect(info.hardwareDecoder, isNull);

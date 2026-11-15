@@ -31,6 +31,7 @@ class PlayerControls extends StatefulWidget {
     required this.onStartOver,
     this.server,
     this.serverAnswered,
+    this.askedAhead = false,
     this.copiesAsked = 0,
     this.copiesAnswered = 0,
     this.startedIn,
@@ -65,6 +66,7 @@ class PlayerControls extends StatefulWidget {
   // the video being played.
   final String? server;
   final Duration? serverAnswered;
+  final bool askedAhead;
   final int copiesAsked;
   final int copiesAnswered;
   final Duration? startedIn;
@@ -485,6 +487,7 @@ class _PlayerControlsState extends State<PlayerControls> {
                 infoValues,
                 server: widget.server,
                 serverAnswered: widget.serverAnswered,
+                askedAhead: widget.askedAhead,
                 copiesAsked: widget.copiesAsked,
                 copiesAnswered: widget.copiesAnswered,
                 startedIn: widget.startedIn,

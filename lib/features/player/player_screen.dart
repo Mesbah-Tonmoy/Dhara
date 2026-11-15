@@ -5,6 +5,7 @@ import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/core/window/fullscreen.dart';
 import 'package:dhara/features/playback/copy_probe.dart';
 import 'package:dhara/features/playback/smart_start.dart';
+import 'package:dhara/features/player/playback_progress.dart';
 import 'package:dhara/features/player/player_tuning.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/player/secure_player.dart';
@@ -67,6 +68,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// How long a server has to answer when it is asked for a video.
   static const _askTimeout = Duration(seconds: 2);
 
+  /// How long an answer that was got ahead of time counts (the countdown
+  /// to the next video may be cancelled, and the next one started later).
+  static const _readyFor = Duration(minutes: 5);
+
   /// How this player reads ahead and decodes: the settings as they were
   /// when it was opened.
   late final PlayerTuning _tuning = PlayerTuning.of(
@@ -84,6 +89,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   // Counts the openings: what an earlier one still waits for is dropped
   // when it comes.
   int _opening = 0;
+
+  // The next video of the queue, got ready while this one draws to its
+  // end: the copy its servers were asked for and that was chosen, and
+  // when. Each video is asked for ahead of time once.
+  ({int index, CopyChoice choice, Duration at})? _ready;
+  int _askedAheadFor = -1;
+  bool _askedAhead = false;
 
   // Notices a video that does not play on, told the player's state once
   // a second; what it found is shown until the video moves again.
@@ -320,8 +332,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
       _beginOpening(resumeUrl ?? candidates.first.url, resumeFrom);
     }
+    // Was this video got ready while the one before it ended? Then its
+    // servers have just been asked, and it starts without that wait.
+    final ready = _ready;
+    _ready = null;
+    final ahead =
+        !switching &&
+            ready != null &&
+            ready.index == _index &&
+            _clock.elapsed - ready.at <= _readyFor
+        ? ready.choice
+        : null;
     setState(() {
-      _choosingFrom = candidates.length;
+      _choosingFrom = ahead == null ? candidates.length : 0;
       if (!switching) {
         _error = null;
         _trouble = null;
@@ -331,32 +354,35 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _serverAnswered = null;
         _choice = null;
         _startedIn = null;
+        _askedAhead = ahead != null;
       }
     });
-    // The servers are asked for the copies: which answers fastest, and
-    // where it sends the player (FFmpeg would follow a redirect to any
-    // host; the app follows them first, under its own rules).
-    _asking?.close();
-    final asking = _asking = CopyProber(
-      isAllowedHost: _mayPlayFrom,
-      timeout: _askTimeout,
-    );
-    CopyChoice? choice;
+    CopyChoice? choice = ahead;
     String? blocked;
-    try {
-      choice = await chooseCopy(
-        asking,
-        candidates,
-        preferred: SettingsScope.read(context).preferredQuality,
-        resume: resumeUrl,
+    if (choice == null) {
+      // The servers are asked for the copies: which answers fastest, and
+      // where it sends the player (FFmpeg would follow a redirect to any
+      // host; the app follows them first, under its own rules).
+      _asking?.close();
+      final asking = _asking = CopyProber(
+        isAllowedHost: _mayPlayFrom,
+        timeout: _askTimeout,
       );
-    } on PlaybackBlocked catch (refused) {
-      blocked = refused.message;
-    } finally {
-      asking.close();
+      try {
+        choice = await chooseCopy(
+          asking,
+          candidates,
+          preferred: SettingsScope.read(context).preferredQuality,
+          resume: resumeUrl,
+        );
+      } on PlaybackBlocked catch (refused) {
+        blocked = refused.message;
+      } finally {
+        asking.close();
+      }
+      // The user may have left or moved on while the servers were asked.
+      if (!mounted || opening != _opening) return;
     }
-    // The user may have left or moved on while the servers were asked.
-    if (!mounted || opening != _opening) return;
 
     if (switching) {
       if (choice == null || choice.answeredIn == null) {
@@ -462,7 +488,50 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return url.host;
   }
 
+  /// Asks the servers for the next video of the queue while this one
+  /// draws to its end, and chooses its copy, so that it starts without
+  /// that wait. Once per video; if nothing answers, it is asked again when
+  /// it is opened.
+  Future<void> _readyNext() async {
+    final index = _index + 1;
+    if (_askedAheadFor == index) return;
+    _askedAheadFor = index;
+    final candidates = widget.entries[index].candidates;
+    Uri? resumeUrl;
+    for (final copy in candidates) {
+      if (_resume.positionFor(copy.url) != null) {
+        resumeUrl = copy.url;
+        break;
+      }
+    }
+    final asking = CopyProber(
+      isAllowedHost: _mayPlayFrom,
+      timeout: _askTimeout,
+    );
+    try {
+      final choice = await chooseCopy(
+        asking,
+        candidates,
+        preferred: SettingsScope.read(context).preferredQuality,
+        resume: resumeUrl,
+      );
+      if (mounted && _index + 1 == index && choice.answeredIn != null) {
+        _ready = (index: index, choice: choice, at: _clock.elapsed);
+      }
+    } on PlaybackBlocked {
+      // Said when the video is opened.
+    } finally {
+      asking.close();
+    }
+  }
+
   void _onPosition(Duration position) {
+    if (_hasNext &&
+        _progressReady &&
+        _askedAheadFor != _index + 1 &&
+        nearEnd(position, _player.state.duration)) {
+      unawaited(_readyNext());
+    }
     // The picture moves: the video has started.
     if (_startedIn == null &&
         _progressReady &&
@@ -603,6 +672,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               final url => _serverLabel(url),
             },
             serverAnswered: _serverAnswered,
+            askedAhead: _askedAhead,
             copiesAsked: choice?.asked ?? 0,
             copiesAnswered: choice?.answered ?? 0,
             startedIn: _startedIn,

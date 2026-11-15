@@ -29,6 +29,7 @@ class PlaybackInfo {
   const PlaybackInfo({
     this.server,
     this.serverAnswered,
+    this.askedAhead = false,
     this.copiesAsked = 0,
     this.copiesAnswered = 0,
     this.startedIn,
@@ -54,6 +55,7 @@ class PlaybackInfo {
     Map<String, String> mpv, {
     String? server,
     Duration? serverAnswered,
+    bool askedAhead = false,
     int copiesAsked = 0,
     int copiesAnswered = 0,
     Duration? startedIn,
@@ -84,6 +86,7 @@ class PlaybackInfo {
     return PlaybackInfo(
       server: server,
       serverAnswered: serverAnswered,
+      askedAhead: askedAhead,
       copiesAsked: copiesAsked,
       copiesAnswered: copiesAnswered,
       startedIn: startedIn,
@@ -114,6 +117,10 @@ class PlaybackInfo {
   /// How long that server took to answer when it was asked for the video
   /// (before the player opened it).
   final Duration? serverAnswered;
+
+  /// The server was asked while the video before this one was ending, so
+  /// this one started without that wait.
+  final bool askedAhead;
 
   /// How many copies of the video were asked for before this one was
   /// chosen, and how many of their servers had answered by then. 0 or 1
@@ -173,7 +180,12 @@ class PlaybackInfo {
     return [
       if (server case final server?) ('Server', server),
       if (serverAnswered case final time?)
-        ('Server answered in', '${time.inMilliseconds} ms'),
+        (
+          'Server answered in',
+          askedAhead
+              ? '${time.inMilliseconds} ms, asked ahead of time'
+              : '${time.inMilliseconds} ms',
+        ),
       if (copiesAsked > 1)
         (
           'Copies',

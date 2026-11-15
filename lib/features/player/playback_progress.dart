@@ -1,6 +1,17 @@
 /// How long before the end the "up next" countdown appears.
 const upNextCountdown = Duration(seconds: 15);
 
+/// How long before a video ends the next one of the queue is got ready
+/// (see [nearEnd]).
+const readyNextAhead = Duration(seconds: 60);
+
+/// Whether a video at [position] is so near its end that the next one
+/// should be got ready: its servers asked, its copy chosen.
+bool nearEnd(Duration position, Duration duration) =>
+    duration > Duration.zero &&
+    position < duration &&
+    duration - position <= readyNextAhead;
+
 /// Whether stopping at [position] is worth resuming from later.
 ///
 /// The first moments and the last 5% (credits) do not count: a video left
