@@ -19,7 +19,7 @@ A Bangla + English README is written in Phase 8.
 | 3. Sources and server discovery | Done: starter list of 38 checked servers, Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet |
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
-| 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page. Not yet: Settings, the new look for Server Discovery, Library index and matching. "Titles and matching", Library index and Server Discovery are still the working screens of the earlier phases |
+| 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings. Not yet: the new look for Server Discovery, Library index and matching. "Titles and matching", Library index and Server Discovery are still the working screens of the earlier phases |
 | 7–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -127,6 +127,26 @@ on the rail.
   them; both also forget where the video was left, so it is no longer
   offered under Continue Watching.
 - Both live in the library database on this PC and nowhere else.
+
+## Settings
+
+The cog at the foot of the rail (`lib/features/settings/ui/settings_screen.dart`).
+Every control does something now and is saved as it is changed
+(`lib/core/settings/settings_controller.dart`); settings whose feature is
+not built yet (preferred quality, buffer size) are not shown.
+
+- **Playback:** the seek step back and forward (5/10/15/30/60/90/120 s or
+  a typed 1–600 s; the same values the player's own panel changes),
+  autoplay of the next episode, subtitle size.
+- **Appearance:** interface size (90/100/110/125%, on top of the size the
+  window gives), whether the banner on Home rotates, and Reduce motion
+  (hover zooms, fades and the banner change at once; the system's own
+  setting does the same).
+- **Library and metadata / Sources:** the way to "Titles and matching"
+  (TMDB key, matching, Needs review), "Library index" and Server
+  Discovery. The first two have no icon on the rail any more; Back leads
+  from them to Settings.
+- **Privacy and security:** what the app never does, and "Clear history".
 
 ## Subtitles and audio tracks
 

@@ -71,7 +71,20 @@ class DharaApp extends StatelessWidget {
       theme: buildDharaTheme(),
       // Above the Navigator, so that dialogs and menus grow with the window
       // as well, and a message outlives the page that sent it.
-      builder: (context, child) => DharaScale(child: ToastHost(child: child!)),
+      builder: (context, child) {
+        final settings = SettingsScope.of(context);
+        final media = MediaQuery.of(context);
+        return MediaQuery(
+          // The Reduce motion setting does what the system's does.
+          data: media.copyWith(
+            disableAnimations: media.disableAnimations || settings.reduceMotion,
+          ),
+          child: DharaScale(
+            userScale: settings.interfaceScalePercent / 100,
+            child: ToastHost(child: child!),
+          ),
+        );
+      },
       home: const AppShell(),
     );
     // What every page can reach, the innermost first.

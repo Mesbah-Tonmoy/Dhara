@@ -1,4 +1,5 @@
 import 'package:dhara/core/images/remote_image.dart';
+import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/home/home_store.dart';
 import 'package:dhara/features/home/ui/title_meta.dart';
 import 'package:dhara/features/my_list/my_list_controller.dart';
@@ -64,10 +65,14 @@ class _HeroBannerState extends State<HeroBanner>
   var _hovered = false;
   var _still = false;
 
+  /// The "Rotate featured titles" setting.
+  var _rotates = true;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _still = MediaQuery.disableAnimationsOf(context);
+    _rotates = SettingsScope.maybeOf(context)?.rotateFeatured ?? true;
     _run();
   }
 
@@ -90,7 +95,7 @@ class _HeroBannerState extends State<HeroBanner>
 
   /// Lets the time of the title on show run, or holds it.
   void _run() {
-    if (_still || _hovered || widget.titles.length < 2) {
+    if (_still || !_rotates || _hovered || widget.titles.length < 2) {
       _turn.stop();
     } else if (!_turn.isAnimating) {
       _turn.forward();

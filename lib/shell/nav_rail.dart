@@ -48,6 +48,14 @@ class NavRail extends StatelessWidget {
             (typed || (kind != BrowseKind.movies && kind != BrowseKind.series)),
         onPressed: shell.openSearch,
       ),
+      // Lit too while one of the tools opened from it is on screen.
+      ShellDestination.settings => _RailButton(
+        key: const Key('rail-settings'),
+        label: place.label,
+        icon: place.icon,
+        selected: shell.current == place || !shell.current.onRail,
+        onPressed: () => shell.open(place),
+      ),
       _ => _RailButton(
         key: Key('rail-${place.name}'),
         label: place.label,
@@ -90,7 +98,7 @@ class NavRail extends StatelessWidget {
               child: Column(
                 children: [
                   for (final place in ShellDestination.values)
-                    if (!place.low) ...[
+                    if (place.onRail && !place.low) ...[
                       button(place),
                       if (place == ShellDestination.search) ...[
                         browsing(
@@ -109,7 +117,7 @@ class NavRail extends StatelessWidget {
                     ],
                   const Spacer(),
                   for (final place in ShellDestination.values)
-                    if (place.low) button(place),
+                    if (place.onRail && place.low) button(place),
                 ],
               ),
             ),

@@ -124,39 +124,7 @@ class _ListsScreenState extends State<ListsScreen> {
     if (mounted) await HistoryScope.read(context).load();
   }
 
-  Future<void> _clear() async {
-    final history = HistoryScope.read(context);
-    final sure = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear the history?'),
-        content: const Text(
-          'Everything listed here goes, and so do the places where videos '
-          'were left: nothing will be offered to continue. This cannot be '
-          'undone.',
-        ),
-        actions: [
-          DharaButton(
-            key: const Key('history-clear-cancel'),
-            label: 'Cancel',
-            small: true,
-            autofocus: true,
-            onPressed: () => Navigator.of(context).pop(false),
-          ),
-          DharaButton(
-            key: const Key('history-clear-confirm'),
-            label: 'Clear history',
-            small: true,
-            danger: true,
-            onPressed: () => Navigator.of(context).pop(true),
-          ),
-        ],
-      ),
-    );
-    if (sure != true || !mounted) return;
-    await history.clear();
-    if (mounted) ToastHost.show(context, 'History cleared.');
-  }
+  Future<void> _clear() => clearHistoryAfterAsking(context);
 
   @override
   Widget build(BuildContext context) {
@@ -626,4 +594,40 @@ class _Watched extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Asks whether the whole history may go and, on a yes, empties it (and
+/// forgets where every video was left).
+Future<void> clearHistoryAfterAsking(BuildContext context) async {
+  final history = HistoryScope.read(context);
+  final sure = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Clear the history?'),
+      content: const Text(
+        'Everything in History goes, and so do the places where videos '
+        'were left: nothing will be offered to continue. This cannot be '
+        'undone.',
+      ),
+      actions: [
+        DharaButton(
+          key: const Key('history-clear-cancel'),
+          label: 'Cancel',
+          small: true,
+          autofocus: true,
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+        DharaButton(
+          key: const Key('history-clear-confirm'),
+          label: 'Clear history',
+          small: true,
+          danger: true,
+          onPressed: () => Navigator.of(context).pop(true),
+        ),
+      ],
+    ),
+  );
+  if (sure != true) return;
+  await history.clear();
+  if (context.mounted) ToastHost.show(context, 'History cleared.');
 }

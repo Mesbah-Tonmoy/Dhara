@@ -11,6 +11,53 @@ void main() {
     expect(settings.volume, 100);
   });
 
+  test('autoplay and the rotating banner start on, Reduce motion off, the '
+      'interface at its own size', () {
+    final settings = SettingsController(MemoryKeyValueStore());
+
+    expect(settings.autoplayNext, isTrue);
+    expect(settings.rotateFeatured, isTrue);
+    expect(settings.reduceMotion, isFalse);
+    expect(settings.interfaceScalePercent, 100);
+  });
+
+  test('saves the switches and the interface size', () {
+    final store = MemoryKeyValueStore();
+    var changes = 0;
+    SettingsController(store)
+      ..addListener(() => changes++)
+      ..setAutoplayNext(false)
+      ..setRotateFeatured(false)
+      ..setReduceMotion(true)
+      ..setInterfaceScalePercent(125)
+      // The same again changes nothing.
+      ..setReduceMotion(true);
+
+    expect(changes, 4);
+    final next = SettingsController(store);
+    expect(next.autoplayNext, isFalse);
+    expect(next.rotateFeatured, isFalse);
+    expect(next.reduceMotion, isTrue);
+    expect(next.interfaceScalePercent, 125);
+  });
+
+  test('an interface size that is not offered is not taken, set or saved', () {
+    final settings = SettingsController(MemoryKeyValueStore())
+      ..setInterfaceScalePercent(300);
+    expect(settings.interfaceScalePercent, 100);
+
+    final odd = SettingsController(
+      MemoryKeyValueStore({
+        'look.interfaceScalePercent': 1000,
+        'player.autoplayNext': 7,
+        'look.reduceMotion': -1,
+      }),
+    );
+    expect(odd.interfaceScalePercent, 100);
+    expect(odd.autoplayNext, isTrue);
+    expect(odd.reduceMotion, isFalse);
+  });
+
   test('offers the presets from the brief', () {
     expect(SettingsController.seekStepPresets, [5, 10, 15, 30, 60, 90, 120]);
   });

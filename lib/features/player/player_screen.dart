@@ -201,8 +201,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (!_progressReady) return;
     // Watched to the end: next time it starts from the beginning.
     _resume.finish(_url, duration: _player.state.duration);
-    if (!_autoNextCancelled) _playNext();
+    if (_autoNext) _playNext();
   }
+
+  /// The next video starts by itself: the setting allows it and this one's
+  /// countdown was not cancelled.
+  bool get _autoNext =>
+      !_autoNextCancelled && SettingsScope.read(context).autoplayNext;
 
   void _playNext() {
     if (_nextUrl == null || !mounted) return;
@@ -267,7 +272,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             fullscreen: _fullscreen,
             onToggleFullscreen: _toggleFullscreen,
             nextTitle: nextUrl == null ? null : _titleAt(_index + 1),
-            autoNext: !_autoNextCancelled,
+            autoNext: _autoNext,
             onPlayNext: _playNext,
             onCancelAutoNext: () => setState(() => _autoNextCancelled = true),
             resumedFrom: _resumedFrom,

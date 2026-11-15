@@ -16,19 +16,31 @@ enum ShellDestination {
   myList('My List', DharaIcons.myList),
   history('History', DharaIcons.history),
 
-  /// The working screen of the earlier phases: how many titles there are,
-  /// the TMDB key, matching and Needs review.
-  titles('Titles and matching', DharaIcons.matching, low: true),
-  library('Library index', DharaIcons.library, low: true),
-  discovery('Server Discovery', DharaIcons.servers, low: true);
+  /// How many titles there are, the TMDB key, matching and Needs review.
+  /// Opened from Settings (and from Home's notices).
+  titles('Titles and matching', DharaIcons.matching, onRail: false),
 
-  const ShellDestination(this.label, this.icon, {this.low = false});
+  /// Opened from Settings (and from Home's notices).
+  library('Library index', DharaIcons.library, onRail: false),
+  discovery('Server Discovery', DharaIcons.servers, low: true),
+  settings('Settings', DharaIcons.settings, low: true);
+
+  const ShellDestination(
+    this.label,
+    this.icon, {
+    this.low = false,
+    this.onRail = true,
+  });
 
   final String label;
   final IconData icon;
 
   /// Kept at the foot of the rail, with the tools rather than the content.
   final bool low;
+
+  /// Has an icon on the rail. The others are tools reached from Settings;
+  /// while one of them is open, the rail lights Settings.
+  final bool onRail;
 }
 
 /// Where the app is, and how it moves: the pages inside the shell (title
@@ -108,6 +120,15 @@ class ShellController extends ChangeNotifier {
         (route) => route.isFirst,
       ),
     );
+  }
+
+  /// Opens [destination] on top of the page on screen, so that Back leads
+  /// to that page again (Settings opens its tools like this).
+  void openOver(ShellDestination destination) {
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) return;
+    if (_stack.isNotEmpty && _placeOf(_stack.last) == destination) return;
+    unawaited(navigator.push(routeFor(destination)));
   }
 
   /// The route that shows [destination].

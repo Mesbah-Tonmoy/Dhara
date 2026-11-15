@@ -107,25 +107,58 @@ class _StepRow extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final preset in SettingsController.seekStepPresets)
-                DharaChip(
-                  key: Key('step-$id-$preset'),
-                  selected: seconds == preset,
-                  onTap: () => onChanged(preset),
-                  child: Text('${preset}s'),
-                ),
-              _CustomStepChip(
-                key: Key('step-$id-custom'),
-                label: label,
-                seconds: seconds,
-                onChanged: onChanged,
-              ),
-            ],
+          child: SeekStepChoices(
+            id: id,
+            label: label,
+            seconds: seconds,
+            onChanged: onChanged,
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The values one seek step can take: a chip per preset and one for a
+/// number of seconds typed in. Also used on the Settings page.
+class SeekStepChoices extends StatelessWidget {
+  const SeekStepChoices({
+    super.key,
+    required this.id,
+    required this.label,
+    required this.seconds,
+    required this.onChanged,
+    this.alignment = WrapAlignment.start,
+  });
+
+  /// Used in widget keys: `step-<id>-<preset>` and `step-<id>-custom`.
+  final String id;
+
+  /// What the step is for, for screen readers: "Back" or "Forward".
+  final String label;
+  final int seconds;
+  final ValueChanged<int> onChanged;
+  final WrapAlignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      alignment: alignment,
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final preset in SettingsController.seekStepPresets)
+          DharaChip(
+            key: Key('step-$id-$preset'),
+            selected: seconds == preset,
+            onTap: () => onChanged(preset),
+            child: Text('${preset}s'),
+          ),
+        _CustomStepChip(
+          key: Key('step-$id-custom'),
+          label: label,
+          seconds: seconds,
+          onChanged: onChanged,
         ),
       ],
     );
@@ -150,8 +183,9 @@ class _CustomStepChip extends StatefulWidget {
 }
 
 class _CustomStepChipState extends State<_CustomStepChip> {
-  late final TextEditingController _controller =
-      TextEditingController(text: _textFor(widget.seconds));
+  late final TextEditingController _controller = TextEditingController(
+    text: _textFor(widget.seconds),
+  );
   final _focusNode = FocusNode();
 
   bool get _isCustom =>

@@ -1,4 +1,6 @@
 import 'package:dhara/core/db/library_isolate.dart';
+import 'package:dhara/core/settings/key_value_store.dart';
+import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/home/home_store.dart';
 import 'package:dhara/features/home/ui/hero_banner.dart';
 import 'package:dhara/features/home/ui/title_meta.dart';
@@ -45,6 +47,7 @@ void main() {
     Set<int> resumable = const {},
     bool disableAnimations = false,
     Size window = const Size(1280, 720),
+    SettingsController? settings,
   }) async {
     tester.view
       ..physicalSize = window
@@ -53,25 +56,28 @@ void main() {
     await tester.pumpWidget(
       MyListScope(
         controller: myList,
-        child: MaterialApp(
-          builder: (context, page) => MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(disableAnimations: disableAnimations),
-            child: page!,
-          ),
-          home: Material(
-            color: DharaColors.bg,
-            child: ListView(
-              clipBehavior: Clip.none,
-              children: [
-                HeroBanner(
-                  titles: titles ?? _titles,
-                  resumable: resumable,
-                  onPlay: (title) => played.add(title.id),
-                  onMore: (title) => opened.add(title.id),
-                ),
-              ],
+        child: SettingsScope(
+          settings: settings ?? SettingsController(MemoryKeyValueStore()),
+          child: MaterialApp(
+            builder: (context, page) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(disableAnimations: disableAnimations),
+              child: page!,
+            ),
+            home: Material(
+              color: DharaColors.bg,
+              child: ListView(
+                clipBehavior: Clip.none,
+                children: [
+                  HeroBanner(
+                    titles: titles ?? _titles,
+                    resumable: resumable,
+                    onPlay: (title) => played.add(title.id),
+                    onMore: (title) => opened.add(title.id),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -147,6 +153,22 @@ void main() {
 
     await tester.pump(DharaMotion.heroInterval * 3);
     expect(shown(tester), 'Title 1');
+  });
+
+  testWidgets('stays on its title while "Rotate featured titles" is off, '
+      'and moves on again once it is on', (tester) async {
+    final settings = SettingsController(MemoryKeyValueStore())
+      ..setRotateFeatured(false);
+    await pump(tester, settings: settings);
+
+    await tester.pump(DharaMotion.heroInterval * 3);
+    expect(shown(tester), 'Title 1');
+
+    settings.setRotateFeatured(true);
+    await tester.pump();
+    await tester.pump(DharaMotion.heroInterval);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(shown(tester), 'Title 2');
   });
 
   testWidgets('a small picture picks its title', (tester) async {

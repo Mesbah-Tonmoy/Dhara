@@ -5,6 +5,8 @@ import 'package:dhara/features/browse/ui/browse_screen.dart';
 import 'package:dhara/features/home/ui/home_screen.dart';
 import 'package:dhara/features/indexer/ui/index_screen.dart';
 import 'package:dhara/features/metadata/ui/titles_screen.dart';
+import 'package:dhara/features/my_list/ui/lists_screen.dart';
+import 'package:dhara/features/settings/ui/settings_screen.dart';
 import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
 import 'package:dhara/shell/nav_rail.dart';
@@ -22,6 +24,8 @@ final _home = find.byType(HomeScreen);
 final _discovery = find.byType(ServerDiscoveryScreen);
 final _library = find.byType(IndexScreen);
 final _titles = find.byType(TitlesScreen);
+final _history = find.byType(ListsScreen);
+final _settings = find.byType(SettingsScreen);
 final _back = find.byKey(const Key('shell-back'));
 final _search = find.byKey(const Key('shell-search'));
 
@@ -39,6 +43,16 @@ Future<void> _boot(
 
 Future<void> _open(WidgetTester tester, String place) async {
   await tester.tap(find.byKey(Key('rail-$place')));
+  await tester.pumpAndSettle();
+}
+
+/// Opens one of the tools that Settings leads to: `titles` or `library`.
+Future<void> _openTool(WidgetTester tester, String tool) async {
+  await _open(tester, 'settings');
+  final button = find.byKey(Key('set-open-$tool'));
+  await tester.ensureVisible(button);
+  await tester.pumpAndSettle();
+  await tester.tap(button);
   await tester.pumpAndSettle();
 }
 
@@ -95,10 +109,10 @@ void main() {
       await _boot(tester);
 
       await _open(tester, 'discovery');
-      await _open(tester, 'library');
-      expect(_library, findsOneWidget);
+      await _open(tester, 'history');
+      expect(_history, findsOneWidget);
       expect(_discovery, findsNothing);
-      expect(_current(tester), ShellDestination.library);
+      expect(_current(tester), ShellDestination.history);
 
       await tester.tap(_back);
       await tester.pumpAndSettle();
@@ -109,18 +123,69 @@ void main() {
       tester,
     ) async {
       await _boot(tester);
-      await _open(tester, 'library');
-      final before = tester.state(_library);
+      await _open(tester, 'history');
+      final before = tester.state(_history);
 
-      await _open(tester, 'library');
+      await _open(tester, 'history');
 
-      expect(tester.state(_library), same(before));
+      expect(tester.state(_history), same(before));
+    });
+
+    testWidgets('Settings opens its tools on top of itself: Back leads to '
+        'Settings, and the rail keeps Settings lit', (tester) async {
+      await _boot(tester);
+      bool lit() => tester
+          .widget<Pressable>(
+            find.descendant(
+              of: find.byKey(const Key('rail-settings')),
+              matching: find.byType(Pressable),
+            ),
+          )
+          .selected!;
+      // The tools have no icon of their own on the rail.
+      expect(find.byKey(const Key('rail-library')), findsNothing);
+      expect(find.byKey(const Key('rail-titles')), findsNothing);
+
+      await _openTool(tester, 'library');
+      expect(_library, findsOneWidget);
+      expect(_current(tester), ShellDestination.library);
+      expect(lit(), isTrue);
+
+      await tester.tap(_back);
+      await tester.pumpAndSettle();
+      expect(_settings, findsOneWidget);
+      expect(_library, findsNothing);
+      expect(_current(tester), ShellDestination.settings);
+      expect(lit(), isTrue);
+
+      await _openTool(tester, 'titles');
+      expect(_titles, findsOneWidget);
+
+      await _open(tester, 'home');
+      expect(_home, findsOneWidget);
+      expect(lit(), isFalse);
+    });
+
+    testWidgets('Settings leads to Server Discovery, a place of the rail', (
+      tester,
+    ) async {
+      await _boot(tester);
+      await _open(tester, 'settings');
+      final button = find.byKey(const Key('set-open-discovery'));
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+
+      expect(_discovery, findsOneWidget);
+      expect(_current(tester), ShellDestination.discovery);
     });
 
     testWidgets('the brand and the Home icon lead home', (tester) async {
       await _boot(tester);
 
-      await _open(tester, 'library');
+      await _open(tester, 'history');
       await tester.tap(find.byKey(const Key('shell-brand')));
       await tester.pumpAndSettle();
       expect(_home, findsOneWidget);
@@ -193,7 +258,7 @@ void main() {
 
     testWidgets('a / typed into a text field is just a /', (tester) async {
       await _boot(tester);
-      await _open(tester, 'library');
+      await _openTool(tester, 'library');
       final field = find.descendant(
         of: _library,
         matching: find.byType(TextField),

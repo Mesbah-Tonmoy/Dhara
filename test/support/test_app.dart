@@ -29,12 +29,14 @@ import 'package:flutter/widgets.dart';
 /// [sources] are the servers it knows; [window] stands in for the app's
 /// window, as `main` provides it; [db] is the library to start with, if
 /// not an empty one; [images] is where pictures come from, if they are to
-/// be shown.
+/// be shown; [settings] is where the settings are kept, if a test wants to
+/// look.
 ({Widget app, SourceStore sources}) testApp({
   List<Source> sources = const [],
   WindowController? window,
   LibraryDb? db,
   RemoteImageStore? images,
+  KeyValueStore? settings,
 }) {
   final store = SourceStore(starter: sources);
   final library = LocalLibrary(db ?? LibraryDb.inMemory());
@@ -53,7 +55,7 @@ import 'package:flutter/widgets.dart';
   final home = HomeController(library: library, titles: titles, match: match);
   final resume = ResumeStore();
   final Widget app = DharaApp(
-    settings: SettingsController(MemoryKeyValueStore()),
+    settings: SettingsController(settings ?? MemoryKeyValueStore()),
     resumeStore: resume,
     history: HistoryController(
       library: library,

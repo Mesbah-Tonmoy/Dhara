@@ -8,6 +8,7 @@ import 'package:dhara/features/metadata/ui/anime_screen.dart';
 import 'package:dhara/features/metadata/ui/titles_screen.dart';
 import 'package:dhara/features/my_list/ui/lists_screen.dart';
 import 'package:dhara/features/player/open_url_dialog.dart';
+import 'package:dhara/features/settings/ui/settings_screen.dart';
 import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
 import 'package:dhara/shell/nav_rail.dart';
 import 'package:dhara/shell/page_bleed.dart';
@@ -61,6 +62,7 @@ class _AppShellState extends State<AppShell> {
         ShellDestination.history => const ListsScreen(tab: ListsTab.history),
         ShellDestination.library => const IndexScreen(),
         ShellDestination.discovery => const ServerDiscoveryScreen(),
+        ShellDestination.settings => const SettingsScreen(),
       };
 
   /// Whether the keyboard is in a text field (the focus of a text field
