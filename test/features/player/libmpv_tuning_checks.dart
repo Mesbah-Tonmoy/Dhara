@@ -1,5 +1,10 @@
 // Checks the streaming set-up against the real bundled libmpv (skipped
-// until a Windows build exists, like `libmpv_hardening_test.dart`).
+// until a Windows build exists).
+//
+// Not a test file of its own: `libmpv_hardening_test.dart` runs it. As two
+// files, the two ran side by side in two processes, and every few runs
+// one of them stopped without a word (seen 2026-11-16, five times in a
+// day, never while there was one file).
 import 'package:dhara/features/player/player_tuning.dart';
 import 'package:dhara/features/player/secure_player.dart';
 import 'package:dhara/features/player/seek_math.dart';
@@ -13,7 +18,7 @@ void main() {
   final libmpv = findLibmpv();
   final noVideo = sampleVideo.existsSync() ? false : 'no sample video here';
 
-  group('real libmpv', () {
+  group('real libmpv, set up for streaming', () {
     late Player player;
     late NativePlayer native;
 

@@ -10,6 +10,8 @@ import 'package:dhara/features/player/track_options.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 
+import 'libmpv_tuning_checks.dart' as tuning;
+
 File? _findLibmpv() {
   for (final mode in ['Release', 'Debug', 'Profile']) {
     final file = File('build/windows/x64/runner/$mode/libmpv-2.dll');
@@ -135,4 +137,7 @@ void main() {
       timeout: const Timeout(Duration(seconds: 30)),
     );
   }, skip: libmpv == null ? 'libmpv-2.dll not built yet' : false);
+
+  // In this process, after the checks above (see the note in that file).
+  tuning.main();
 }

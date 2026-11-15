@@ -104,7 +104,8 @@ its own. Each value is read back from libmpv; one that did not take does
 not stop the video (this is about smoothness, not safety). `flutter test`
 checks the options against the real `libmpv-2.dll` and plays a short video
 through them from a local web server
-(`test/features/player/libmpv_tuning_test.dart`).
+(`test/features/player/libmpv_tuning_checks.dart`, run by
+`libmpv_hardening_test.dart` so that all libmpv checks share one process).
 
 ### Live ping
 
