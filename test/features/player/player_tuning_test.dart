@@ -29,6 +29,7 @@ void main() {
     expect(options['demuxer-max-back-bytes'], '${150 * megabyte ~/ 4}');
     expect(options['demuxer-seekable-cache'], 'yes');
     expect(options['network-timeout'], '5');
+    expect(options['hr-seek-framedrop'], 'yes');
   });
 
   test('hardware decoding can be turned off', () {

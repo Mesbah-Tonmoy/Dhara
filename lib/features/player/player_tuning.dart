@@ -67,6 +67,9 @@ class PlayerTuning {
     // then reconnects where it was). media_kit's value, pinned here.
     'network-timeout': '5',
     'hwdec': hwdec,
+    // An exact seek decodes from the keyframe before its target; frames
+    // on the way there need not be finished (media_kit turns this off).
+    'hr-seek-framedrop': 'yes',
   };
 }
 

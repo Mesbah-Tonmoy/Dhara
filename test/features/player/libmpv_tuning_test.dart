@@ -2,6 +2,7 @@
 // until a Windows build exists, like `libmpv_hardening_test.dart`).
 import 'package:dhara/features/player/player_tuning.dart';
 import 'package:dhara/features/player/secure_player.dart';
+import 'package:dhara/features/player/seek_math.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 
@@ -63,6 +64,58 @@ void main() {
       }
       expect(findHardeningViolations(actual), isEmpty);
     });
+
+    test(
+      'seeks: exact ones land on the spot, keyframe ones on a keyframe',
+      () async {
+        final server = await LocalServer.start();
+        addTearDown(server.close);
+        server.serveFile('/film.mkv', sampleVideo);
+        await hardenPlayer(player);
+        await tunePlayer(player, const PlayerTuning());
+        expect(await native.getProperty('hr-seek-framedrop'), 'yes');
+        final loaded = player.stream.duration.firstWhere(
+          (d) => d > Duration.zero,
+        );
+        await player.open(Media('${server.url('/film.mkv')}'), play: false);
+        final duration = await loaded;
+
+        // Paused, so the position only moves by seeking.
+        Future<double> after(List<String> command) async {
+          await native.command(command);
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+          return double.parse(await native.getProperty('time-pos'));
+        }
+
+        const second = Duration(seconds: 1);
+        // A short skip: exact.
+        final short = skipCommand(
+          from: Duration.zero,
+          target: second * 3,
+          duration: const Duration(hours: 1),
+        );
+        expect(short.last, 'absolute+exact');
+        expect(await after(short), closeTo(3, .1));
+
+        // The seek bar: the keyframe at or before the spot (this video
+        // has one at its start and one near 5 s).
+        final early = await after(jumpCommand(second * 4));
+        expect(early, lessThan(1));
+        final late = await after(jumpCommand(second * 9));
+        expect(late, inInclusiveRange(4, 9));
+
+        // A long skip is relative: forward lands beyond its target ...
+        await after(jumpCommand(Duration.zero));
+        final forward = await after(['seek', '2.000', 'relative+keyframes']);
+        expect(forward, greaterThan(2));
+        // ... and back before it.
+        final back = await after(['seek', '-2.000', 'relative+keyframes']);
+        expect(back, lessThan(forward - 2));
+        expect(duration.inSeconds, greaterThan(10));
+      },
+      skip: noVideo,
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
 
     test('hardware decoding off is taken too', () async {
       const tuning = PlayerTuning(hardwareDecoding: false, bufferMegabytes: 50);

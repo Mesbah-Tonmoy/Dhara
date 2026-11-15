@@ -186,18 +186,45 @@ class _PlayerControlsState extends State<PlayerControls> {
     unawaited(widget.player.setVolume(_muted ? 0 : _volume));
   }
 
-  void _seek(Duration target) {
+  /// A jump on the seek bar.
+  void _seek(Duration target) => _seekWith(jumpCommand(target), target);
+
+  /// A skip by the seek step (buttons and arrow keys).
+  void _skip(int seconds) {
+    final target = skipTarget(
+      position: _position,
+      duration: _duration,
+      seconds: seconds,
+    );
+    _seekWith(
+      skipCommand(from: _position, target: target, duration: _duration),
+      target,
+    );
+  }
+
+  /// Sends [command] (mpv's `seek`, see `seek_math.dart`), which leads to
+  /// about [target].
+  void _seekWith(List<String> command, Duration target) {
     // Show the new position at once instead of waiting for libmpv to report
     // it, so the bar does not jump back for a moment (and so repeated skips
     // add up).
     setState(() => _position = target);
-    unawaited(widget.player.seek(target));
+    final native = _native;
+    // After the end of a video media_kit has to hear of the seek itself,
+    // or it would not report the next end.
+    if (native == null || widget.player.state.completed) {
+      unawaited(widget.player.seek(target));
+    } else {
+      unawaited(_command(native, command));
+    }
   }
 
-  void _skip(int seconds) {
-    _seek(
-      skipTarget(position: _position, duration: _duration, seconds: seconds),
-    );
+  Future<void> _command(NativePlayer native, List<String> command) async {
+    try {
+      await native.command(command);
+    } on Object {
+      // The player is being closed.
+    }
   }
 
   void _setVolume(double value) {

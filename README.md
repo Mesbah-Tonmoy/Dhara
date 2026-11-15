@@ -20,7 +20,7 @@ A Bangla + English README is written in Phase 8.
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
 | 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests), frame rate while scrolling, and cold start |
-| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, and has an info panel (see [Smart playback](#smart-playback)). Still to come: the fastest copy on Play, failover, the next episode ahead of time |
+| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, seeks to keyframes where that is quicker, and has an info panel (see [Smart playback](#smart-playback)). Still to come: the fastest copy on Play, failover, the next episode ahead of time |
 | 8–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -95,6 +95,7 @@ own choices are replaced where they do not suit a desktop player:
 | `demuxer-max-back-bytes` | 37.5 MB | 32 MB | what stays behind, for skipping back without asking the server |
 | `cache`, `demuxer-seekable-cache` | `yes` | `yes`, `auto` | read ahead always; skips inside the buffer do not go to the server |
 | `network-timeout` | 5 s | 5 s | a silent server is asked again (FFmpeg reconnects where it was) |
+| `hr-seek-framedrop` | `yes` | `no` | an exact seek does not finish the frames on the way to its target |
 
 The two sizes are one buffer, split three to one: the Buffer size of
 Settings, 150 MB unless changed. With the cache
@@ -104,6 +105,24 @@ not stop the video (this is about smoothness, not safety). `flutter test`
 checks the options against the real `libmpv-2.dll` and plays a short video
 through them from a local web server
 (`test/features/player/libmpv_tuning_test.dart`).
+
+### Seeking
+
+A video can only start decoding at a keyframe, and those lie some seconds
+apart. An exact seek decodes from the keyframe before its target, which
+takes a moment; a keyframe seek shows the keyframe at once but lands a few
+seconds off. The player picks per seek (`lib/features/player/seek_math.dart`):
+
+- a skip of up to 15 s (buttons, ← →) is exact: "back 10 seconds" is 10
+  seconds
+- a longer skip goes to a keyframe, beyond its target in the direction of
+  the skip: 30 s forward lands 30 s or a few more ahead. Within the last
+  30 s of a video every skip is exact
+- a click or drag on the seek bar goes to the keyframe at or before the
+  spot
+
+Skips inside what is buffered (ahead, and the part kept behind) do not go
+back to the server at all. media_kit's own seek is always exact.
 
 ### Playback info
 
@@ -129,7 +148,7 @@ is open.
 | Key | Action |
 |---|---|
 | Space | Play / pause |
-| ← / → | Skip back / forward by the configured seek step (repeats while held) |
+| ← / → | Skip back / forward by the configured seek step (repeats while held; see [Seeking](#seeking)) |
 | ↑ / ↓ | Volume up / down by 5% |
 | M | Mute / unmute |
 | S | Next subtitle track (Off → first → ... → Off) |
