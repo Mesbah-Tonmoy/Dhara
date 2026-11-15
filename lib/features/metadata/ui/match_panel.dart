@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:dhara/features/metadata/film_details_controller.dart';
 import 'package:dhara/features/metadata/match_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
-import 'package:dhara/features/player/widgets/glass.dart';
 import 'package:dhara/theme/tokens.dart';
+import 'package:dhara/widgets/buttons.dart';
+import 'package:dhara/widgets/icons.dart';
+import 'package:dhara/widgets/page_parts.dart';
+import 'package:dhara/widgets/surfaces.dart';
 import 'package:flutter/material.dart';
 
 /// How many titles TMDB has been asked about and with what result, and the
@@ -29,12 +32,10 @@ class MatchPanel extends StatelessWidget {
         final canStart =
             tmdbKey.hasKey && (pending > 0 || (counts?.toReview ?? 0) > 0);
 
-        return Container(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-          decoration: BoxDecoration(
-            color: DharaColors.surface,
-            borderRadius: BorderRadius.circular(DharaRadii.md),
-            border: Border.all(color: DharaColors.stroke),
+        return GlassCard(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 1.2 * rem,
+            vertical: rem,
           ),
           child: Row(
             children: [
@@ -42,8 +43,8 @@ class MatchPanel extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const PanelHeading('Posters and descriptions (TMDB)'),
-                    const SizedBox(height: 6),
+                    const CapsLabel('Posters and descriptions (TMDB)'),
+                    const SizedBox(height: .4 * rem),
                     Text(
                       counts == null
                           ? 'Counting …'
@@ -52,38 +53,41 @@ class MatchPanel extends StatelessWidget {
                                 '${counts.notFound} not found  ·  '
                                 '${counts.pending} not looked up yet',
                       key: const Key('match-counts'),
-                      style: const TextStyle(fontSize: 13.5),
+                      style: const TextStyle(
+                        fontFamily: DharaFonts.ui,
+                        fontSize: DharaType.md,
+                        fontWeight: DharaType.semibold,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                        color: DharaColors.text,
+                      ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: .25 * rem),
                     Text(
                       status,
                       key: const Key('match-status'),
-                      style: TextStyle(fontSize: 12.5, color: color),
+                      style: _noteStyle.copyWith(color: color),
                     ),
                     if (FilmDetailsScope.maybeOf(context) case final films?
                         when films.isFetching && films.filmsToDo > 0) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: .25 * rem),
                       Text(
                         'Reading film details (genres, length, cast) … '
                         '${films.filmsDone} of ${films.filmsToDo}',
                         key: const Key('film-details-status'),
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: DharaColors.text2,
-                        ),
+                        style: _noteStyle,
                       ),
                     ],
                   ],
                 ),
               ),
               if (running || canStart) ...[
-                const SizedBox(width: 14),
-                DharaPillButton(
+                const SizedBox(width: rem),
+                DharaButton(
                   key: const Key('match-start-stop'),
-                  primary: !running,
-                  icon: running
-                      ? Icons.stop_rounded
-                      : Icons.travel_explore_rounded,
+                  style: running
+                      ? DharaButtonStyle.glass
+                      : DharaButtonStyle.primary,
+                  icon: running ? DharaIcons.stop : DharaIcons.lookUp,
                   label: !running
                       ? (pending > 0 ? 'Match now' : 'Check again')
                       : match.isStopping
@@ -174,6 +178,13 @@ class MatchPanel extends StatelessWidget {
     );
   }
 }
+
+const _noteStyle = TextStyle(
+  fontFamily: DharaFonts.ui,
+  fontSize: DharaType.sm,
+  height: 1.4,
+  color: DharaColors.text2,
+);
 
 /// "a minute", "12 min", "1 h 5 min".
 String _about(Duration time) {

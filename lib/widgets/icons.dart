@@ -37,4 +37,10 @@ abstract final class DharaIcons {
   static const star = Icons.star_rounded;
   static const fastest = Icons.bolt_rounded;
   static const link = Icons.link_rounded;
+  static const recheck = Icons.restart_alt_rounded;
+  static const locked = Icons.lock_outline;
+  static const key = Icons.key_outlined;
+  static const review = Icons.rule_rounded;
+  static const lookUp = Icons.travel_explore_rounded;
+  static const testConnection = Icons.wifi_tethering_rounded;
 }

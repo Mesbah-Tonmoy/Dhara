@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:dhara/features/metadata/tmdb_key.dart';
-import 'package:dhara/features/player/widgets/glass.dart';
 import 'package:dhara/theme/tokens.dart';
+import 'package:dhara/widgets/buttons.dart';
+import 'package:dhara/widgets/icons.dart';
+import 'package:dhara/widgets/page_parts.dart';
+import 'package:dhara/widgets/surfaces.dart';
 import 'package:flutter/material.dart';
 
 /// The notice TMDB asks every app that uses its API to show.
@@ -13,9 +16,13 @@ const tmdbAttribution =
 /// removes it. The key is typed into a hidden field, handed straight to
 /// the secure storage and never shown again.
 class TmdbKeyCard extends StatefulWidget {
-  const TmdbKeyCard({super.key, required this.controller});
+  const TmdbKeyCard({super.key, required this.controller, this.framed = true});
 
   final TmdbKeyController controller;
+
+  /// Draws a pane around the card; off where it sits in one already (the
+  /// dialog).
+  final bool framed;
 
   @override
   State<TmdbKeyCard> createState() => _TmdbKeyCardState();
@@ -85,96 +92,112 @@ class _TmdbKeyCardState extends State<TmdbKeyCard> {
             : 'This system has no secure storage the app can use yet, so '
                   'the key is kept until the app closes.';
 
-        return Container(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-          decoration: BoxDecoration(
-            color: DharaColors.surface,
-            borderRadius: BorderRadius.circular(DharaRadii.md),
-            border: Border.all(color: DharaColors.stroke),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const PanelHeading('TMDB key'),
-              const SizedBox(height: 8),
+        final card = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'TMDB key',
+              style: TextStyle(
+                fontFamily: DharaFonts.display,
+                fontSize: DharaType.lg,
+                fontWeight: DharaType.bold,
+                color: DharaColors.text,
+              ),
+            ),
+            const SizedBox(height: .5 * rem),
+            Text(
+              'Posters, descriptions and episode names come from The '
+              'Movie Database. Paste the API Read Access Token (or the API '
+              'key) from your TMDB account settings. $kept',
+              style: _bodyStyle,
+            ),
+            const SizedBox(height: .8 * rem),
+            Text(
+              status,
+              key: const Key('tmdb-key-status'),
+              style: _bodyStyle.copyWith(color: color),
+            ),
+            if (_checkLine(controller) case (final text, final tint)?) ...[
+              const SizedBox(height: .25 * rem),
               Text(
-                'Posters, descriptions and episode names come from The '
-                'Movie Database. Paste the API Read Access Token (or the API '
-                'key) from your TMDB account settings. $kept',
-                style: const TextStyle(fontSize: 13, color: DharaColors.text2),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                status,
-                key: const Key('tmdb-key-status'),
-                style: TextStyle(fontSize: 13, color: color),
-              ),
-              if (_checkLine(controller) case (final text, final tint)?) ...[
-                const SizedBox(height: 4),
-                Text(
-                  text,
-                  key: const Key('tmdb-key-check'),
-                  style: TextStyle(fontSize: 13, color: tint),
-                ),
-              ],
-              const SizedBox(height: 12),
-              TextField(
-                key: const Key('tmdb-key-field'),
-                controller: _field,
-                obscureText: true,
-                autocorrect: false,
-                enableSuggestions: false,
-                enableIMEPersonalizedLearning: false,
-                onSubmitted: (_) => unawaited(_save()),
-                decoration: InputDecoration(
-                  border: const OutlineInputBorder(),
-                  hintText: kind == null
-                      ? 'Paste the token or key'
-                      : 'Paste another one to replace it',
-                  errorText: _error,
-                  errorMaxLines: 2,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  DharaPillButton(
-                    key: const Key('tmdb-key-save'),
-                    primary: true,
-                    icon: Icons.lock_outline,
-                    label: 'Save key',
-                    onPressed: () => unawaited(_save()),
-                  ),
-                  if (kind != null)
-                    DharaPillButton(
-                      key: const Key('tmdb-key-test'),
-                      icon: Icons.wifi_tethering_rounded,
-                      label: 'Test key',
-                      onPressed: () => unawaited(controller.test()),
-                    ),
-                  if (kind != null)
-                    DharaPillButton(
-                      key: const Key('tmdb-key-remove'),
-                      icon: Icons.delete_outline,
-                      label: 'Remove key',
-                      onPressed: () => unawaited(_remove()),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                tmdbAttribution,
-                style: TextStyle(fontSize: 11.5, color: DharaColors.text3),
+                text,
+                key: const Key('tmdb-key-check'),
+                style: _bodyStyle.copyWith(color: tint),
               ),
             ],
-          ),
+            const SizedBox(height: .8 * rem),
+            DharaField(
+              key: const Key('tmdb-key-field'),
+              controller: _field,
+              // Shown as dots, and kept from the system's keyboard.
+              obscure: true,
+              // In its dialog the key can be pasted at once.
+              autofocus: !widget.framed,
+              icon: DharaIcons.key,
+              onSubmitted: (_) => unawaited(_save()),
+              hint: kind == null
+                  ? 'Paste the token or key'
+                  : 'Paste another one to replace it',
+              error: _error,
+            ),
+            const SizedBox(height: .8 * rem),
+            Wrap(
+              spacing: .5 * rem,
+              runSpacing: .5 * rem,
+              children: [
+                DharaButton(
+                  key: const Key('tmdb-key-save'),
+                  style: DharaButtonStyle.primary,
+                  small: true,
+                  icon: DharaIcons.locked,
+                  label: 'Save key',
+                  onPressed: _busy ? null : () => unawaited(_save()),
+                ),
+                if (kind != null)
+                  DharaButton(
+                    key: const Key('tmdb-key-test'),
+                    small: true,
+                    icon: DharaIcons.testConnection,
+                    label: 'Test key',
+                    onPressed: () => unawaited(controller.test()),
+                  ),
+                if (kind != null)
+                  DharaButton(
+                    key: const Key('tmdb-key-remove'),
+                    small: true,
+                    danger: true,
+                    icon: DharaIcons.remove,
+                    label: 'Remove key',
+                    onPressed: _busy ? null : () => unawaited(_remove()),
+                  ),
+              ],
+            ),
+            const SizedBox(height: rem),
+            const Text(
+              tmdbAttribution,
+              style: TextStyle(
+                fontFamily: DharaFonts.ui,
+                fontSize: DharaType.xs,
+                height: 1.4,
+                color: DharaColors.text3,
+              ),
+            ),
+          ],
         );
+        if (!widget.framed) return card;
+        return GlassCard(padding: const EdgeInsets.all(1.2 * rem), child: card);
       },
     );
   }
 }
+
+const _bodyStyle = TextStyle(
+  fontFamily: DharaFonts.ui,
+  fontSize: DharaType.sm,
+  height: 1.45,
+  color: DharaColors.text2,
+);
 
 /// What TMDB said about the saved key, and the colour to say it in; `null`
 /// if it has not been asked.
@@ -201,28 +224,25 @@ Future<void> showTmdbKeyDialog(
   TmdbKeyController controller,
 ) => showDialog<void>(
   context: context,
-  builder: (context) => Dialog(
-    backgroundColor: DharaColors.glassStrong,
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 560),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TmdbKeyCard(controller: controller),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                key: const Key('tmdb-key-close'),
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
-              ),
+  builder: (context) => DharaDialog(
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(1.4 * rem),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TmdbKeyCard(controller: controller, framed: false),
+          const SizedBox(height: rem),
+          Align(
+            alignment: Alignment.centerRight,
+            child: DharaButton(
+              key: const Key('tmdb-key-close'),
+              label: 'Close',
+              small: true,
+              onPressed: () => Navigator.of(context).pop(),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     ),
   ),

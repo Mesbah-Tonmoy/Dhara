@@ -1,7 +1,6 @@
 import 'package:dhara/app.dart';
 import 'package:dhara/core/db/library_db.dart';
 import 'package:dhara/core/db/library_isolate.dart';
-import 'package:dhara/core/images/remote_image.dart';
 import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
@@ -65,13 +64,6 @@ void _put(
 
 /// Shaped like TMDB's, made up.
 final _token = 'eyJhbGciOiJIUzI1NiJ9.${'a' * 120}.${'b' * 43}';
-
-/// The id of the title called [name].
-Future<int> titleId(LibraryDb library, String name) async =>
-    library.db.select('SELECT id FROM titles WHERE name = ?', [
-          name,
-        ]).single['id']
-        as int;
 
 void main() {
   late TmdbKeyController tmdbKey;
@@ -171,13 +163,6 @@ void main() {
     return titles;
   }
 
-  Future<void> search(WidgetTester tester, String text) async {
-    await tester.enterText(find.byKey(const Key('titles-search')), text);
-    // The search waits until typing pauses.
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.pump();
-  }
-
   String card(WidgetTester tester, String key) => tester
       .widgetList<Text>(
         find.descendant(of: find.byKey(Key(key)), matching: find.byType(Text)),
@@ -225,7 +210,8 @@ void main() {
     expect(card(tester, 'titles-films'), contains('| 2 |'));
     expect(card(tester, 'titles-shows'), contains('| 1 |'));
     expect(card(tester, 'titles-other'), contains('| 1 |'));
-    expect(find.text('TYPE A TITLE TO SEARCH'), findsOneWidget);
+    // Looking for a title is the Search page's job.
+    expect(find.byType(TextField), findsNothing);
   });
 
   testWidgets('shows a dash until the names have been read', (tester) async {
@@ -254,50 +240,6 @@ void main() {
       find.textContaining('could not be read because of an error'),
       findsOneWidget,
     );
-  });
-
-  testWidgets('finds titles while typing, with year and copies', (
-    tester,
-  ) async {
-    await show(tester, library);
-
-    await search(tester, 'viva');
-    expect(find.text('Vivarium (2019)'), findsOneWidget);
-    expect(find.text('2 copies'), findsOneWidget, reason: 'not the trailer');
-    expect(find.text('1 TITLE'), findsOneWidget);
-
-    await search(tester, 'some sh');
-    expect(find.text('Some Show (2019)'), findsOneWidget);
-    expect(find.text('5 videos'), findsOneWidget);
-
-    await search(tester, 'coins');
-    expect(find.text('NOTHING FOUND'), findsOneWidget);
-
-    await search(tester, '');
-    expect(find.text('TYPE A TITLE TO SEARCH'), findsOneWidget);
-    expect(find.text('Some Show (2019)'), findsNothing);
-  });
-
-  testWidgets('searches again when names have been read meanwhile', (
-    tester,
-  ) async {
-    late LibraryDb library;
-    final titles = await show(tester, (db) {
-      library = db;
-      _put(db, 'icc', 'Movies/English', {'Vivarium (2019) 1080p.mkv': null});
-    });
-    await search(tester, 'viva');
-    expect(find.text('1 copy'), findsOneWidget);
-
-    _put(library, 'flix', 'Movies', {'Vivarium (2019) 720p.mkv': null});
-    await tester.runAsync(() async {
-      await titles.index.load();
-      await titles.refresh();
-    });
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.text('2 copies'), findsOneWidget);
   });
 
   testWidgets('opens from Settings and goes back to it', (tester) async {
@@ -341,10 +283,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(open);
     await tester.pumpAndSettle();
-    expect(find.text('Films and shows'), findsOneWidget);
+    expect(find.byKey(const Key('titles')), findsOneWidget);
+    expect(find.text('Titles and matching'), findsOneWidget);
     expect(card(tester, 'titles-films'), contains('| 2 |'));
 
-    await tester.tap(find.byTooltip('Back'));
+    await tester.tap(find.byKey(const Key('shell-back')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('settings')), findsOneWidget);
   });
@@ -369,7 +312,7 @@ void main() {
     expect(tmdbKey.hasKey, isTrue);
   });
 
-  testWidgets('shows how far matching is, and the poster of a match', (
+  testWidgets('shows how far matching is, and leads to what needs review', (
     tester,
   ) async {
     late LibraryDb db;
@@ -398,15 +341,6 @@ void main() {
       tester.widget<Text>(find.byKey(const Key('match-counts'))).data,
       '1 matched  ·  1 unsure  ·  1 not found  ·  0 not looked up yet',
     );
-    await search(tester, 'viva');
-    final poster = tester.widget<TmdbPicture>(
-      find.descendant(
-        of: find.byKey(Key('title-${(await titleId(db, 'Vivarium'))}')),
-        matching: find.byType(TmdbPicture),
-      ),
-    );
-    expect(poster.path, '/pViva.jpg');
-
     await tester.tap(find.text('Needs review (2)'));
     await tester.runAsync(review.load);
     await tester.pumpAndSettle();

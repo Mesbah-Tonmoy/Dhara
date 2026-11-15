@@ -62,10 +62,15 @@ void main() {
   String status(WidgetTester tester) =>
       tester.widget<Text>(find.byKey(const Key('tmdb-key-status'))).data!;
 
-  String field(WidgetTester tester) => tester
-      .widget<TextField>(find.byKey(const Key('tmdb-key-field')))
-      .controller!
-      .text;
+  /// The text field inside the app's own field.
+  TextField input(WidgetTester tester) => tester.widget<TextField>(
+    find.descendant(
+      of: find.byKey(const Key('tmdb-key-field')),
+      matching: find.byType(TextField),
+    ),
+  );
+
+  String field(WidgetTester tester) => input(tester).controller!.text;
 
   testWidgets('says whether a key is saved, once it has looked', (
     tester,
@@ -86,12 +91,11 @@ void main() {
     final controller = await show(tester);
     await controller.load();
     await tester.pump();
-    final input = tester.widget<TextField>(
-      find.byKey(const Key('tmdb-key-field')),
-    );
-    expect(input.obscureText, isTrue);
-    expect(input.enableSuggestions, isFalse);
-    expect(input.autocorrect, isFalse);
+    final typed = input(tester);
+    expect(typed.obscureText, isTrue);
+    expect(typed.enableSuggestions, isFalse);
+    expect(typed.autocorrect, isFalse);
+    expect(typed.enableIMEPersonalizedLearning, isFalse);
 
     await tester.enterText(find.byKey(const Key('tmdb-key-field')), _token);
     await tester.tap(find.byKey(const Key('tmdb-key-save')));

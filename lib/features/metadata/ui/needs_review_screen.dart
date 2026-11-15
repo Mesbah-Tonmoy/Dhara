@@ -6,8 +6,12 @@ import 'package:dhara/features/metadata/review_store.dart';
 import 'package:dhara/features/metadata/title_matcher.dart';
 import 'package:dhara/features/metadata/tmdb_client.dart';
 import 'package:dhara/features/metadata/video_identity.dart';
-import 'package:dhara/features/player/widgets/glass.dart';
+import 'package:dhara/shell/page_bleed.dart';
 import 'package:dhara/theme/tokens.dart';
+import 'package:dhara/widgets/buttons.dart';
+import 'package:dhara/widgets/icons.dart';
+import 'package:dhara/widgets/page_parts.dart';
+import 'package:dhara/widgets/surfaces.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -40,97 +44,102 @@ class _NeedsReviewScreenState extends State<NeedsReviewScreen> {
   Widget build(BuildContext context) {
     final review = ReviewScope.of(context);
     final items = review.items;
+    const sides = EdgeInsets.only(
+      left: PageInsets.contentLeft,
+      right: DharaLayout.pageRight,
+    );
 
-    return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, box) {
-          final gutter = box.maxWidth >= 900 ? 40.0 : 20.0;
-          final sides = EdgeInsets.symmetric(horizontal: gutter);
-          return CustomScrollView(
-            slivers: [
-              SliverPadding(
-                padding: sides.copyWith(top: 28, bottom: 18),
+    return ColoredBox(
+      key: const Key('needs-review'),
+      color: DharaColors.bg,
+      // The dialog opened from here, and its fields, are Material's.
+      child: Material(
+        type: MaterialType.transparency,
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: sides.copyWith(top: 1.8 * rem, bottom: .6 * rem),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const PageHead(
+                      title: 'Needs review',
+                      subtitle:
+                          'Titles TMDB gave no sure answer for. Open one to '
+                          'pick the right film or show, or to leave it as '
+                          'its files name it. What you decide here is never '
+                          'changed by the app.',
+                    ),
+                    const SizedBox(height: 1.4 * rem),
+                    CapsLabel(
+                      items == null
+                          ? 'Reading …'
+                          : items.isEmpty
+                          ? 'Nothing to review'
+                          : items.length == 1
+                          ? '1 title'
+                          : '${items.length} titles',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (items != null && items.isEmpty)
+              const SliverPadding(
+                padding: sides,
                 sliver: SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          IconButton(
-                            tooltip: 'Back',
-                            onPressed: () => Navigator.of(context).maybePop(),
-                            icon: const Icon(Icons.arrow_back_rounded),
-                          ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Needs review',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.headlineMedium,
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'Titles TMDB gave no sure answer for. Open '
-                                  'one to pick the right film or show, or to '
-                                  'leave it as its files name it. What you '
-                                  'decide here is never changed by the app.',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: DharaColors.text2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      PanelHeading(
-                        items == null
-                            ? 'Reading …'
-                            : items.isEmpty
-                            ? 'Nothing to review'
-                            : items.length == 1
-                            ? '1 title'
-                            : '${items.length} titles',
-                      ),
-                    ],
+                  child: EmptyState(
+                    icon: DharaIcons.check,
+                    title: 'All sorted',
+                    message:
+                        'Every title is either matched or left as you '
+                        'decided.',
                   ),
                 ),
               ),
-              if (items != null)
-                SliverPadding(
-                  padding: sides,
-                  sliver: SliverList.builder(
-                    itemCount: items.length,
-                    itemBuilder: (context, i) => _ItemRow(
-                      item: items[i],
-                      onOpen: () => unawaited(
-                        showDialog<void>(
-                          context: context,
-                          builder: (_) =>
-                              _ReviewDialog(item: items[i], review: review),
-                        ),
+            if (items != null)
+              SliverPadding(
+                padding: sides,
+                sliver: SliverList.builder(
+                  itemCount: items.length,
+                  itemBuilder: (context, i) => _ItemRow(
+                    key: Key('review-item-${items[i].id}'),
+                    item: items[i],
+                    onOpen: () => unawaited(
+                      showDialog<void>(
+                        context: context,
+                        builder: (_) =>
+                            _ReviewDialog(item: items[i], review: review),
                       ),
                     ),
                   ),
                 ),
-              const SliverToBoxAdapter(child: SizedBox(height: 36)),
-            ],
-          );
-        },
+              ),
+            const SliverToBoxAdapter(child: SizedBox(height: DharaSpace.s7)),
+          ],
+        ),
       ),
     );
   }
 }
 
+const _nameStyle = TextStyle(
+  fontFamily: DharaFonts.ui,
+  fontSize: DharaType.md,
+  fontWeight: DharaType.semibold,
+  color: DharaColors.text,
+);
+
+const _smallStyle = TextStyle(
+  fontFamily: DharaFonts.ui,
+  fontSize: DharaType.xs,
+  height: 1.4,
+  color: DharaColors.text3,
+);
+
 class _ItemRow extends StatelessWidget {
-  const _ItemRow({required this.item, required this.onOpen});
+  const _ItemRow({super.key, required this.item, required this.onOpen});
 
   final ReviewItem item;
   final VoidCallback onOpen;
@@ -144,86 +153,74 @@ class _ItemRow extends StatelessWidget {
       ?item.sampleName,
     ].join(' / ');
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          key: Key('review-item-${item.id}'),
-          borderRadius: BorderRadius.circular(DharaRadii.md),
-          onTap: onOpen,
-          child: Ink(
-            padding: const EdgeInsets.fromLTRB(12, 8, 16, 8),
-            decoration: BoxDecoration(
-              color: DharaColors.surface,
-              borderRadius: BorderRadius.circular(DharaRadii.md),
-              border: Border.all(color: DharaColors.stroke),
-            ),
-            child: Row(
+    return RowCard(
+      onPressed: onOpen,
+      padding: const EdgeInsets.fromLTRB(.7 * rem, .5 * rem, rem, .5 * rem),
+      child: Row(
+        children: [
+          TmdbPicture(
+            path: item.posterPath,
+            size: 'w154',
+            width: 2.3 * rem,
+            height: 3.45 * rem,
+            placeholder: item.kind == TitleKind.series
+                ? DharaIcons.series
+                : DharaIcons.movies,
+          ),
+          const SizedBox(width: .8 * rem),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TmdbPicture(
-                  path: item.posterPath,
-                  size: 'w154',
-                  width: 34,
-                  height: 51,
-                  placeholder: item.kind == TitleKind.series
-                      ? Icons.tv_rounded
-                      : Icons.movie_outlined,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        year == null ? item.name : '${item.name} ($year)',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        where,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          color: DharaColors.text3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 14),
                 Text(
-                  item.notFound
-                      ? 'Not found'
-                      : confidence == null
-                      ? 'Unsure'
-                      : 'Unsure · $confidence',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: item.notFound ? DharaColors.text3 : DharaColors.warn,
-                  ),
+                  year == null ? item.name : '${item.name} ($year)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _nameStyle,
                 ),
-                const SizedBox(width: 14),
-                SizedBox(
-                  width: 70,
-                  child: Text(
-                    item.copies == 1 ? '1 video' : '${item.copies} videos',
-                    textAlign: TextAlign.end,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      color: DharaColors.text2,
-                    ),
-                  ),
+                Text(
+                  where,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _smallStyle,
                 ),
               ],
             ),
           ),
-        ),
+          const SizedBox(width: rem),
+          Text(
+            item.notFound
+                ? 'Not found'
+                : confidence == null
+                ? 'Unsure'
+                : 'Unsure · $confidence',
+            style: TextStyle(
+              fontFamily: DharaFonts.ui,
+              fontSize: DharaType.sm,
+              fontWeight: DharaType.semibold,
+              color: item.notFound ? DharaColors.text3 : DharaColors.warn,
+            ),
+          ),
+          const SizedBox(width: rem),
+          SizedBox(
+            width: 5 * rem,
+            child: Text(
+              item.copies == 1 ? '1 video' : '${item.copies} videos',
+              textAlign: TextAlign.end,
+              style: const TextStyle(
+                fontFamily: DharaFonts.ui,
+                fontSize: DharaType.sm,
+                color: DharaColors.text2,
+              ),
+            ),
+          ),
+          const SizedBox(width: .3 * rem),
+          const Icon(
+            DharaIcons.right,
+            size: 1.3 * rem,
+            color: DharaColors.text3,
+          ),
+        ],
       ),
     );
   }
@@ -319,123 +316,137 @@ class _ReviewDialogState extends State<_ReviewDialog> {
       ?item.sampleName,
     ].join(' / ');
 
-    return Dialog(
-      backgroundColor: DharaColors.glassStrong,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 680, maxHeight: 720),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 20, 22, 14),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                isShow ? 'Which show is this?' : 'Which film is this?',
-                style: Theme.of(context).textTheme.titleLarge,
+    return DharaDialog(
+      maxWidth: 45 * rem,
+      maxHeight: 48 * rem,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          1.4 * rem,
+          1.3 * rem,
+          1.4 * rem,
+          rem,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              isShow ? 'Which show is this?' : 'Which film is this?',
+              style: const TextStyle(
+                fontFamily: DharaFonts.display,
+                fontSize: DharaType.xl,
+                fontWeight: DharaType.bold,
+                height: 1.2,
+                color: DharaColors.text,
               ),
-              const SizedBox(height: 6),
-              Text(
-                where,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, color: DharaColors.text3),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      key: const Key('review-name'),
-                      controller: _name,
-                      autocorrect: false,
-                      enableSuggestions: false,
-                      onSubmitted: (_) => unawaited(_search()),
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        labelText: 'Title',
-                        isDense: true,
-                      ),
-                    ),
+            ),
+            const SizedBox(height: .3 * rem),
+            Text(
+              where,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: _smallStyle,
+            ),
+            const SizedBox(height: rem),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: DharaField(
+                    key: const Key('review-name'),
+                    controller: _name,
+                    label: 'Title',
+                    autofocus: true,
+                    onSubmitted: (_) => unawaited(_search()),
                   ),
-                  const SizedBox(width: 10),
-                  SizedBox(
-                    width: 96,
-                    child: TextField(
-                      key: const Key('review-year'),
-                      controller: _year,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(4),
-                      ],
-                      onSubmitted: (_) => unawaited(_search()),
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        labelText: 'Year',
-                        isDense: true,
-                      ),
-                    ),
+                ),
+                const SizedBox(width: .6 * rem),
+                SizedBox(
+                  width: 6 * rem,
+                  child: DharaField(
+                    key: const Key('review-year'),
+                    controller: _year,
+                    label: 'Year',
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(4),
+                    ],
+                    onSubmitted: (_) => unawaited(_search()),
                   ),
-                  const SizedBox(width: 10),
-                  DharaPillButton(
-                    key: const Key('review-search'),
-                    primary: true,
-                    icon: Icons.search_rounded,
-                    label: 'Search TMDB',
-                    onPressed: () => unawaited(_search()),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              PanelHeading(
-                candidates == null
-                    ? 'Asking …'
-                    : _failure != null
-                    ? 'No answer'
-                    : candidates.isEmpty
-                    ? 'TMDB knows nothing by that name'
-                    : 'Pick the right one',
-              ),
-              if (_failure case final failure?) ...[
-                const SizedBox(height: 6),
-                Text(
-                  failure,
-                  key: const Key('review-failure'),
-                  style: const TextStyle(fontSize: 13, color: DharaColors.warn),
+                ),
+                const SizedBox(width: .6 * rem),
+                DharaButton(
+                  key: const Key('review-search'),
+                  style: DharaButtonStyle.primary,
+                  small: true,
+                  icon: DharaIcons.search,
+                  label: 'Search TMDB',
+                  onPressed: () => unawaited(_search()),
                 ),
               ],
-              const SizedBox(height: 8),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    for (final scored
-                        in candidates ?? const <ScoredCandidate>[])
-                      _CandidateRow(
-                        scored: scored,
-                        onChoose: () => unawaited(_choose(scored.candidate)),
-                      ),
-                  ],
+            ),
+            const SizedBox(height: rem),
+            CapsLabel(
+              candidates == null
+                  ? 'Asking …'
+                  : _failure != null
+                  ? 'No answer'
+                  : candidates.isEmpty
+                  ? 'TMDB knows nothing by that name'
+                  : 'Pick the right one',
+            ),
+            if (_failure case final failure?) ...[
+              const SizedBox(height: .4 * rem),
+              Text(
+                failure,
+                key: const Key('review-failure'),
+                style: const TextStyle(
+                  fontFamily: DharaFonts.ui,
+                  fontSize: DharaType.sm,
+                  height: 1.4,
+                  color: DharaColors.warn,
                 ),
               ),
-              const SizedBox(height: 8),
-              Row(
+            ],
+            const SizedBox(height: .6 * rem),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                // Room for the outline of the row that holds the keyboard.
+                padding: const EdgeInsets.all(.3 * rem),
                 children: [
-                  TextButton(
-                    key: const Key('review-leave'),
-                    onPressed: () => unawaited(_leave()),
-                    child: const Text('Leave it as it is'),
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    key: const Key('review-close'),
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Close'),
-                  ),
+                  for (final scored in candidates ?? const <ScoredCandidate>[])
+                    _CandidateRow(
+                      key: Key('review-candidate-${scored.candidate.id}'),
+                      scored: scored,
+                      onChoose: () => unawaited(_choose(scored.candidate)),
+                    ),
                 ],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: .6 * rem),
+            Row(
+              children: [
+                DharaButton(
+                  key: const Key('review-leave'),
+                  label: 'Leave it as it is',
+                  small: true,
+                  tooltip:
+                      'Keeps the title as its files name it; it is not '
+                      'asked about again',
+                  onPressed: () => unawaited(_leave()),
+                ),
+                const Spacer(),
+                DharaButton(
+                  key: const Key('review-close'),
+                  label: 'Close',
+                  small: true,
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -443,7 +454,11 @@ class _ReviewDialogState extends State<_ReviewDialog> {
 }
 
 class _CandidateRow extends StatelessWidget {
-  const _CandidateRow({required this.scored, required this.onChoose});
+  const _CandidateRow({
+    super.key,
+    required this.scored,
+    required this.onChoose,
+  });
 
   final ScoredCandidate scored;
   final VoidCallback onChoose;
@@ -455,89 +470,71 @@ class _CandidateRow extends StatelessWidget {
     final original = candidate.originalTitle;
     final sure = scored.confidence >= sureConfidence;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          key: Key('review-candidate-${candidate.id}'),
-          borderRadius: BorderRadius.circular(DharaRadii.md),
-          onTap: onChoose,
-          child: Ink(
-            padding: const EdgeInsets.fromLTRB(10, 8, 14, 8),
-            decoration: BoxDecoration(
-              color: DharaColors.surface,
-              borderRadius: BorderRadius.circular(DharaRadii.md),
-              border: Border.all(color: DharaColors.stroke),
-            ),
-            child: Row(
+    return RowCard(
+      onPressed: onChoose,
+      padding: const EdgeInsets.fromLTRB(
+        .6 * rem,
+        .5 * rem,
+        .9 * rem,
+        .5 * rem,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TmdbPicture(
+            path: candidate.posterPath,
+            size: 'w154',
+            width: 3.3 * rem,
+            height: 4.95 * rem,
+            placeholder: candidate.kind == TitleKind.series
+                ? DharaIcons.series
+                : DharaIcons.movies,
+          ),
+          const SizedBox(width: .8 * rem),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TmdbPicture(
-                  path: candidate.posterPath,
-                  size: 'w154',
-                  width: 50,
-                  height: 75,
-                  placeholder: candidate.kind == TitleKind.series
-                      ? Icons.tv_rounded
-                      : Icons.movie_outlined,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        year == null
-                            ? candidate.title
-                            : '${candidate.title} ($year)',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (original != null)
-                        Text(
-                          original,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: DharaColors.text2,
-                          ),
-                        ),
-                      if (candidate.overview case final overview?)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            overview,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: DharaColors.text3,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Text(
-                  '${scored.confidence}',
-                  style: TextStyle(
-                    fontFamily: DharaFonts.display,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: sure ? DharaColors.good : DharaColors.text2,
-                  ),
+                  year == null ? candidate.title : '${candidate.title} ($year)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _nameStyle,
                 ),
+                if (original != null)
+                  Text(
+                    original,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _smallStyle.copyWith(color: DharaColors.text2),
+                  ),
+                if (candidate.overview case final overview?)
+                  Padding(
+                    padding: const EdgeInsets.only(top: .15 * rem),
+                    child: Text(
+                      overview,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: _smallStyle,
+                    ),
+                  ),
               ],
             ),
           ),
-        ),
+          const SizedBox(width: .8 * rem),
+          Tooltip(
+            message: 'How well it fits, out of 100',
+            child: Text(
+              '${scored.confidence}',
+              style: TextStyle(
+                fontFamily: DharaFonts.display,
+                fontSize: DharaType.lg,
+                fontWeight: DharaType.bold,
+                color: sure ? DharaColors.good : DharaColors.text2,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

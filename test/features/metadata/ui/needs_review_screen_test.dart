@@ -173,7 +173,12 @@ void main() {
     expect(find.byKey(const Key('review-candidate-3')), findsOneWidget);
     expect(find.text('Hell (2005)'), findsOneWidget);
     expect(find.text('About Hell.'), findsNWidgets(2));
-    final name = tester.widget<TextField>(find.byKey(const Key('review-name')));
+    final name = tester.widget<TextField>(
+      find.descendant(
+        of: find.byKey(const Key('review-name')),
+        matching: find.byType(TextField),
+      ),
+    );
     expect(name.controller!.text, 'Hell');
     expect(tmdb.asked, hasLength(asked), reason: 'no request for this');
 
@@ -204,7 +209,12 @@ void main() {
     await show(tester);
     await open(tester, 'A Wrong Name (1999)');
     expect(find.text('TMDB KNOWS NOTHING BY THAT NAME'), findsOneWidget);
-    final year = tester.widget<TextField>(find.byKey(const Key('review-year')));
+    final year = tester.widget<TextField>(
+      find.descendant(
+        of: find.byKey(const Key('review-year')),
+        matching: find.byType(TextField),
+      ),
+    );
     expect(year.controller!.text, '1999');
 
     await tester.tap(find.byKey(const Key('review-leave')));

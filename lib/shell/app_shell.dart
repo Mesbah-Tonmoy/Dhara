@@ -56,7 +56,7 @@ class _AppShellState extends State<AppShell> {
       switch (place) {
         ShellDestination.home => const HomeScreen(),
         ShellDestination.search => const BrowseScreen(),
-        ShellDestination.titles => TitlesScreen(initialQuery: query),
+        ShellDestination.titles => const TitlesScreen(),
         ShellDestination.anime => const AnimeScreen(),
         ShellDestination.myList => const ListsScreen(tab: ListsTab.myList),
         ShellDestination.history => const ListsScreen(tab: ListsTab.history),

@@ -137,9 +137,13 @@ void main() {
     expect(find.text('2 videos'), findsOneWidget);
     expect(status(tester, 'beta'), 'Not indexed yet');
     expect(find.text('0 videos'), findsOneWidget);
-    // Switched off, or without an adapter: not part of the index.
+    // Switched off: not part of the index.
     expect(find.text('Server gamma'), findsNothing);
-    expect(find.text('Server site'), findsNothing);
+    // Switched on, but a website without an adapter: listed, so that it
+    // does not seem to be missing, and not counted.
+    expect(find.text('Server site'), findsOneWidget);
+    expect(status(tester, 'site'), contains('cannot read yet'));
+    expect(find.text('not counted'), findsOneWidget);
 
     expect(find.text('2'), findsOneWidget);
     expect(find.text('1 / 2'), findsOneWidget);
@@ -238,6 +242,21 @@ void main() {
     await show(tester, sources: [_source('alpha')]);
 
     expect(find.text('No servers to index'), findsOneWidget);
+    expect(find.byKey(const Key('index-start-stop')), findsNothing);
+  });
+
+  testWidgets('with only a website switched on there is nothing to update', (
+    tester,
+  ) async {
+    await show(
+      tester,
+      sources: [_source('site', type: SourceType.customSite)],
+      enabled: ['site'],
+    );
+
+    expect(find.text('Server site'), findsOneWidget);
+    expect(find.text('0 / 0'), findsOneWidget);
+    expect(find.text('No servers to index'), findsNothing);
     expect(find.byKey(const Key('index-start-stop')), findsNothing);
   });
 

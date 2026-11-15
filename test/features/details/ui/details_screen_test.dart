@@ -356,7 +356,12 @@ void main() {
     expect(find.byKey(const Key('review-name')), findsOneWidget);
     expect(
       tester
-          .widget<TextField>(find.byKey(const Key('review-name')))
+          .widget<TextField>(
+            find.descendant(
+              of: find.byKey(const Key('review-name')),
+              matching: find.byType(TextField),
+            ),
+          )
           .controller!
           .text,
       'Vivarium',
