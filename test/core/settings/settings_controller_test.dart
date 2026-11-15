@@ -21,6 +21,53 @@ void main() {
     expect(settings.interfaceScalePercent, 100);
   });
 
+  test('the buffer starts at 150 MB with hardware decoding on', () {
+    final settings = SettingsController(MemoryKeyValueStore());
+
+    expect(settings.bufferMegabytes, 150);
+    expect(settings.hardwareDecoding, isTrue);
+  });
+
+  test('saves the buffer size and hardware decoding', () {
+    final store = MemoryKeyValueStore();
+    var changes = 0;
+    SettingsController(store)
+      ..addListener(() => changes++)
+      ..setBufferMegabytes(300)
+      ..setHardwareDecoding(false)
+      // The same again changes nothing.
+      ..setBufferMegabytes(300);
+
+    expect(changes, 2);
+    expect(store.getInt('player.bufferMegabytes'), 300);
+    expect(store.getInt('player.hardwareDecoding'), 0);
+    final next = SettingsController(store);
+    expect(next.bufferMegabytes, 300);
+    expect(next.hardwareDecoding, isFalse);
+  });
+
+  test('the buffer keeps to 50–500 MB in steps of 50', () {
+    final settings = SettingsController(MemoryKeyValueStore())
+      ..setBufferMegabytes(10);
+    expect(settings.bufferMegabytes, 50);
+    settings.setBufferMegabytes(9000);
+    expect(settings.bufferMegabytes, 500);
+    settings.setBufferMegabytes(230);
+    expect(settings.bufferMegabytes, 250);
+
+    // A saved value outside the range is not trusted.
+    for (final stored in [0, 49, 501, -150]) {
+      final odd = SettingsController(
+        MemoryKeyValueStore({
+          'player.bufferMegabytes': stored,
+          'player.hardwareDecoding': 5,
+        }),
+      );
+      expect(odd.bufferMegabytes, 150, reason: '$stored');
+      expect(odd.hardwareDecoding, isTrue);
+    }
+  });
+
   test('saves the switches and the interface size', () {
     final store = MemoryKeyValueStore();
     var changes = 0;

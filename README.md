@@ -20,7 +20,7 @@ A Bangla + English README is written in Phase 8.
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
 | 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests), frame rate while scrolling, and cold start |
-| 7. Smart playback | Under way: the player is set up for streaming and has an info panel (see [Smart playback](#smart-playback)). Still to come: the fastest copy on Play, failover, the next episode ahead of time |
+| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, and has an info panel (see [Smart playback](#smart-playback)). Still to come: the fastest copy on Play, failover, the next episode ahead of time |
 | 8–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -89,14 +89,15 @@ own choices are replaced where they do not suit a desktop player:
 
 | mpv option | Value | media_kit's own | Why |
 |---|---|---|---|
-| `hwdec` | `auto-safe` | `auto` | the graphics card decodes, but only with decoders mpv lists as safe |
+| `hwdec` | `auto-safe` (`no` with Hardware decoding off) | `auto` | the graphics card decodes, but only with decoders mpv lists as safe |
 | `cache-on-disk` | `no` | `yes` | what was read stays in memory; nothing of a video is written to disk |
 | `demuxer-max-bytes` | 112.5 MB | 32 MB | how far the player reads ahead |
 | `demuxer-max-back-bytes` | 37.5 MB | 32 MB | what stays behind, for skipping back without asking the server |
 | `cache`, `demuxer-seekable-cache` | `yes` | `yes`, `auto` | read ahead always; skips inside the buffer do not go to the server |
 | `network-timeout` | 5 s | 5 s | a silent server is asked again (FFmpeg reconnects where it was) |
 
-The two sizes are one buffer of 150 MB, split three to one. With the cache
+The two sizes are one buffer, split three to one: the Buffer size of
+Settings, 150 MB unless changed. With the cache
 on, mpv reads ahead until that is full, so read-ahead needs no option of
 its own. Each value is read back from libmpv; one that did not take does
 not stop the video (this is about smoothness, not safety). `flutter test`
@@ -179,11 +180,13 @@ on the rail.
 The cog at the foot of the rail (`lib/features/settings/ui/settings_screen.dart`).
 Every control does something now and is saved as it is changed
 (`lib/core/settings/settings_controller.dart`); settings whose feature is
-not built yet (preferred quality, buffer size) are not shown.
+not built yet (preferred quality, languages) are not shown.
 
 - **Playback:** the seek step back and forward (5/10/15/30/60/90/120 s or
   a typed 1–600 s; the same values the player's own panel changes),
-  autoplay of the next episode, subtitle size.
+  autoplay of the next episode, subtitle size, the player's buffer size
+  (50–500 MB) and hardware decoding (both count from the next video; see
+  [Streaming set-up](#streaming-set-up)).
 - **Appearance:** interface size (90/100/110/125%, on top of the size the
   window gives), whether the banner on Home rotates, and Reduce motion
   (hover zooms, fades and the banner change at once; the system's own

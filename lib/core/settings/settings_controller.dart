@@ -23,6 +23,11 @@ class SettingsController extends ChangeNotifier {
         _store.getInt(_subtitleScaleKey),
       ),
       _autoplayNext = _loadSwitch(_store.getInt(_autoplayNextKey), true),
+      _bufferMegabytes = _loadBuffer(_store.getInt(_bufferKey)),
+      _hardwareDecoding = _loadSwitch(
+        _store.getInt(_hardwareDecodingKey),
+        true,
+      ),
       _rotateFeatured = _loadSwitch(_store.getInt(_rotateFeaturedKey), true),
       _reduceMotion = _loadSwitch(_store.getInt(_reduceMotionKey), false),
       _interfaceScalePercent = _loadInterfaceScale(
@@ -43,6 +48,12 @@ class SettingsController extends ChangeNotifier {
   static const subtitleScaleStepPercent = 10;
   static const defaultSubtitleScalePercent = 100;
 
+  /// The player's buffer, in megabytes, in steps of 50.
+  static const minBufferMegabytes = 50;
+  static const maxBufferMegabytes = 500;
+  static const bufferStepMegabytes = 50;
+  static const defaultBufferMegabytes = 150;
+
   /// The sizes the interface can be drawn in, in percent of its own size.
   static const interfaceScales = <int>[90, 100, 110, 125];
   static const defaultInterfaceScalePercent = 100;
@@ -52,6 +63,8 @@ class SettingsController extends ChangeNotifier {
   static const _volumeKey = 'player.volume';
   static const _subtitleScaleKey = 'player.subtitleScalePercent';
   static const _autoplayNextKey = 'player.autoplayNext';
+  static const _bufferKey = 'player.bufferMegabytes';
+  static const _hardwareDecodingKey = 'player.hardwareDecoding';
   static const _rotateFeaturedKey = 'look.rotateFeatured';
   static const _reduceMotionKey = 'look.reduceMotion';
   static const _interfaceScaleKey = 'look.interfaceScalePercent';
@@ -62,6 +75,8 @@ class SettingsController extends ChangeNotifier {
   double _volume;
   int _subtitleScalePercent;
   bool _autoplayNext;
+  int _bufferMegabytes;
+  bool _hardwareDecoding;
   bool _rotateFeatured;
   bool _reduceMotion;
   int _interfaceScalePercent;
@@ -75,6 +90,30 @@ class SettingsController extends ChangeNotifier {
     _autoplayNext = value;
     notifyListeners();
     unawaited(_store.setInt(_autoplayNextKey, value ? 1 : 0));
+  }
+
+  /// How much of a video the player may keep in memory (what lies ahead
+  /// and a part of what was played), 50–500 MB. Counts from the next
+  /// video that is opened.
+  int get bufferMegabytes => _bufferMegabytes;
+
+  void setBufferMegabytes(int megabytes) {
+    final value = _snapBuffer(megabytes);
+    if (value == _bufferMegabytes) return;
+    _bufferMegabytes = value;
+    notifyListeners();
+    unawaited(_store.setInt(_bufferKey, value));
+  }
+
+  /// The graphics card decodes the picture where mpv counts that as safe.
+  /// Counts from the next video that is opened.
+  bool get hardwareDecoding => _hardwareDecoding;
+
+  void setHardwareDecoding(bool value) {
+    if (value == _hardwareDecoding) return;
+    _hardwareDecoding = value;
+    notifyListeners();
+    unawaited(_store.setInt(_hardwareDecodingKey, value ? 1 : 0));
   }
 
   /// The banner on Home moves on to the next title by itself.
@@ -181,6 +220,21 @@ class SettingsController extends ChangeNotifier {
       return defaultSubtitleScalePercent;
     }
     return _snapSubtitleScale(stored);
+  }
+
+  /// Clamps to the allowed range and rounds to the nearest step.
+  static int _snapBuffer(int megabytes) {
+    final clamped = megabytes.clamp(minBufferMegabytes, maxBufferMegabytes);
+    return (clamped / bufferStepMegabytes).round() * bufferStepMegabytes;
+  }
+
+  static int _loadBuffer(int? stored) {
+    if (stored == null ||
+        stored < minBufferMegabytes ||
+        stored > maxBufferMegabytes) {
+      return defaultBufferMegabytes;
+    }
+    return _snapBuffer(stored);
   }
 
   /// A switch is kept as 1 or 0; anything else is [fallback].

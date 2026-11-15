@@ -49,7 +49,7 @@ void main() {
       );
     }
     // Not built yet, so not offered.
-    for (final absent in ['Preferred quality', 'Buffer', 'Hardware decoding']) {
+    for (final absent in ['Preferred quality', 'Default subtitles']) {
       expect(find.textContaining(absent, skipOffstage: false), findsNothing);
     }
   });
@@ -119,6 +119,33 @@ void main() {
     expect(store.getInt('look.rotateFeatured'), 0);
     await _tap(tester, find.byKey(const Key('set-rotate')));
     expect(store.getInt('look.rotateFeatured'), 1);
+  });
+
+  testWidgets('buffer size and hardware decoding are saved as they change', (
+    tester,
+  ) async {
+    final store = MemoryKeyValueStore({'player.bufferMegabytes': 450});
+    await _boot(tester, store);
+    String shown() =>
+        tester.widget<Text>(find.byKey(const Key('set-buffer-value'))).data!;
+    expect(shown(), '450 MB');
+    expect(_on(tester, 'set-hwdec'), isTrue);
+
+    await _tap(tester, find.byKey(const Key('set-buffer-more')));
+    expect(shown(), '500 MB');
+    expect(store.getInt('player.bufferMegabytes'), 500);
+    // At the top of the range there is no more.
+    await _tap(tester, find.byKey(const Key('set-buffer-more')));
+    expect(shown(), '500 MB');
+
+    await _tap(tester, find.byKey(const Key('set-buffer-less')));
+    await _tap(tester, find.byKey(const Key('set-buffer-less')));
+    expect(shown(), '400 MB');
+    expect(store.getInt('player.bufferMegabytes'), 400);
+
+    await _tap(tester, find.byKey(const Key('set-hwdec')));
+    expect(_on(tester, 'set-hwdec'), isFalse);
+    expect(store.getInt('player.hardwareDecoding'), 0);
   });
 
   testWidgets('Interface size draws the whole app larger or smaller at once', (

@@ -34,7 +34,8 @@ enum SettingsGroup {
 /// to the tools (matching, the library index, Server Discovery).
 ///
 /// Every control here does something now and is saved as it is changed;
-/// settings whose feature is not built yet are not shown.
+/// settings whose feature is not built yet (preferred quality, languages)
+/// are not shown.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -136,6 +137,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         SettingsController.subtitleScaleStepPercent,
                   )
                 : null,
+          ),
+        ),
+        _SetRow(
+          label: 'Buffer size',
+          hint:
+              'How much of a video the player keeps in memory. More rides '
+              'out a slow server; less uses less memory. Counts from the '
+              'next video.',
+          control: _Stepper(
+            id: 'buffer',
+            what: 'buffer',
+            valueWidth: 5 * rem,
+            text: '${settings.bufferMegabytes} MB',
+            onLess:
+                settings.bufferMegabytes > SettingsController.minBufferMegabytes
+                ? () => settings.setBufferMegabytes(
+                    settings.bufferMegabytes -
+                        SettingsController.bufferStepMegabytes,
+                  )
+                : null,
+            onMore:
+                settings.bufferMegabytes < SettingsController.maxBufferMegabytes
+                ? () => settings.setBufferMegabytes(
+                    settings.bufferMegabytes +
+                        SettingsController.bufferStepMegabytes,
+                  )
+                : null,
+          ),
+        ),
+        _SetRow(
+          label: 'Hardware decoding',
+          hint:
+              'The graphics card decodes the picture where that is known '
+              'to work. Turn it off if a video shows a broken picture. '
+              'Counts from the next video.',
+          control: DharaSwitch(
+            key: const Key('set-hwdec'),
+            label: 'Hardware decoding',
+            value: settings.hardwareDecoding,
+            onChanged: settings.setHardwareDecoding,
           ),
         ),
       ]),
@@ -627,6 +668,7 @@ class _Stepper extends StatelessWidget {
     required this.text,
     required this.onLess,
     required this.onMore,
+    this.valueWidth = 4 * rem,
   });
 
   /// Used in widget keys: `set-<id>-less`, `set-<id>-value`,
@@ -638,6 +680,9 @@ class _Stepper extends StatelessWidget {
   final String text;
   final VoidCallback? onLess;
   final VoidCallback? onMore;
+
+  /// Room for the value between the two buttons.
+  final double valueWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -651,7 +696,7 @@ class _Stepper extends StatelessWidget {
           onPressed: onLess,
         ),
         SizedBox(
-          width: 4 * rem,
+          width: valueWidth,
           child: Text(
             text,
             key: Key('set-$id-value'),

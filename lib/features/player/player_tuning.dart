@@ -1,3 +1,4 @@
+import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:flutter/foundation.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -11,17 +12,19 @@ import 'package:media_kit_video/media_kit_video.dart';
 @immutable
 class PlayerTuning {
   const PlayerTuning({
-    this.bufferMegabytes = defaultBufferMegabytes,
+    this.bufferMegabytes = SettingsController.defaultBufferMegabytes,
     this.hardwareDecoding = true,
   }) : assert(
-         bufferMegabytes >= minBufferMegabytes &&
-             bufferMegabytes <= maxBufferMegabytes,
+         bufferMegabytes >= SettingsController.minBufferMegabytes &&
+             bufferMegabytes <= SettingsController.maxBufferMegabytes,
        );
 
-  static const minBufferMegabytes = 50;
-  static const maxBufferMegabytes = 500;
-  static const bufferStepMegabytes = 50;
-  static const defaultBufferMegabytes = 150;
+  /// As the user's settings say (Buffer size, Hardware decoding).
+  PlayerTuning.of(SettingsController settings)
+    : this(
+        bufferMegabytes: settings.bufferMegabytes,
+        hardwareDecoding: settings.hardwareDecoding,
+      );
 
   /// The memory the player may fill with video it has read from the
   /// server: what lies ahead, and what was just played (for skipping back

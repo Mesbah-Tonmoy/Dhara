@@ -1,3 +1,5 @@
+import 'package:dhara/core/settings/key_value_store.dart';
+import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/player/player_tuning.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -32,6 +34,19 @@ void main() {
   test('hardware decoding can be turned off', () {
     const tuning = PlayerTuning(hardwareDecoding: false);
     expect(tuning.hwdec, 'no');
+    expect(tuning.mpvOptions['hwdec'], 'no');
+  });
+
+  test('follows the settings', () {
+    final settings = SettingsController(MemoryKeyValueStore());
+    expect(PlayerTuning.of(settings).bufferMegabytes, 150);
+    expect(PlayerTuning.of(settings).hardwareDecoding, isTrue);
+
+    settings
+      ..setBufferMegabytes(400)
+      ..setHardwareDecoding(false);
+    final tuning = PlayerTuning.of(settings);
+    expect(tuning.forwardBytes + tuning.backBytes, 400 * megabyte);
     expect(tuning.mpvOptions['hwdec'], 'no');
   });
 

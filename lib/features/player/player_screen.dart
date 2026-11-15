@@ -53,8 +53,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// How long the "Resumed from ..." pill stays up.
   static const _resumeNoticeDuration = Duration(seconds: 7);
 
-  /// How this player reads ahead and decodes (see [PlayerTuning]).
-  static const _tuning = PlayerTuning();
+  /// How this player reads ahead and decodes: the settings as they were
+  /// when it was opened.
+  late final PlayerTuning _tuning = PlayerTuning.of(
+    SettingsScope.read(context),
+  );
 
   late final Player _player = createPlayer();
   late final VideoController _video = createVideoController(
