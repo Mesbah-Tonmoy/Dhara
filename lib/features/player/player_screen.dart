@@ -82,6 +82,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Timer? _resumeNoticeTimer;
   bool _autoNextCancelled = false;
 
+  // For the info panel: where the current video is fetched from, how
+  // long that server took to answer, and how long the video took to start.
+  Uri? _playingFrom;
+  Duration? _serverAnswered;
+  Duration? _startedIn;
+  final _sinceOpen = Stopwatch();
+  Duration _startPosition = Duration.zero;
+  List<String> _optionsNotTaken = const [];
+
   // Positions are only saved once the current video has reported its
   // duration; until then the player may still hold the previous one's.
   bool _progressReady = false;
@@ -134,7 +143,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     try {
       await hardenPlayer(_player);
       // Smoothness, not safety: the video plays whatever this reports.
-      await tunePlayer(_player, _tuning);
+      _optionsNotTaken = await tunePlayer(_player, _tuning);
       if (!mounted) return;
       await _openCurrent();
     } on PlayerHardeningError {
@@ -153,14 +162,26 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _progressReady = false;
     _lastSavedPosition = resumeFrom ?? Duration.zero;
     _resumeNoticeTimer?.cancel();
+    _startPosition = resumeFrom ?? Duration.zero;
+    _sinceOpen
+      ..reset()
+      ..start();
     setState(() {
       _error = null;
       _autoNextCancelled = false;
       _resumedFrom = resumeFrom;
+      _playingFrom = null;
+      _serverAnswered = null;
+      _startedIn = null;
     });
     final Uri address;
+    Duration? answered;
     try {
-      address = await resolvePlaybackUrl(_http, _url);
+      address = await resolvePlaybackUrl(
+        _http,
+        _url,
+        onAnswered: (time) => answered = time,
+      );
     } on PlaybackBlocked catch (blocked) {
       if (mounted && _index == index) {
         setState(() => _error = blocked.message);
@@ -169,6 +190,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     // The user may have left or moved on while the server was asked.
     if (!mounted || _index != index) return;
+    setState(() {
+      _playingFrom = address;
+      _serverAnswered = answered;
+    });
     // Resume positions and titles stay tied to the URL that was asked for;
     // only the player is pointed at where it leads.
     final media = Media(address.toString());
@@ -193,7 +218,27 @@ class _PlayerScreenState extends State<PlayerScreen> {
     await _player.play();
   }
 
+  /// "DhakaFlix 7 (172.16.50.7)": the source a video is fetched from and
+  /// its address, or the address alone. Plain text only.
+  String _serverLabel(Uri url) {
+    for (final source in _sources.sources) {
+      if (source.baseUrls.any((base) => base.host == url.host)) {
+        return '${source.name} (${url.host})';
+      }
+    }
+    return url.host;
+  }
+
   void _onPosition(Duration position) {
+    // The picture moves: the video has started.
+    if (_startedIn == null &&
+        _progressReady &&
+        _sinceOpen.isRunning &&
+        _player.state.playing &&
+        position > _startPosition) {
+      _sinceOpen.stop();
+      if (mounted) setState(() => _startedIn = _sinceOpen.elapsed);
+    }
     if ((position - _lastSavedPosition).abs() >= _saveInterval) {
       _saveProgress();
     }
@@ -286,6 +331,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
             onCancelAutoNext: () => setState(() => _autoNextCancelled = true),
             resumedFrom: _resumedFrom,
             onStartOver: _startOver,
+            server: switch (_playingFrom) {
+              null => null,
+              final url => _serverLabel(url),
+            },
+            serverAnswered: _serverAnswered,
+            startedIn: _startedIn,
+            optionsNotTaken: _optionsNotTaken,
           ),
           if (error != null)
             Positioned(

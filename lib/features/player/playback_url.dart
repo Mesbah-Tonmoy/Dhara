@@ -24,9 +24,18 @@ class PlaybackBlocked implements Exception {
 /// Throws [PlaybackBlocked] if the chain leaves the allowed hosts or does
 /// not end. If the server cannot be asked at all (unreachable, too slow),
 /// [url] is returned as it is: the player then reports the real problem.
-Future<Uri> resolvePlaybackUrl(SafeHttpClient client, Uri url) async {
+///
+/// [onAnswered] is told how long the server took to answer (redirects
+/// included), if it did.
+Future<Uri> resolvePlaybackUrl(
+  SafeHttpClient client,
+  Uri url, {
+  void Function(Duration time)? onAnswered,
+}) async {
   try {
-    return (await client.probe(url)).url;
+    final answer = await client.probe(url);
+    onAnswered?.call(answer.responseTime);
+    return answer.url;
   } on SafeHttpException catch (error) {
     switch (error.failure) {
       case SafeHttpFailure.blockedRedirect:

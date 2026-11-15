@@ -56,9 +56,16 @@ void main() {
     final url = server.url('/video.mkv');
     final watch = Stopwatch()..start();
 
-    final address = await resolvePlaybackUrl(clientFor(url), url);
+    Duration? answered;
+    final address = await resolvePlaybackUrl(
+      clientFor(url),
+      url,
+      onAnswered: (time) => answered = time,
+    );
 
     expect(address, url);
+    expect(answered, isNotNull);
+    expect(answered, lessThan(const Duration(seconds: 3)));
     expect(watch.elapsed, lessThan(const Duration(seconds: 3)));
     expect(server.requests.single.headers.value('range'), 'bytes=0-0');
   });

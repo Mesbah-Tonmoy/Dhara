@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dhara/core/settings/settings_controller.dart';
+import 'package:dhara/features/player/playback_info.dart';
 import 'package:dhara/features/player/playback_progress.dart';
 import 'package:dhara/features/player/seek_math.dart';
 import 'package:dhara/features/player/subtitle_file.dart';
@@ -28,6 +29,10 @@ class PlayerControls extends StatefulWidget {
     required this.onCancelAutoNext,
     required this.resumedFrom,
     required this.onStartOver,
+    this.server,
+    this.serverAnswered,
+    this.startedIn,
+    this.optionsNotTaken = const [],
   });
 
   final Player player;
@@ -52,6 +57,13 @@ class PlayerControls extends StatefulWidget {
   final Duration? resumedFrom;
   final VoidCallback onStartOver;
 
+  // For the info panel (see [PlaybackInfo]): what the screen knows about
+  // the video being played.
+  final String? server;
+  final Duration? serverAnswered;
+  final Duration? startedIn;
+  final List<String> optionsNotTaken;
+
   @override
   State<PlayerControls> createState() => _PlayerControlsState();
 }
@@ -59,6 +71,9 @@ class PlayerControls extends StatefulWidget {
 class _PlayerControlsState extends State<PlayerControls> {
   /// Furthest the subtitles can be shifted either way, in seconds.
   static const _maxSubtitleDelay = 60.0;
+
+  /// How often the info panel reads its numbers while it is open.
+  static const _infoInterval = Duration(seconds: 1);
 
   /// mpv `sub-pos` (percent of the picture height) that clears the bar.
   static const _subtitlePositionAboveControls = '84';
@@ -86,6 +101,11 @@ class _PlayerControlsState extends State<PlayerControls> {
   // Per-video; a new video starts in sync again.
   double _subtitleDelay = 0;
   PlayerNotice? _notice;
+
+  // What libmpv last answered for the info panel; `null` while the panel
+  // is closed (nothing is read then).
+  Map<String, String>? _infoValues;
+  Timer? _infoTimer;
 
   NativePlayer? get _native {
     final platform = widget.player.platform;
@@ -125,10 +145,39 @@ class _PlayerControlsState extends State<PlayerControls> {
 
   @override
   void dispose() {
+    _infoTimer?.cancel();
     for (final subscription in _subscriptions) {
       unawaited(subscription.cancel());
     }
     super.dispose();
+  }
+
+  // ---- info panel ---------------------------------------------------------
+
+  void _toggleInfo() {
+    _infoTimer?.cancel();
+    if (_infoValues != null) {
+      setState(() => _infoValues = null);
+      return;
+    }
+    setState(() => _infoValues = const {});
+    unawaited(_readInfo());
+    _infoTimer = Timer.periodic(_infoInterval, (_) => unawaited(_readInfo()));
+  }
+
+  Future<void> _readInfo() async {
+    final native = _native;
+    if (native == null) return;
+    final values = <String, String>{};
+    try {
+      for (final name in playbackInfoProperties) {
+        values[name] = await native.getProperty(name);
+      }
+    } on Object {
+      // The player is being closed.
+      return;
+    }
+    if (mounted && _infoValues != null) setState(() => _infoValues = values);
   }
 
   // ---- volume and seeking -------------------------------------------------
@@ -295,6 +344,7 @@ class _PlayerControlsState extends State<PlayerControls> {
     final secondsToNext = nextTitle != null && widget.autoNext
         ? upNextSecondsLeft(_position, _duration)
         : null;
+    final infoValues = _infoValues;
     return ListenableBuilder(
       listenable: settings,
       builder: (context, _) => PlayerControlsView(
@@ -343,6 +393,16 @@ class _PlayerControlsState extends State<PlayerControls> {
         resumedFrom: widget.resumedFrom,
         onStartOver: widget.onStartOver,
         notice: _notice,
+        info: infoValues == null
+            ? null
+            : PlaybackInfo.fromMpv(
+                infoValues,
+                server: widget.server,
+                serverAnswered: widget.serverAnswered,
+                startedIn: widget.startedIn,
+                notTaken: widget.optionsNotTaken,
+              ),
+        onToggleInfo: _toggleInfo,
         onControlsShownChanged: _setControlsShown,
       ),
     );

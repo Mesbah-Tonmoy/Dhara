@@ -20,7 +20,7 @@ A Bangla + English README is written in Phase 8.
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
 | 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests), frame rate while scrolling, and cold start |
-| 7. Smart playback | Under way: the player is set up for streaming (see [Smart playback](#smart-playback)). Still to come: the fastest copy on Play, failover, the next episode ahead of time |
+| 7. Smart playback | Under way: the player is set up for streaming and has an info panel (see [Smart playback](#smart-playback)). Still to come: the fastest copy on Play, failover, the next episode ahead of time |
 | 8–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -104,6 +104,25 @@ checks the options against the real `libmpv-2.dll` and plays a short video
 through them from a local web server
 (`test/features/player/libmpv_tuning_test.dart`).
 
+### Playback info
+
+`I` in the player opens a small panel, top left, that says where the video
+comes from and how playing it goes (`lib/features/player/playback_info.dart`).
+It is there for trying things on a real connection, where only numbers
+tell what happened:
+
+- the server (its name and address), how long it took to answer when it
+  was asked for the video, and how long the video took to start (from
+  opening it to the first moving picture)
+- picture size, format and frame rate; whether the graphics card decodes
+  (and with which decoder) or the processor does; the sound format
+- how much lies buffered ahead (seconds and megabytes), how fast the
+  server delivers, and how many frames were dropped
+- any streaming option libmpv did not take
+
+The numbers are read from libmpv once a second, and only while the panel
+is open.
+
 ## Player keyboard shortcuts
 
 | Key | Action |
@@ -115,7 +134,8 @@ through them from a local web server
 | S | Next subtitle track (Off → first → ... → Off) |
 | F | Fullscreen on / off (also: double-click the picture) |
 | N | Next video in the queue |
-| Esc | Close the open panel, then leave fullscreen, then leave the player |
+| I | Playback info on / off (see [Playback info](#playback-info)) |
+| Esc | Close the open panel, then the info panel, then leave fullscreen, then leave the player |
 
 ## Resume and "up next"
 

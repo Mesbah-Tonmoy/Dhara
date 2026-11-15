@@ -214,9 +214,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           hint:
               'Space plays or pauses, ← → skip by the seek steps above, '
               '↑ ↓ change the volume. F is fullscreen, M mute, S the next '
-              'subtitle, N the next episode. Esc leaves fullscreen, then '
+              'subtitle, N the next episode, I shows where the video '
+              'comes from and how it plays. Esc leaves fullscreen, then '
               'the player.',
-          control: _Keys(['Space', '← →', '↑ ↓', 'F', 'M', 'S', 'N']),
+          control: _Keys(['Space', '← →', '↑ ↓', 'F', 'M', 'S', 'N', 'I']),
         ),
       ]),
       group(SettingsGroup.library, [

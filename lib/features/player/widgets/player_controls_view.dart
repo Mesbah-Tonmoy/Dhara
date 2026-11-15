@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:dhara/core/format/duration_format.dart';
 import 'package:dhara/core/window/window_controller.dart';
 import 'package:dhara/core/window/window_widgets.dart';
+import 'package:dhara/features/player/playback_info.dart';
 import 'package:dhara/features/player/track_options.dart';
 import 'package:dhara/features/player/widgets/glass.dart';
+import 'package:dhara/features/player/widgets/playback_info_panel.dart';
 import 'package:dhara/features/player/widgets/seek_bar.dart';
 import 'package:dhara/features/player/widgets/seek_step_panel.dart';
 import 'package:dhara/features/player/widgets/track_panels.dart';
@@ -63,6 +65,8 @@ class PlayerControlsView extends StatefulWidget {
     required this.resumedFrom,
     required this.onStartOver,
     this.notice,
+    this.info,
+    this.onToggleInfo,
     this.onControlsShownChanged,
     this.hideDelay = const Duration(seconds: 3),
   });
@@ -134,6 +138,12 @@ class PlayerControlsView extends StatefulWidget {
 
   /// Flashed on screen whenever a new instance is passed in.
   final PlayerNotice? notice;
+
+  /// What the info panel shows, or `null` while it is closed.
+  final PlaybackInfo? info;
+
+  /// `I`: opens or closes the info panel.
+  final VoidCallback? onToggleInfo;
 
   /// Reports when the control bars appear or disappear (first call: the
   /// initial state), so subtitles can be kept clear of them.
@@ -259,13 +269,15 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
     _showOsd(silent ? 'Sound on' : 'Muted');
   }
 
-  /// Esc backs out one level: text field, then panel, then fullscreen, then
-  /// the player.
+  /// Esc backs out one level: text field, then panel, then the info
+  /// panel, then fullscreen, then the player.
   void _escape() {
     if (_isEditingText) {
       _keyFocus.requestFocus();
     } else if (_panel != null) {
       setState(() => _panel = null);
+    } else if (widget.info != null && widget.onToggleInfo != null) {
+      widget.onToggleInfo!();
     } else if (widget.fullscreen) {
       widget.onToggleFullscreen();
     } else {
@@ -318,6 +330,8 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
       if (firstPress) widget.onToggleFullscreen();
     } else if (key == LogicalKeyboardKey.keyN && widget.hasNext) {
       if (firstPress) widget.onPlayNext();
+    } else if (key == LogicalKeyboardKey.keyI && widget.onToggleInfo != null) {
+      if (firstPress) widget.onToggleInfo!();
     } else if (key == LogicalKeyboardKey.arrowLeft) {
       _skipBack();
     } else if (key == LogicalKeyboardKey.arrowRight) {
@@ -621,6 +635,19 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                 ),
               ),
             ),
+            // The info panel, top left under the title. It stays while the
+            // control bars are hidden and lets clicks through to the picture.
+            if (widget.info case final info?)
+              Positioned(
+                left: 32,
+                top: 76,
+                child: IgnorePointer(
+                  child: PlaybackInfoPanel(
+                    key: const Key('info-panel'),
+                    info: info,
+                  ),
+                ),
+              ),
             // "Resumed from ..." pill, bottom left. Like the up-next card it
             // stays visible even when the control bars are hidden.
             if (widget.resumedFrom case final resumedFrom?)

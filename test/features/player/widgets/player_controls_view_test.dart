@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:dhara/core/window/window_controller.dart';
+import 'package:dhara/features/player/playback_info.dart';
 import 'package:dhara/features/player/track_options.dart';
 import 'package:dhara/features/player/widgets/player_controls_view.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +32,7 @@ class _Calls {
   int playNext = 0;
   int cancelNext = 0;
   int startOver = 0;
+  int toggleInfo = 0;
 }
 
 const _audio = [
@@ -65,6 +67,7 @@ Future<_Calls> _pump(
   bool hasNext = false,
   UpNext? upNext,
   Duration? resumedFrom,
+  PlaybackInfo? info,
   _Calls? calls,
   WindowController? window,
 }) async {
@@ -118,6 +121,8 @@ Future<_Calls> _pump(
           resumedFrom: resumedFrom,
           onStartOver: () => recorded.startOver++,
           notice: notice,
+          info: info,
+          onToggleInfo: () => recorded.toggleInfo++,
         ),
       ),
     )),
@@ -649,6 +654,63 @@ void main() {
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       expect(calls.toggleFullscreen, 1);
+      expect(calls.back, 0);
+
+      await _pump(tester, calls: calls);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      expect(calls.back, 1);
+    });
+  });
+
+  group('info panel', () {
+    const info = PlaybackInfo(
+      server: 'DhakaFlix 7 (172.16.50.7)',
+      serverAnswered: Duration(milliseconds: 38),
+      startedIn: Duration(milliseconds: 1240),
+      width: 1920,
+      height: 1080,
+      videoFormat: 'h264',
+      hardwareDecoder: 'd3d11va',
+    );
+
+    testWidgets('I asks for the panel, and for it to go again', (tester) async {
+      final calls = await _pump(tester);
+      expect(find.byKey(const Key('info-panel')), findsNothing);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
+      expect(calls.toggleInfo, 1);
+
+      await _pump(tester, calls: calls, info: info);
+      expect(find.byKey(const Key('info-panel')), findsOneWidget);
+      expect(find.text('DhakaFlix 7 (172.16.50.7)'), findsOneWidget);
+      expect(find.text('38 ms'), findsOneWidget);
+      expect(find.text('1.2 s'), findsOneWidget);
+      expect(find.text('Graphics card (d3d11va)'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
+      expect(calls.toggleInfo, 2);
+    });
+
+    testWidgets('it stays while the controls hide, and lets clicks through', (
+      tester,
+    ) async {
+      final calls = await _pump(tester, playing: true, info: info);
+      await tester.pump(const Duration(seconds: 4));
+      expect(_hidden(tester), isTrue);
+      expect(find.byKey(const Key('info-panel')), findsOneWidget);
+
+      await tester.tapAt(
+        tester.getCenter(find.byKey(const Key('info-panel'))),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(calls.togglePlay, 1);
+    });
+
+    testWidgets('Esc closes it before leaving the player', (tester) async {
+      final calls = await _pump(tester, info: info);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      expect(calls.toggleInfo, 1);
       expect(calls.back, 0);
 
       await _pump(tester, calls: calls);
