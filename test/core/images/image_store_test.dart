@@ -271,21 +271,25 @@ void main() {
         for (var i = 0; i < 10; i++) {
           server.routes['/t/p/w342/p$i.jpg'] = (request) async {
             order.add(i);
-            await Future<void>.delayed(const Duration(milliseconds: 40));
+            // Long enough for all ten to have been asked for.
+            await Future<void>.delayed(const Duration(milliseconds: 400));
             request.response.add(_jpeg);
             await request.response.close();
           };
         }
+        Future<void> soon() =>
+            Future<void>.delayed(const Duration(milliseconds: 15));
 
-        await Future.wait([
-          for (var i = 0; i < 10; i++) store.file('w342', '/p$i.jpg'),
-        ]);
+        // Four fill the places; the others arrive one by one and wait.
+        final asked = <Future<File?>>[];
+        for (var i = 0; i < 10; i++) {
+          asked.add(store.file('w342', '/p$i.jpg'));
+          await soon();
+        }
+        await Future.wait(asked);
 
-        // The first four start at once; then the latest of the rest.
-        expect(order.take(4).toSet(), {0, 1, 2, 3});
-        expect(order.indexOf(9), lessThan(order.indexOf(4)));
-        expect(order.indexOf(8), lessThan(order.indexOf(5)));
-        expect(order, hasLength(10));
+        expect(order.take(4), [0, 1, 2, 3]);
+        expect(order.skip(4), [9, 8, 7, 6, 5, 4]);
       },
     );
 
