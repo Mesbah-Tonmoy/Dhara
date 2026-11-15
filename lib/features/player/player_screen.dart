@@ -5,6 +5,7 @@ import 'package:dhara/core/net/safe_http_client.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/core/window/fullscreen.dart';
 import 'package:dhara/features/player/playback_url.dart';
+import 'package:dhara/features/player/player_tuning.dart';
 import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/player/secure_player.dart';
 import 'package:dhara/features/player/widgets/player_controls.dart';
@@ -52,8 +53,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// How long the "Resumed from ..." pill stays up.
   static const _resumeNoticeDuration = Duration(seconds: 7);
 
+  /// How this player reads ahead and decodes (see [PlayerTuning]).
+  static const _tuning = PlayerTuning();
+
   late final Player _player = createPlayer();
-  late final VideoController _video = VideoController(_player);
+  late final VideoController _video = createVideoController(
+    _player,
+    _tuning,
+  );
   late final ResumeStore _resume = ResumeStoreScope.of(context);
   late final SourceStore _sources;
 
@@ -126,6 +133,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _start() async {
     try {
       await hardenPlayer(_player);
+      // Smoothness, not safety: the video plays whatever this reports.
+      await tunePlayer(_player, _tuning);
       if (!mounted) return;
       await _openCurrent();
     } on PlayerHardeningError {

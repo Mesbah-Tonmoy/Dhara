@@ -64,5 +64,43 @@ class LocalServer {
     };
   }
 
+  /// Serves [file] the way a media server does: the whole of it, or the
+  /// part a `Range: bytes=from-to` header asks for.
+  void serveFile(String path, File file) {
+    routes[path] = (request) async {
+      final length = file.lengthSync();
+      final range = RegExp(r'^bytes=(\d+)-(\d*)$')
+          .firstMatch(request.headers.value(HttpHeaders.rangeHeader) ?? '');
+      final response = request.response
+        ..headers.set(HttpHeaders.acceptRangesHeader, 'bytes')
+        ..headers.set(HttpHeaders.contentTypeHeader, 'video/x-matroska');
+      var from = 0;
+      var to = length - 1;
+      if (range != null) {
+        from = int.parse(range[1]!);
+        if (range[2]!.isNotEmpty) to = int.parse(range[2]!);
+        if (to >= length) to = length - 1;
+        if (from > to) {
+          response.statusCode = HttpStatus.requestedRangeNotSatisfiable;
+          await response.close();
+          return;
+        }
+        response
+          ..statusCode = HttpStatus.partialContent
+          ..headers.set(
+            HttpHeaders.contentRangeHeader,
+            'bytes $from-$to/$length',
+          );
+      }
+      response.contentLength = to - from + 1;
+      try {
+        await response.addStream(file.openRead(from, to + 1));
+        await response.close();
+      } on Object {
+        // The player dropped the connection (a seek, or it was closed).
+      }
+    };
+  }
+
   Future<void> close() => _server.close(force: true);
 }
