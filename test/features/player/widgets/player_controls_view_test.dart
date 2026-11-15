@@ -34,6 +34,7 @@ class _Calls {
   int cancelNext = 0;
   int startOver = 0;
   int toggleInfo = 0;
+  int switchServer = 0;
 }
 
 const _audio = [
@@ -69,6 +70,7 @@ Future<_Calls> _pump(
   UpNext? upNext,
   Duration? resumedFrom,
   PlaybackInfo? info,
+  bool otherCopies = false,
   _Calls? calls,
   WindowController? window,
 }) async {
@@ -76,57 +78,60 @@ Future<_Calls> _pump(
   Widget inWindow(Widget app) =>
       window == null ? app : WindowScope(controller: window, child: app);
   await tester.pumpWidget(
-    inWindow(MaterialApp(
-      home: Scaffold(
-        backgroundColor: Colors.black,
-        body: PlayerControlsView(
-          title: title,
-          playing: playing,
-          buffering: buffering,
-          position: position,
-          duration: duration,
-          buffered: position,
-          volume: volume,
-          muted: muted,
-          seekBackSeconds: seekBackSeconds,
-          seekForwardSeconds: seekForwardSeconds,
-          onBack: () => recorded.back++,
-          onTogglePlay: () => recorded.togglePlay++,
-          onSeek: recorded.seeks.add,
-          onSkipBack: () => recorded.skipBack++,
-          onSkipForward: () => recorded.skipForward++,
-          onSeekBackChanged: recorded.backSteps.add,
-          onSeekForwardChanged: recorded.forwardSteps.add,
-          onVolumeChanged: recorded.volumes.add,
-          onVolumeChangeEnd: recorded.volumeEnds.add,
-          onToggleMute: () => recorded.toggleMute++,
-          audioOptions: audioOptions,
-          selectedAudioId: selectedAudioId,
-          onAudioSelected: recorded.audioIds.add,
-          subtitleOptions: subtitleOptions,
-          selectedSubtitleId: selectedSubtitleId,
-          onSubtitleSelected: recorded.subtitleIds.add,
-          onLoadSubtitle: () => recorded.loadSubtitle++,
-          subtitleScalePercent: 100,
-          onSubtitleScaleChanged: recorded.subtitleScales.add,
-          subtitleDelay: 0,
-          onSubtitleDelayChanged: recorded.subtitleDelays.add,
-          speed: speed,
-          onSpeedChanged: recorded.speeds.add,
-          fullscreen: fullscreen,
-          onToggleFullscreen: () => recorded.toggleFullscreen++,
-          hasNext: hasNext,
-          onPlayNext: () => recorded.playNext++,
-          upNext: upNext,
-          onCancelNext: () => recorded.cancelNext++,
-          resumedFrom: resumedFrom,
-          onStartOver: () => recorded.startOver++,
-          notice: notice,
-          info: info,
-          onToggleInfo: () => recorded.toggleInfo++,
+    inWindow(
+      MaterialApp(
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: PlayerControlsView(
+            title: title,
+            playing: playing,
+            buffering: buffering,
+            position: position,
+            duration: duration,
+            buffered: position,
+            volume: volume,
+            muted: muted,
+            seekBackSeconds: seekBackSeconds,
+            seekForwardSeconds: seekForwardSeconds,
+            onBack: () => recorded.back++,
+            onTogglePlay: () => recorded.togglePlay++,
+            onSeek: recorded.seeks.add,
+            onSkipBack: () => recorded.skipBack++,
+            onSkipForward: () => recorded.skipForward++,
+            onSeekBackChanged: recorded.backSteps.add,
+            onSeekForwardChanged: recorded.forwardSteps.add,
+            onVolumeChanged: recorded.volumes.add,
+            onVolumeChangeEnd: recorded.volumeEnds.add,
+            onToggleMute: () => recorded.toggleMute++,
+            audioOptions: audioOptions,
+            selectedAudioId: selectedAudioId,
+            onAudioSelected: recorded.audioIds.add,
+            subtitleOptions: subtitleOptions,
+            selectedSubtitleId: selectedSubtitleId,
+            onSubtitleSelected: recorded.subtitleIds.add,
+            onLoadSubtitle: () => recorded.loadSubtitle++,
+            subtitleScalePercent: 100,
+            onSubtitleScaleChanged: recorded.subtitleScales.add,
+            subtitleDelay: 0,
+            onSubtitleDelayChanged: recorded.subtitleDelays.add,
+            speed: speed,
+            onSpeedChanged: recorded.speeds.add,
+            fullscreen: fullscreen,
+            onToggleFullscreen: () => recorded.toggleFullscreen++,
+            hasNext: hasNext,
+            onPlayNext: () => recorded.playNext++,
+            upNext: upNext,
+            onCancelNext: () => recorded.cancelNext++,
+            resumedFrom: resumedFrom,
+            onStartOver: () => recorded.startOver++,
+            notice: notice,
+            info: info,
+            onToggleInfo: () => recorded.toggleInfo++,
+            onSwitchServer: otherCopies ? () => recorded.switchServer++ : null,
+          ),
         ),
       ),
-    )),
+    ),
   );
   return recorded;
 }
@@ -177,8 +182,9 @@ void main() {
     );
   });
 
-  testWidgets('play/pause button reflects the state and reports taps',
-      (tester) async {
+  testWidgets('play/pause button reflects the state and reports taps', (
+    tester,
+  ) async {
     final calls = await _pump(tester);
     expect(_iconOf(tester, 'play-pause-button'), Icons.play_arrow_rounded);
 
@@ -206,19 +212,23 @@ void main() {
     expect(calls.togglePlay, 0);
   });
 
-  testWidgets('clicking the seek bar reports a seek, not a play toggle',
-      (tester) async {
+  testWidgets('clicking the seek bar reports a seek, not a play toggle', (
+    tester,
+  ) async {
     final calls = await _pump(tester);
 
-    await tester.tapAt(tester.getCenter(find.byKey(const Key('seek-fill'))) +
-        const Offset(200, 0));
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('seek-fill'))) +
+          const Offset(200, 0),
+    );
 
     expect(calls.seeks, hasLength(1));
     expect(calls.togglePlay, 0);
   });
 
-  testWidgets('mute button reflects the state and reports taps',
-      (tester) async {
+  testWidgets('mute button reflects the state and reports taps', (
+    tester,
+  ) async {
     final calls = await _pump(tester);
     expect(_iconOf(tester, 'mute-button'), Icons.volume_up_rounded);
 
@@ -235,15 +245,17 @@ void main() {
     expect(_iconOf(tester, 'mute-button'), Icons.volume_off_rounded);
   });
 
-  testWidgets('volume slider slides out on hover and reports changes',
-      (tester) async {
+  testWidgets('volume slider slides out on hover and reports changes', (
+    tester,
+  ) async {
     final calls = await _pump(tester);
     final mouse = await _mouse(tester);
 
     await mouse.moveTo(tester.getCenter(find.byKey(const Key('mute-button'))));
     await tester.pumpAndSettle();
-    await tester
-        .tapAt(tester.getCenter(find.byKey(const Key('volume-slider'))));
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('volume-slider'))),
+    );
     await tester.pump();
 
     expect(calls.volumes, hasLength(1));
@@ -314,8 +326,9 @@ void main() {
       expect(find.byKey(const Key('seek-step-panel')), findsNothing);
     });
 
-    testWidgets('a click on the picture closes it without toggling play',
-        (tester) async {
+    testWidgets('a click on the picture closes it without toggling play', (
+      tester,
+    ) async {
       final calls = await _pump(tester);
       await open(tester);
 
@@ -385,8 +398,9 @@ void main() {
       expect(_hidden(tester), isTrue);
     });
 
-    testWidgets('stays visible while the mouse rests on the controls',
-        (tester) async {
+    testWidgets('stays visible while the mouse rests on the controls', (
+      tester,
+    ) async {
       await _pump(tester, playing: true);
       final mouse = await _mouse(tester);
 
@@ -401,8 +415,9 @@ void main() {
       expect(_hidden(tester), isTrue);
     });
 
-    testWidgets('reports when the control bars appear and disappear',
-        (tester) async {
+    testWidgets('reports when the control bars appear and disappear', (
+      tester,
+    ) async {
       final shown = <bool>[];
       Future<void> pump({required bool playing}) {
         return tester.pumpWidget(
@@ -480,8 +495,9 @@ void main() {
       expect(_hidden(tester), isFalse);
     });
 
-    testWidgets('a click on a hidden player still toggles play',
-        (tester) async {
+    testWidgets('a click on a hidden player still toggles play', (
+      tester,
+    ) async {
       final calls = await _pump(tester, playing: true);
       await tester.pump(const Duration(seconds: 4));
 
@@ -499,8 +515,9 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('audio panel lists the tracks and reports a choice',
-        (tester) async {
+    testWidgets('audio panel lists the tracks and reports a choice', (
+      tester,
+    ) async {
       final calls = await _pump(tester);
 
       await tapButton(tester, 'audio-button');
@@ -511,8 +528,9 @@ void main() {
       expect(calls.audioIds, ['2']);
     });
 
-    testWidgets('subtitle panel reports track, file, size and delay actions',
-        (tester) async {
+    testWidgets('subtitle panel reports track, file, size and delay actions', (
+      tester,
+    ) async {
       final calls = await _pump(tester);
 
       await tapButton(tester, 'subtitles-button');
@@ -628,8 +646,9 @@ void main() {
   });
 
   group('fullscreen', () {
-    testWidgets('button reflects the state and reports presses',
-        (tester) async {
+    testWidgets('button reflects the state and reports presses', (
+      tester,
+    ) async {
       final calls = await _pump(tester);
       expect(_iconOf(tester, 'fullscreen-button'), Icons.fullscreen_rounded);
 
@@ -653,8 +672,9 @@ void main() {
       expect(calls.toggleFullscreen, 1);
     });
 
-    testWidgets('a double-click toggles fullscreen and leaves play as it was',
-        (tester) async {
+    testWidgets('a double-click toggles fullscreen and leaves play as it was', (
+      tester,
+    ) async {
       final calls = await _pump(tester);
       const point = Offset(300, 250);
 
@@ -678,8 +698,9 @@ void main() {
       expect(calls.togglePlay, 2);
     });
 
-    testWidgets('Esc leaves fullscreen before leaving the player',
-        (tester) async {
+    testWidgets('Esc leaves fullscreen before leaving the player', (
+      tester,
+    ) async {
       final calls = await _pump(tester, fullscreen: true);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
@@ -690,6 +711,21 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       expect(calls.back, 1);
     });
+  });
+
+  testWidgets('a video with other copies has a button to switch server', (
+    tester,
+  ) async {
+    final calls = await _pump(tester);
+    expect(find.byKey(const Key('switch-server-button')), findsNothing);
+
+    await _pump(tester, calls: calls, otherCopies: true);
+    await tester.tap(find.byKey(const Key('switch-server-button')));
+    await tester.pump();
+
+    expect(calls.switchServer, 1);
+    expect(calls.togglePlay, 0);
+    expect(find.byTooltip('Switch server'), findsOneWidget);
   });
 
   group('info panel', () {
@@ -729,9 +765,7 @@ void main() {
       expect(_hidden(tester), isTrue);
       expect(find.byKey(const Key('info-panel')), findsOneWidget);
 
-      await tester.tapAt(
-        tester.getCenter(find.byKey(const Key('info-panel'))),
-      );
+      await tester.tapAt(tester.getCenter(find.byKey(const Key('info-panel'))));
       await tester.pump(const Duration(milliseconds: 500));
       expect(calls.togglePlay, 1);
     });
@@ -750,8 +784,9 @@ void main() {
   });
 
   group('next video', () {
-    testWidgets('no next button or N shortcut at the end of the queue',
-        (tester) async {
+    testWidgets('no next button or N shortcut at the end of the queue', (
+      tester,
+    ) async {
       final calls = await _pump(tester);
 
       expect(find.byKey(const Key('next-button')), findsNothing);
@@ -768,8 +803,9 @@ void main() {
       expect(calls.playNext, 2);
     });
 
-    testWidgets('up-next card shows the countdown and the title',
-        (tester) async {
+    testWidgets('up-next card shows the countdown and the title', (
+      tester,
+    ) async {
       await _pump(tester, hasNext: true);
       expect(find.byKey(const Key('up-next-card')), findsNothing);
 
@@ -798,8 +834,9 @@ void main() {
       expect(calls.togglePlay, 0);
     });
 
-    testWidgets('the card stays visible while the controls are hidden',
-        (tester) async {
+    testWidgets('the card stays visible while the controls are hidden', (
+      tester,
+    ) async {
       await _pump(
         tester,
         playing: true,
@@ -814,8 +851,9 @@ void main() {
   });
 
   group('resume', () {
-    testWidgets('shows where playback resumed from, with Start over',
-        (tester) async {
+    testWidgets('shows where playback resumed from, with Start over', (
+      tester,
+    ) async {
       final calls = await _pump(tester);
       expect(find.byKey(const Key('resume-pill')), findsNothing);
 
@@ -885,8 +923,9 @@ void main() {
       expect(osdOpacity(tester), 0);
     });
 
-    testWidgets('↑ and ↓ change the volume in steps of 5 and save it',
-        (tester) async {
+    testWidgets('↑ and ↓ change the volume in steps of 5 and save it', (
+      tester,
+    ) async {
       final calls = await _pump(tester, volume: 80);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
@@ -949,8 +988,9 @@ void main() {
       expect(calls.back, 1);
     });
 
-    testWidgets('keys belong to the custom-step field while typing in it',
-        (tester) async {
+    testWidgets('keys belong to the custom-step field while typing in it', (
+      tester,
+    ) async {
       final calls = await _pump(tester);
       await tester.tap(find.byKey(const Key('seek-step-button')));
       await tester.pumpAndSettle();
@@ -979,8 +1019,9 @@ void main() {
       expect(calls.togglePlay, 1);
     });
 
-    testWidgets('Enter in the custom-step field returns to the shortcuts',
-        (tester) async {
+    testWidgets('Enter in the custom-step field returns to the shortcuts', (
+      tester,
+    ) async {
       final calls = await _pump(tester);
       await tester.tap(find.byKey(const Key('seek-step-button')));
       await tester.pumpAndSettle();
@@ -1000,8 +1041,9 @@ void main() {
       expect(calls.togglePlay, 1);
     });
 
-    testWidgets('Space still means play/pause after clicking another button',
-        (tester) async {
+    testWidgets('Space still means play/pause after clicking another button', (
+      tester,
+    ) async {
       final calls = await _pump(tester);
 
       await tester.tap(find.byKey(const Key('mute-button')));
@@ -1024,8 +1066,9 @@ void main() {
       expect(calls.skipForward, 0);
     });
 
-    testWidgets('S steps through the subtitle tracks and back to Off',
-        (tester) async {
+    testWidgets('S steps through the subtitle tracks and back to Off', (
+      tester,
+    ) async {
       final calls = await _pump(tester);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.keyS);

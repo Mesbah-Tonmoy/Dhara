@@ -20,7 +20,7 @@ A Bangla + English README is written in Phase 8.
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
 | 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests), frame rate while scrolling, and cold start |
-| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, Settings has a preferred quality, and Play starts on the fastest copy (see [Smart playback](#smart-playback)). Still to come: failover, the next episode ahead of time |
+| 7. Smart playback | Under way: the player is set up for streaming, with buffer size and hardware decoding in Settings, seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, Settings has a preferred quality, Play starts on the fastest copy, and a video that stalls can be gone on with from another copy (see [Smart playback](#smart-playback)). Still to come: switching copies without being asked, the next episode ahead of time |
 | 8–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -151,6 +151,28 @@ its own. A copy picked from a title's list, and a pasted address, are
 played from exactly there (one request, for where it leads). The answer
 is also where the player is sent: it replaces the redirect check that
 ran before every video.
+
+### When a video does not play on
+
+`StallWatch` (`lib/features/player/stall_watch.dart`) is told the player's
+state once a second and notices three kinds of trouble:
+
+- the video was opened and nothing came within 10 s
+- it plays, stops to wait for more of itself, and for 10 s its position
+  does not move (a video the user paused is never in trouble)
+- it "ends" far from its end: the server broke off and the player ran
+  out of what it had read ahead. Such a video is not marked as watched,
+  and the next episode does not start
+
+The player then says what is wrong and offers **Try another copy** (where
+the video has one) and **Try again**. Either goes on at the position the
+video was at: the servers of the copies that were not given up on are
+asked again, and the fastest is taken. If the video moves on by itself,
+the message goes away. Where a video has more than one copy, the control
+bar also has a **Switch server** button that does the same at any time.
+
+The position follows the video: the copy that was left keeps its
+position until the new one has one of its own, then forgets it.
 
 ### Seeking
 

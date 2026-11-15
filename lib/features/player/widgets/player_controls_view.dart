@@ -11,6 +11,7 @@ import 'package:dhara/features/player/widgets/seek_bar.dart';
 import 'package:dhara/features/player/widgets/seek_step_panel.dart';
 import 'package:dhara/features/player/widgets/track_panels.dart';
 import 'package:dhara/theme/tokens.dart';
+import 'package:dhara/widgets/icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -67,6 +68,7 @@ class PlayerControlsView extends StatefulWidget {
     this.notice,
     this.info,
     this.onToggleInfo,
+    this.onSwitchServer,
     this.onControlsShownChanged,
     this.hideDelay = const Duration(seconds: 3),
   });
@@ -144,6 +146,10 @@ class PlayerControlsView extends StatefulWidget {
 
   /// `I`: opens or closes the info panel.
   final VoidCallback? onToggleInfo;
+
+  /// Goes on with the video from another copy of it. The button is only
+  /// there where this is given.
+  final VoidCallback? onSwitchServer;
 
   /// Reports when the control bars appear or disappear (first call: the
   /// initial state), so subtitles can be kept clear of them.
@@ -620,6 +626,16 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                             onPressed: () => _togglePanel(_Panel.seekStep),
                           ),
                           const SizedBox(width: 4),
+                          if (widget.onSwitchServer
+                              case final switchServer?) ...[
+                            _ControlButton(
+                              key: const Key('switch-server-button'),
+                              tooltip: 'Switch server',
+                              icon: DharaIcons.servers,
+                              onPressed: switchServer,
+                            ),
+                            const SizedBox(width: 4),
+                          ],
                           _ControlButton(
                             key: const Key('fullscreen-button'),
                             tooltip: widget.fullscreen

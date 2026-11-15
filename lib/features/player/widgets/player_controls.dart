@@ -35,6 +35,8 @@ class PlayerControls extends StatefulWidget {
     this.copiesAnswered = 0,
     this.startedIn,
     this.optionsNotTaken = const [],
+    this.onSwitchServer,
+    this.notice,
   });
 
   final Player player;
@@ -67,6 +69,14 @@ class PlayerControls extends StatefulWidget {
   final int copiesAnswered;
   final Duration? startedIn;
   final List<String> optionsNotTaken;
+
+  /// Goes on with the video from another copy of it; `null` where it has
+  /// only the one.
+  final VoidCallback? onSwitchServer;
+
+  /// Something the screen has to say ("Switched to ..."); flashed like the
+  /// controls' own notices whenever a new instance is passed in.
+  final PlayerNotice? notice;
 
   @override
   State<PlayerControls> createState() => _PlayerControlsState();
@@ -145,6 +155,10 @@ class _PlayerControlsState extends State<PlayerControls> {
   @override
   void didUpdateWidget(PlayerControls oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.notice case final notice?
+        when !identical(notice, oldWidget.notice)) {
+      _notice = notice;
+    }
     if (oldWidget.mediaUrl != widget.mediaUrl) {
       _audioChecked = false;
       // A subtitle delay belongs to one video; the next starts in sync.
@@ -477,6 +491,7 @@ class _PlayerControlsState extends State<PlayerControls> {
                 notTaken: widget.optionsNotTaken,
               ),
         onToggleInfo: _toggleInfo,
+        onSwitchServer: widget.onSwitchServer,
         onControlsShownChanged: _setControlsShown,
       ),
     );
