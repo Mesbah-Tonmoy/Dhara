@@ -12,7 +12,7 @@ void main() {
     required int to,
     bool opened = true,
     bool playing = true,
-    bool buffering = false,
+    bool completed = false,
     Duration Function(int second)? position,
   }) => [
     for (var at = from; at <= to; at++)
@@ -20,7 +20,7 @@ void main() {
             now: second * at,
             opened: opened,
             playing: playing,
-            buffering: buffering,
+            completed: completed,
             position: position?.call(at) ?? const Duration(minutes: 5),
           )
           case final trouble?)
@@ -42,56 +42,44 @@ void main() {
     expect(run(watch, from: 7, to: 60, position: (at) => second * at), isEmpty);
   });
 
-  test('waiting for more with the position standing still is noticed '
+  test('a position that stands still while it should play is noticed '
       'after ten seconds', () {
     final watch = StallWatch()..restart(Duration.zero);
     expect(run(watch, from: 1, to: 20, position: (at) => second * at), isEmpty);
 
     // From second 21 on nothing arrives: the first second it is seen
     // standing still is 22.
-    expect(run(watch, from: 21, to: 60, buffering: true), [
-      (32, Trouble.notLoading),
-    ]);
+    expect(run(watch, from: 21, to: 60), [(32, Trouble.notLoading)]);
   });
 
   test('a short wait that ends is nothing', () {
     final watch = StallWatch()..restart(Duration.zero);
 
-    expect(run(watch, from: 1, to: 8, buffering: true), isEmpty);
+    expect(run(watch, from: 1, to: 8), isEmpty);
     expect(run(watch, from: 9, to: 12, position: (at) => second * at), isEmpty);
     // The next wait is counted from its own beginning.
-    expect(run(watch, from: 13, to: 21, buffering: true), isEmpty);
-    expect(run(watch, from: 22, to: 30, buffering: true), [
-      (24, Trouble.notLoading),
-    ]);
+    expect(run(watch, from: 13, to: 21), isEmpty);
+    expect(run(watch, from: 22, to: 30), [(24, Trouble.notLoading)]);
   });
 
-  test('a position that still moves while buffering is no trouble', () {
+  test('a video at its end is not in trouble', () {
     final watch = StallWatch()..restart(Duration.zero);
 
-    expect(
-      run(
-        watch,
-        from: 1,
-        to: 60,
-        buffering: true,
-        position: (at) => second * at,
-      ),
-      isEmpty,
-    );
+    expect(run(watch, from: 1, to: 120, completed: true), isEmpty);
+  });
+
+  test('a position that moves is no trouble', () {
+    final watch = StallWatch()..restart(Duration.zero);
+
+    expect(run(watch, from: 1, to: 60, position: (at) => second * at), isEmpty);
   });
 
   test('a video the user paused is never in trouble', () {
     final watch = StallWatch()..restart(Duration.zero);
 
-    expect(
-      run(watch, from: 1, to: 120, playing: false, buffering: true),
-      isEmpty,
-    );
+    expect(run(watch, from: 1, to: 120, playing: false), isEmpty);
     // Played again, and nothing comes: counted from then.
-    expect(run(watch, from: 121, to: 140, buffering: true), [
-      (131, Trouble.notLoading),
-    ]);
+    expect(run(watch, from: 121, to: 140), [(131, Trouble.notLoading)]);
   });
 
   test('nothing is watched while idle, and a restart begins afresh', () {
@@ -121,9 +109,7 @@ void main() {
       (3, Trouble.notOpening),
     ]);
     watch.restart(second * 10);
-    expect(run(watch, from: 11, to: 20, buffering: true), [
-      (14, Trouble.notLoading),
-    ]);
+    expect(run(watch, from: 11, to: 20), [(14, Trouble.notLoading)]);
   });
 
   test('an end far from the end is a server that broke off', () {

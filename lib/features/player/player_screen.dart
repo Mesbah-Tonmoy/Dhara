@@ -59,6 +59,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// How long the "Resumed from ..." pill stays up.
   static const _resumeNoticeDuration = Duration(seconds: 7);
 
+  /// What libmpv says of a video it cannot open.
+  static final _cannotOpen = RegExp(
+    'Failed to open|Failed to recognize file format',
+  );
+
   /// How long a server has to answer when it is asked for a video.
   static const _askTimeout = Duration(seconds: 2);
 
@@ -187,15 +192,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
       now: _clock.elapsed,
       opened: _progressReady,
       playing: state.playing,
-      buffering: state.buffering,
+      completed: state.completed,
       position: state.position,
     );
     if (trouble != null) _onTrouble(trouble);
   }
 
-  /// The video does not play on: says so, with what can be done about it.
+  /// The video does not play on. Another copy of it that has not had its
+  /// turn takes over by itself; without one, the player says what is
+  /// wrong and what can be done about it.
   void _onTrouble(Trouble trouble) {
     if (!mounted) return;
+    final untried = _entry.candidates.any(
+      (copy) => copy.url != _url && !_left.contains(copy.url),
+    );
+    if (untried) {
+      _left.add(_url);
+      unawaited(_open(switching: true, because: trouble));
+      return;
+    }
     setState(() {
       _trouble = trouble;
       _troubleAt = _position;
@@ -203,11 +218,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   /// Goes on with the video from another copy of it, at the position
-  /// this one is at.
+  /// this one is at (the Switch server button).
   void _switchCopy() {
     if (!mounted) return;
-    final at = _position;
-    _saveProgress();
     _left.add(_url);
     // Every copy had its turn: round again, from the others.
     if (_entry.candidates.every((copy) => _left.contains(copy.url))) {
@@ -215,16 +228,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ..clear()
         ..add(_url);
     }
-    unawaited(_openCurrent(keepAt: at));
+    unawaited(_open(switching: true));
   }
 
   /// Asks every copy of the video again and goes on from where it is.
   void _retry() {
     if (!mounted) return;
-    final at = _position;
-    _saveProgress();
     _left.clear();
-    unawaited(_openCurrent(keepAt: at));
+    unawaited(_open(switching: true));
   }
 
   /// Shows what libmpv reported. While the video plays on, the message
@@ -234,6 +245,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
     // A sound track without a decoder: the controls switch to another
     // track and say so themselves.
     if (!mounted || undecodableAudioCodec(message) != null) return;
+    // The copy cannot be opened at all: no need to wait and see.
+    if (!_progressReady &&
+        _choosingFrom == 0 &&
+        _cannotOpen.hasMatch(message)) {
+      _watch.idle();
+      _onTrouble(Trouble.notOpening);
+      // Another copy took over: its predecessor's complaint is not shown.
+      if (_trouble == null) return;
+    }
     setState(() => _error = message);
     _errorTimer?.cancel();
     _errorTimer = Timer.periodic(_errorDuration, (timer) {
@@ -263,13 +283,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   /// Opens the video at [_index], from the copy of it that is fastest
   /// right now, resuming from the saved position if any.
+  Future<void> _openCurrent() => _open(switching: false);
+
+  /// Opens the current video.
   ///
-  /// With [keepAt] the video is already being watched and goes on from
-  /// there, from a copy that was not given up on ([_left]).
-  Future<void> _openCurrent({Duration? keepAt}) async {
+  /// With [switching] it is already being watched and goes on where it
+  /// is, from a copy that was not given up on ([_left]); [because] says
+  /// what was wrong with the copy it leaves, if anything was. Until
+  /// another copy has answered, the video stays as it is.
+  Future<void> _open({required bool switching, Trouble? because}) async {
     final opening = ++_opening;
-    final switching = keepAt != null;
     final previous = _url;
+    // A video the user paused stays paused when they switch its server.
+    final staysPaused =
+        switching &&
+        because == null &&
+        _trouble == null &&
+        _progressReady &&
+        !_player.state.playing;
     final remaining = [
       for (final copy in _entry.candidates)
         if (!_left.contains(copy.url)) copy,
@@ -277,9 +308,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final candidates = remaining.isEmpty ? _entry.candidates : remaining;
     Uri? resumeUrl;
     Duration? resumeFrom;
-    if (switching) {
-      if (keepAt > Duration.zero) resumeFrom = keepAt;
-    } else {
+    if (!switching) {
       // Where it was left, on whichever copy that was.
       for (final copy in candidates) {
         final position = _resume.positionFor(copy.url);
@@ -289,29 +318,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
           break;
         }
       }
+      _beginOpening(resumeUrl ?? candidates.first.url, resumeFrom);
     }
-    _url = resumeUrl ?? candidates.first.url;
-    _carriedFrom = null;
-    _watch.idle();
-    _progressReady = false;
-    _lastSavedPosition = resumeFrom ?? Duration.zero;
-    _resumeNoticeTimer?.cancel();
-    _errorTimer?.cancel();
-    _startPosition = resumeFrom ?? Duration.zero;
-    _sinceOpen
-      ..reset()
-      ..start();
     setState(() {
-      _error = null;
-      _trouble = null;
-      _autoNextCancelled = false;
-      // "Resumed from" is for a video that is come back to.
-      _resumedFrom = switching ? null : resumeFrom;
-      _playingFrom = null;
-      _serverAnswered = null;
-      _choice = null;
-      _startedIn = null;
       _choosingFrom = candidates.length;
+      if (!switching) {
+        _error = null;
+        _trouble = null;
+        _autoNextCancelled = false;
+        _resumedFrom = resumeFrom;
+        _playingFrom = null;
+        _serverAnswered = null;
+        _choice = null;
+        _startedIn = null;
+      }
     });
     // The servers are asked for the copies: which answers fastest, and
     // where it sends the player (FFmpeg would follow a redirect to any
@@ -321,7 +341,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       isAllowedHost: _mayPlayFrom,
       timeout: _askTimeout,
     );
-    final CopyChoice choice;
+    CopyChoice? choice;
+    String? blocked;
     try {
       choice = await chooseCopy(
         asking,
@@ -329,30 +350,59 @@ class _PlayerScreenState extends State<PlayerScreen> {
         preferred: SettingsScope.read(context).preferredQuality,
         resume: resumeUrl,
       );
-    } on PlaybackBlocked catch (blocked) {
-      if (mounted && opening == _opening) {
-        setState(() {
-          _error = blocked.message;
-          _choosingFrom = 0;
-        });
-      }
-      return;
+    } on PlaybackBlocked catch (refused) {
+      blocked = refused.message;
     } finally {
       asking.close();
     }
     // The user may have left or moved on while the servers were asked.
     if (!mounted || opening != _opening) return;
-    if (resumeUrl != null && resumeUrl != choice.url) _carriedFrom = resumeUrl;
-    if (switching && previous != choice.url) _carriedFrom = previous;
+
+    if (switching) {
+      if (choice == null || choice.answeredIn == null) {
+        // No other copy answers: the video stays as it is, and none of
+        // them is tried again by itself.
+        _left.addAll([for (final copy in candidates) copy.url]);
+        setState(() {
+          _choosingFrom = 0;
+          _notice = const PlayerNotice('No other copy answers.');
+          if (because != null) {
+            _trouble = because;
+            _troubleAt = _position;
+          }
+        });
+        return;
+      }
+      // Where the video is by now; the copy it leaves keeps that
+      // position until the new one has one of its own.
+      final at = _position;
+      _saveProgress();
+      resumeFrom = at > Duration.zero ? at : null;
+      _beginOpening(choice.url, resumeFrom);
+      if (previous != choice.url) _carriedFrom = previous;
+    } else if (choice == null) {
+      setState(() {
+        _error = blocked;
+        _choosingFrom = 0;
+      });
+      return;
+    } else if (resumeUrl != null && resumeUrl != choice.url) {
+      _carriedFrom = resumeUrl;
+    }
+    final label = _serverLabel(choice.address);
     setState(() {
       if (switching) {
+        _error = null;
+        _trouble = null;
+        _startedIn = null;
+        final what = previous == choice!.url
+            ? 'Trying $label again.'
+            : 'Switched to $label.';
         _notice = PlayerNotice(
-          previous == choice.url
-              ? 'Trying ${_serverLabel(choice.address)} again'
-              : 'Switched to ${_serverLabel(choice.address)}',
+          because == null ? what : '${because.message} $what',
         );
       }
-      _url = choice.url;
+      _url = choice!.url;
       _playingFrom = choice.address;
       _serverAnswered = choice.answeredIn;
       _choice = choice;
@@ -363,7 +413,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final media = Media(choice.address.toString());
     _watch.restart(_clock.elapsed);
     if (resumeFrom == null) {
-      await _player.open(media);
+      await _player.open(media, play: !staysPaused);
       return;
     }
 
@@ -382,7 +432,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
     // The user may have left or moved on while the file was loading.
     if (!mounted || opening != _opening) return;
     await _player.seek(resumeFrom);
-    await _player.play();
+    if (!staysPaused) await _player.play();
+  }
+
+  /// Forgets the state of the video that was open: [url] is opened now,
+  /// to start at [from] (the beginning if `null`).
+  void _beginOpening(Uri url, Duration? from) {
+    _url = url;
+    _carriedFrom = null;
+    _watch.idle();
+    _progressReady = false;
+    _lastSavedPosition = from ?? Duration.zero;
+    _startPosition = from ?? Duration.zero;
+    _resumeNoticeTimer?.cancel();
+    _errorTimer?.cancel();
+    _sinceOpen
+      ..reset()
+      ..start();
   }
 
   /// "DhakaFlix 7 (172.16.50.7)": the source a video is fetched from and
@@ -410,7 +476,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (_trouble != null &&
         _trouble != Trouble.endedEarly &&
         _progressReady &&
-        !_player.state.buffering &&
         position > _troubleAt + const Duration(seconds: 1)) {
       _watch.restart(_clock.elapsed);
       if (mounted) setState(() => _trouble = null);

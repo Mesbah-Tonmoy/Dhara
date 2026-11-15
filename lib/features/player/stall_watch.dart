@@ -5,7 +5,8 @@ enum Trouble {
   /// It was opened, and nothing of it came.
   notOpening('This copy does not start.'),
 
-  /// It stopped to wait for more of the video, and no more arrived.
+  /// It plays, and does not move: it waits for more of the video (or for
+  /// a seek to be done), and nothing arrives.
   notLoading('The server stopped sending.'),
 
   /// It stopped before its end: the server broke off, and the player ran
@@ -19,7 +20,7 @@ enum Trouble {
 }
 
 /// Notices when the video that is open does not play on: it never starts,
-/// or it waits for more of itself and nothing comes.
+/// or it should be playing and its position stands still.
 ///
 /// Told the state of the player about once a second ([tick]), with the
 /// time on a clock that only runs forward. A video the user has paused is
@@ -35,8 +36,10 @@ class StallWatch {
   /// server has answered a ping by then, so this is generous.
   final Duration openTimeout;
 
-  /// How long a playing video may wait for more of itself without its
-  /// position moving.
+  /// How long the position of a playing video may stand still. (libmpv
+  /// does not always say that it is waiting for data: after a seek into
+  /// a part that never arrives it reports neither buffering nor an
+  /// error. So only the position counts.)
   final Duration waitTimeout;
 
   Duration? _openedAt;
@@ -59,13 +62,13 @@ class StallWatch {
   /// Takes the state of the player at [now]; returns what is wrong, the
   /// one time it is noticed.
   ///
-  /// [opened]: the video's length is known. [playing]: it is not paused by
-  /// the user. [buffering]: the player waits for more of the video.
+  /// [opened]: the video's length is known. [playing]: it is not paused
+  /// (by the user, or at its end). [completed]: it has reached its end.
   Trouble? tick({
     required Duration now,
     required bool opened,
     required bool playing,
-    required bool buffering,
+    required bool completed,
     required Duration position,
   }) {
     final openedAt = _openedAt;
@@ -75,7 +78,7 @@ class StallWatch {
       _reported = true;
       return Trouble.notOpening;
     }
-    final waiting = playing && buffering && position == _position;
+    final waiting = playing && !completed && position == _position;
     _position = position;
     if (!waiting) {
       _waitingSince = null;
