@@ -309,6 +309,34 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
     });
 
+    testWidgets('keys typed quickly while Search opens stay in their order', (
+      tester,
+    ) async {
+      await _boot(tester);
+      await tester.tap(_search);
+      await tester.pump();
+      final field = tester.widget<TextField>(_search).controller!;
+
+      // Each key goes in where the caret is, as on a real keyboard; the
+      // first one opens Search, the next ones come while its page builds.
+      for (final letter in 'harbor lights'.split('')) {
+        final caret = field.selection;
+        tester.testTextInput.updateEditingValue(
+          TextEditingValue(
+            text: field.text.replaceRange(caret.start, caret.end, letter),
+            selection: TextSelection.collapsed(offset: caret.start + 1),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 15));
+      }
+      await tester.pumpAndSettle();
+
+      expect(field.text, 'harbor lights');
+      expect(field.selection, const TextSelection.collapsed(offset: 13));
+      expect(_searchHasFocus(tester), isTrue);
+      await tester.pump(const Duration(milliseconds: 200));
+    });
+
     testWidgets('the rail browses Movies and Series through Search', (
       tester,
     ) async {

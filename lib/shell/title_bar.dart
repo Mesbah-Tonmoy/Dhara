@@ -211,6 +211,10 @@ class _SearchFieldState extends State<_SearchField> {
                 focusNode: shell.searchFocus,
                 onChanged: (_) => shell.searchChanged(),
                 onSubmitted: (_) => shell.submitSearch(),
+                // Ctrl+K selects the text itself. Selecting it whenever
+                // the keyboard comes back (it does while Search opens)
+                // would let the next key replace what was typed.
+                selectAllOnFocus: false,
                 autocorrect: false,
                 enableSuggestions: false,
                 maxLines: 1,

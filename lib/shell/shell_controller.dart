@@ -213,22 +213,13 @@ class ShellController extends ChangeNotifier {
   }
 
   /// A page that opens takes the keyboard; this gives it back to the
-  /// search field, with the caret where it was, so that typing goes on.
+  /// search field, so that typing goes on. The caret is left alone: the
+  /// field does not select its text when the keyboard comes to it (see
+  /// the title bar), and keys typed meanwhile have moved the caret on, so
+  /// putting it back where it was would shuffle the letters.
   void _keepTyping() {
-    final selection = searchText.selection;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_disposed) return;
-      searchFocus.requestFocus();
-      // A field that gains the keyboard may select all its text; the next
-      // key would then replace what was typed.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_disposed || !selection.isValid) return;
-        final length = searchText.text.length;
-        searchText.selection = TextSelection(
-          baseOffset: selection.baseOffset.clamp(0, length),
-          extentOffset: selection.extentOffset.clamp(0, length),
-        );
-      });
+      if (!_disposed) searchFocus.requestFocus();
     });
   }
 
