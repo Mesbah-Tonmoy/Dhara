@@ -20,7 +20,7 @@ A Bangla + English README is written in Phase 8.
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
 | 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. Frame rate while scrolling and cold start were measured in Phase 7 (see [Keeping frames cheap](#keeping-frames-cheap)). **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests) |
-| 7. Smart playback | Done in code and in automated tests, and tried in the running app against a web server on this PC that can be slow, stall, drop the connection or send no video: the player is set up for streaming (buffer size and hardware decoding in Settings), seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, Settings has a preferred quality and the languages a video starts in, Play starts on the fastest copy, a video that stalls goes on from another copy by itself, the next episode's copy is chosen before this one ends, and files of Emby and Jellyfin servers are fetched with a session; see [Smart playback](#smart-playback) and what was [measured](#measured-in-phase-7). **Not yet tried on real BDIX servers:** all of the above except the streaming set-up and the info panel; nor on a real Emby or Jellyfin server, a Dolby TrueHD file, or a file with several languages |
+| 7. Smart playback | Done in code and in automated tests, and tried in the running app against a web server on this PC that can be slow, stall, drop the connection or send no video: the player is set up for streaming (buffer size and hardware decoding in Settings), seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, Settings has a preferred quality and the languages a video starts in, Play starts on the fastest copy, a video that stalls goes on from another copy by itself, the next episode's copy is chosen before this one ends, and files of Emby and Jellyfin servers are fetched with a session; see [Smart playback](#smart-playback) and what was [measured](#measured-in-phase-7). Tried on real BDIX servers on 2026-11-17 (two folder-listing servers and an Emby server answering, one h5ai server down): see [Tried on real servers](#tried-on-real-servers). **Not yet tried there:** a server that stalls in the middle of a video (it cannot be made to), and a real Dolby TrueHD file |
 | 8–9 | Not started |
 
 ## Prerequisites (Windows)
@@ -92,9 +92,30 @@ Windows 11), release build, the real library (2026-11-16):
 | Cold start | under 2 s | 0.85 to 0.9 s to the window (1.6 s the first time after a build) |
 | Search | under 100 ms over 100k files | 2 to 7 ms by title over 23,389 videos (Phase 5); the browse page counts and lists 19,749 titles in 71 ms |
 | Playback start | under 2 s on a good BDIX link | 1.5 s on a real server before Play chose the fastest copy (the user's info panel: the server answered in 320 ms); 0.3 to 0.8 s from a server on this PC, 0.3 s for a next episode asked ahead of time |
-| Seeking | feels instant | inside the buffer no request goes to the server; not timed on a real server |
+| Seeking | feels instant | inside the buffer no request goes to the server; a jump to the middle or to the end of a film on a real server showed the picture within the 3 s before the next look at it (2026-11-17), not timed more finely |
 | Idle memory | report | 136 MB working set, 219 MB private, 12 s after start on Home |
 | Installer size | about 80 MB at most | no installer yet (Phase 8); the release folder is 79 MB, of which libmpv is 28 MB and the Flutter engine 20 MB |
+
+### Tried on real servers
+
+2026-11-17, a copy of the real library, from the connection the app is
+made for; ICC FTP ftps2 and ftps3 (folder listings) and Emby 146.196.48.9
+answered, DhakaFlix 7 (h5ai) did not:
+
+| What | What happened |
+|---|---|
+| Play on a film with 6 copies on 4 servers | started in 0.7 s on the first copy of the best quality to answer (22 ms); the two copies on the server that was down were passed over |
+| Play on a film that was left unfinished | went on from the copy it was left on, at its position, in 2.5 s |
+| Switch server, pressed again and again | each press went to another server, at the position; then "No other copy answers." when only the copies on the server that was down were left, and the next press started the round again |
+| A film whose only server is down | its page says "none of their servers answers right now"; Play says "This copy does not start." with Try again after 10 s |
+| The end of an episode | "Up next" with a countdown; the next episode's server had been asked ahead of time and it started in 0.6 s |
+| Emby | films play with the session the app signs in for |
+| A film with English and Hindi sound | started in English with "Original"; both are in the audio panel |
+| Fast typing into the search field | found a fault: letters typed while Search opened landed in the wrong order. Fixed |
+
+A file's name can say more than the file holds: "(Hindi & English)" on a
+file with one Hindi track, "TrueHD" on a file with AAC sound. The audio
+panel lists what is in the file.
 
 ### Streaming set-up
 
@@ -192,9 +213,9 @@ for a file of that server:
   the next time
 
 Checked with a stand-in server in the automated tests, and with the real
-libmpv fetching a file that is only given for the right header. **Not yet
-tried on a real Emby or Jellyfin server** (none of the enabled servers is
-one).
+libmpv fetching a file that is only given for the right header. On a real
+Emby 4.8 server (2026-11-17) films started in 0.7 to 1.8 s, were sought
+in, and were switched to and from.
 
 ### The next episode, ahead of time
 
@@ -241,6 +262,12 @@ by itself, the message goes away.
 Where a video has more than one copy, the control bar also has a
 **Switch server** button that goes to the next copy at any time. A video
 that was paused stays paused; "No other copy answers." if none does.
+
+A video that is switched (by the button or by itself) asks the copies on
+other servers first, and another file on the server it plays from only if
+none of those answers (`switchTurns`): a server that is slow or stuck is
+no better with its other file. Every copy has its turn before the round
+starts again.
 
 Checked in the running app against a local web server that stalls, drops
 the connection, or sends bytes that are no video (2026-11-16): each time
@@ -379,7 +406,8 @@ Every control does something and is saved as it is changed
   asks for the sound track in that language (`alang`); "Original" leaves
   the choice to the file. Both are only where a video starts: the
   panels change them while it plays. Checked that libmpv takes the
-  options; not yet tried on a file with several languages.
+  options; a film with English and Hindi sound started in English with
+  "Original" (2026-11-17).
 - The bundled libmpv has no decoder for Dolby TrueHD (or MLP), the first
   sound track of many 4K films. Such a track says "cannot be played" in the
   list, and when libmpv picks one, the player switches to another track by

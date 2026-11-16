@@ -356,6 +356,61 @@ void main() {
     });
   });
 
+  group('switchTurns', () {
+    PlayCandidate on(String address) => PlayCandidate(Uri.parse(address));
+    List<List<String>> turns(List<String> copies, String current) => [
+      for (final turn in switchTurns([
+        for (final copy in copies) on(copy),
+      ], Uri.parse(current)))
+        [for (final copy in turn) '${copy.url}'],
+    ];
+
+    test('the other servers are asked first, the one it plays from last', () {
+      expect(
+        turns([
+          'http://10.0.0.1/a.mkv',
+          'http://10.0.0.1/b.mkv',
+          'http://10.0.0.2/c.mkv',
+          'http://10.0.0.3/d.mkv',
+        ], 'http://10.0.0.1/a.mkv'),
+        [
+          ['http://10.0.0.2/c.mkv', 'http://10.0.0.3/d.mkv'],
+          // Another file of the same server, and (for "Try again") the
+          // copy itself.
+          ['http://10.0.0.1/a.mkv', 'http://10.0.0.1/b.mkv'],
+        ],
+      );
+    });
+
+    test('one turn when all copies are elsewhere, or all on the same '
+        'server', () {
+      expect(
+        turns([
+          'http://10.0.0.2/c.mkv',
+          'http://10.0.0.3/d.mkv',
+        ], 'http://10.0.0.1/a.mkv'),
+        hasLength(1),
+      );
+      expect(turns(['http://10.0.0.1/b.mkv'], 'http://10.0.0.1/a.mkv'), [
+        ['http://10.0.0.1/b.mkv'],
+      ]);
+      expect(turns([], 'http://10.0.0.1/a.mkv'), isEmpty);
+    });
+
+    test('another port of the same address is another server', () {
+      expect(
+        turns([
+          'http://10.0.0.1:8096/a.mkv',
+          'http://10.0.0.1/b.mkv',
+        ], 'http://10.0.0.1/a.mkv'),
+        [
+          ['http://10.0.0.1:8096/a.mkv'],
+          ['http://10.0.0.1/b.mkv'],
+        ],
+      );
+    });
+  });
+
   group('the queue', () {
     late SourceStore sources;
     var ids = 0;

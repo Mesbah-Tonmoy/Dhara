@@ -169,6 +169,29 @@ class CopyPick {
   }
 }
 
+/// The copies a video that plays from [current] can go on from, in the
+/// turns to ask them in: first those on another server, then those on the
+/// server it is on now (another file of it, and the copy itself if it is
+/// among [candidates]).
+///
+/// A video is switched because its server is slow or stuck, or by the
+/// "Switch server" button: another file on the same server is the last
+/// thing wanted then, however fast that server answers.
+List<List<PlayCandidate>> switchTurns(
+  List<PlayCandidate> candidates,
+  Uri current,
+) {
+  bool sameServer(PlayCandidate copy) =>
+      copy.url.host == current.host && copy.url.port == current.port;
+  return [
+    [
+      for (final copy in candidates)
+        if (!sameServer(copy)) copy,
+    ],
+    candidates.where(sameServer).toList(),
+  ].where((turn) => turn.isNotEmpty).toList();
+}
+
 /// Asks the servers for [candidates] (all at once, through [prober]) and
 /// chooses the copy to play, as [CopyPick] says.
 ///

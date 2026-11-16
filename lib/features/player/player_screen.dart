@@ -368,33 +368,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (choice == null) {
       // The servers are asked for the copies: which answers fastest, and
       // where it sends the player (FFmpeg would follow a redirect to any
-      // host; the app follows them first, under its own rules).
-      _asking?.close();
-      final asking = _asking = CopyProber(
-        isAllowedHost: _mayPlayFrom,
-        timeout: _askTimeout,
-      );
+      // host; the app follows them first, under its own rules). A video
+      // that is switched asks the other servers first (see [switchTurns]).
       final preferred = SettingsScope.read(context).preferredQuality;
-      try {
-        choice = await chooseCopy(
-          asking,
-          candidates,
-          preferred: preferred,
-          resume: resumeUrl,
-          headers: await _headersFor(candidates),
+      final turns = switching
+          ? switchTurns(candidates, previous)
+          : [candidates];
+      for (final turn in turns) {
+        _asking?.close();
+        final asking = _asking = CopyProber(
+          isAllowedHost: _mayPlayFrom,
+          timeout: _askTimeout,
         );
-      } on PlaybackBlocked catch (refused) {
-        blocked = refused.message;
-      } finally {
-        asking.close();
+        CopyChoice? found;
+        try {
+          found = await chooseCopy(
+            asking,
+            turn,
+            preferred: preferred,
+            resume: resumeUrl,
+            headers: await _headersFor(turn),
+          );
+        } on PlaybackBlocked catch (refused) {
+          blocked = refused.message;
+        } finally {
+          asking.close();
+        }
+        // A session a media server no longer takes: signed in afresh the
+        // next time.
+        for (final url in found?.refused ?? const <Uri>[]) {
+          _sessions?.forget(url);
+        }
+        // The user may have left or moved on while the servers were asked.
+        if (!mounted || opening != _opening) return;
+        choice = found ?? choice;
+        if (found?.answeredIn != null) break;
       }
-      // A session a media server no longer takes: signed in afresh the
-      // next time.
-      for (final url in choice?.refused ?? const <Uri>[]) {
-        _sessions?.forget(url);
-      }
-      // The user may have left or moved on while the servers were asked.
-      if (!mounted || opening != _opening) return;
     }
 
     if (switching) {
@@ -418,6 +427,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _saveProgress();
       resumeFrom = at > Duration.zero ? at : null;
       _beginOpening(choice.url, resumeFrom);
+      // A paused video does not start: there is no "started in" to tell
+      // (it would count how long the pause lasts).
+      if (staysPaused) {
+        _sinceOpen
+          ..stop()
+          ..reset();
+      }
       if (previous != choice.url) _carriedFrom = previous;
     } else if (choice == null) {
       setState(() {

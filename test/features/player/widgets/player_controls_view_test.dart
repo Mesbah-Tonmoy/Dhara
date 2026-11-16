@@ -880,6 +880,28 @@ void main() {
           .opacity;
     }
 
+    testWidgets('the keys go on working after a click on the seek bar and on '
+        'a button', (tester) async {
+      final calls = await _pump(tester, otherCopies: true);
+
+      await tester.tapAt(
+        tester.getCenter(find.byKey(const Key('seek-fill'))) +
+            const Offset(200, 0),
+      );
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
+      expect(calls.toggleInfo, 1);
+
+      // Space still means play/pause, not "press that button again".
+      await tester.tap(find.byKey(const Key('switch-server-button')));
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
+      expect(calls.switchServer, 1);
+      expect(calls.togglePlay, 1);
+      expect(calls.toggleInfo, 2);
+    });
+
     testWidgets('Space toggles play/pause, once per press', (tester) async {
       final calls = await _pump(tester);
 
