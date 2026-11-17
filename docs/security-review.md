@@ -1,0 +1,150 @@
+# Security review (Phase 8)
+
+A walk through section 7 of the brief (`BRIEF.md`), point by point: where the
+code does it, how that is checked, and what was found. Done on 2026-11-17, with
+1,438 automated tests passing.
+
+Verdicts: **ok** (done and checked), **gap** (known and accepted, with the
+reason), **fixed** (found in this review and put right), **later** (belongs
+to a later increment of Phase 8).
+
+`test/security/code_rules_test.dart` reads the source and fails when code is
+added that breaks one of the rules marked *guard* below. It proves that
+something is absent; what the code does is proved by the other tests named.
+
+## Findings
+
+| # | What | Weight | State |
+|---|---|---|---|
+| 1 | Request headers (an Emby session token, the TMDB key as a bearer token) went along on a redirect to the same host even from `https` down to plain `http` | low: only the first host itself could ask for it | **fixed** in `6fe94bd` |
+| 2 | The bundled libmpv is mpv 0.36 / FFmpeg 6.0 of 2023-09-24, the last build media_kit published; decoders are the main attack surface and this one gets no fixes | the largest known risk | **gap**: kept for now, see "Keeping libmpv up to date" in the README (increment 13); a newer build is a job of its own, after the PC is reset |
+| 3 | FFmpeg follows a redirect the server sends the player itself, to any http(s) host, and takes the request headers along; this build has no option to stop it | low: the app follows redirects first under its own rule and hands the player the final address | **gap**, needs a newer libmpv (finding 2) |
+| 4 | media_kit's build script checks the libmpv and ANGLE downloads by MD5 only | low: fetched over https from GitHub releases | **later**: the packaging script (increment 8) compares the SHA-256 of every bundled library with the list below before it makes an installer |
+| 5 | One made-up device id is given to every Emby/Jellyfin server, so two operators could tell it is the same installation | very low: random, says nothing about the PC | **gap**, accepted |
+| 6 | A file or folder name may hold Unicode direction marks, which can make a name read differently from what it is | very low: names are only shown and played, never run or saved under that name | **gap**, accepted |
+| 7 | `packages/media_kit/assets/web/hls1.4.10.js` (a web-only file of media_kit) is in the bundle | none: nothing in the app can run a script | noted |
+| 8 | This PC's own certificate store holds a root that should not be there (found 2026-11-16), so `https` from this PC can be read on the way | outside the app | the TMDB key should be replaced after the PC is reset |
+
+Not findings, but worth knowing:
+
+- "Play a URL" plays from the host the user pastes, which need not be a
+  source: the user's own act, and still `http`/`https` only.
+- A redirect while playing may lead to any *configured* source, enabled or
+  not, as the brief words it. Crawling and testing only know the hosts of
+  the sources being crawled or tested.
+- `https` servers with a self-signed certificate are refused.
+
+## Player
+
+| Rule | Where | Checked by | |
+|---|---|---|---|
+| `load-scripts=no`, `ytdl=no`, `config=no`, `load-unsafe-playlists=no`, nothing loaded on mpv's own initiative | `lib/features/player/secure_player.dart`: set after libmpv starts, each value read back, playback refused on a mismatch | `secure_player_test.dart`; `libmpv_hardening_test.dart` against the real `libmpv-2.dll` | ok |
+| FFmpeg protocols limited to `http,https,tcp,tls,crypto` | the same file: `stream-lavf-o` and `demuxer-lavf-o` | the same tests | ok |
+| The player is only ever given an `http`/`https` address | `parseMediaUrl` (`lib/core/net/media_url.dart`) on every pasted and every indexed address. The whitelist above is FFmpeg's: mpv itself can open a local path, which the app uses for a subtitle file the user picks, and for nothing else | `media_url_test.dart` | ok |
+| What a server sends cannot make the player open something on this PC | `load-unsafe-playlists=no`, and mpv's own rule for edit lists that come over the network | `libmpv_hardening_test.dart`: a playlist and an mpv edit list (EDL), served in place of a video and naming a local file, are refused by the real libmpv, while the same list naming the server's own video plays | ok |
+| A player is made in one place only | `createPlayer()` | *guard* | ok |
+| No mpv command that runs or loads something | the app sends `seek` and sets subtitle and audio properties | *guard* | ok |
+| Option names are those of the bundled mpv | read back at run time, and compared with the 0.36 manual in Phase 2 and Phase 7 | `libmpv_hardening_test.dart`, `libmpv_tuning_checks.dart` | ok |
+| Decoder itself | bundled libmpv | | gap (finding 2) |
+
+## Network
+
+| Rule | Where | Checked by | |
+|---|---|---|---|
+| Only enabled sources, TMDB and AniList are contacted | every request goes through `SafeHttpClient` (`lib/core/net/safe_http_client.dart`), made with the hosts it may reach: the sources being crawled or tested, `api.themoviedb.org`, `image.tmdb.org`, `graphql.anilist.co`, `s4.anilist.co` | *guard* (one `HttpClient`, no sockets, the four host names); `safe_http_client_test.dart`; the client tests of TMDB, AniList and pictures | ok |
+| TMDB and AniList over `https` | `Uri.https(...)` in `tmdb_client.dart`, `anilist_client.dart`, `image_store.dart` | their tests | ok |
+| `http`/`https` only, no scheme from a server | `parseMediaUrl` (`lib/core/net/media_url.dart`); `childEntry` (`listing_parser.dart`) drops links to other schemes | `media_url_test.dart`, `listing_parser_test.dart`; *guard* (no other scheme written in code) | ok |
+| Redirects: same host or a configured source, capped | `_redirectTarget`, at most 5; headers stay with the first host and do not go from https to http | `safe_http_client_test.dart` ("redirects") | fixed (finding 1) |
+| Redirects the player follows | FFmpeg | | gap (finding 3) |
+| Every request has a time limit and a size limit | 15 s and 4 MB by default (8 MB for a folder page, 3 MB for a picture), counted after decompression | `safe_http_client_test.dart` ("the size limit", "the time limit") | ok |
+| A video stream | no size limit can apply; `network-timeout` 5 s, and the stall watch | `stall_watch_test.dart` | ok |
+| Private addresses are not blocked | no such check exists | `safe_http_client_test.dart` runs against 127.0.0.1 | ok |
+| No proxy, no cookies, certificate checks left on | `HttpClient()` as it comes; no `findProxy`, no `badCertificateCallback` | *guard* | ok |
+| No port scanning, no address sweeps | the tester and the crawler ask only the addresses in the list | `source_tester_test.dart`, `crawler_test.dart` | ok |
+
+## Untrusted input
+
+| Rule | Where | Checked by | |
+|---|---|---|---|
+| A real HTML parser, no regular expression over markup | `package:html` in the two listing adapters, `portal_links.dart` and `source_tester.dart` | adapter tests against saved pages; *guard* (who imports it) | ok |
+| Server HTML is never rendered or run; no WebView, no JavaScript | there is nothing in the app that could | *guard* | ok |
+| Server strings are shown as plain text | Flutter's `Text` has no markup; names are shortened and stripped of control characters (`cleanServerText`, `_unsafeInName`) | widget tests; `listing_parser_test.dart` | ok (finding 6) |
+| Parameterised SQL only | every value is a `?`; what is spliced into a statement is text written in the code (column lists, `?, ?, ?`) | *guard* ("database"); the store tests search for quotes and FTS syntax | ok |
+| What is typed into search cannot act as query syntax | `ftsQueryFor` quotes every word | `index_store_test.dart`, `browse_store_test.dart` | ok |
+| JSON from Emby, TMDB and AniList | every field is type-checked; ids must match `[A-Za-z0-9-]{1,64}`, tokens `[A-Za-z0-9._-]{1,256}`; texts are cut to a length | `emby_adapter_test.dart`, `tmdb_client_test.dart`, `anilist_client_test.dart` | ok |
+| A source list that is imported | at most 2 MB and 2,000 sources; every address must be http(s) without a user name or password | `source_list_test.dart` | ok |
+
+## Files
+
+| Rule | Where | Checked by | |
+|---|---|---|---|
+| Sanitised names, no path traversal | a link counts only if it points directly into the folder asked for: other hosts, upper levels and names hiding `/`, `\` or a control character are dropped (`childEntry`). Nothing is saved under a name a server gave: pictures are kept under names matching `^/[A-Za-z0-9_-]{1,64}\.(jpg\|jpeg\|png\|webp)$` | `listing_parser_test.dart`, `image_store_test.dart` | ok |
+| Extension whitelist | `lib/features/indexer/media_files.dart`: 12 video and 4 subtitle extensions; everything else is neither stored nor fetched | `media_files_test.dart`, `crawler_test.dart` | ok |
+| A picture must be a picture | at most 3 MB, kept only if it starts like a JPEG, PNG or WebP | `image_store_test.dart` | ok |
+| An external subtitle | picked in the system's file dialog; `.srt/.ass/.ssa/.vtt`, a regular file, at most 20 MB; only handed to the player | `subtitle_file_test.dart` | ok |
+| Nothing is executed or opened with another program | no `Process`, no shell, no link opened | *guard* | ok |
+| Which files reach the file system at all | twelve files import `dart:io` | *guard* (the list) | ok |
+
+## Secrets
+
+| Rule | Where | Checked by | |
+|---|---|---|---|
+| The TMDB key is in OS secure storage | Windows Credential Manager, entry `Dhara/tmdb` (`lib/core/secrets/windows_credential_store.dart`) | `secret_store_test.dart`, `tmdb_key_test.dart` | ok |
+| Never committed | the key is not in the repository; `.gitignore` covers `.env`, `*.key`, `secrets.json` | `git grep` for a bearer token, a JWT and `api_key=<value>` finds nothing | ok |
+| Never logged, never in an error | the app writes no log; `TmdbException` and `SafeHttpException` carry fixed texts without addresses | *guard* (no log of any kind); `safe_http_client_test.dart` ("error messages name the host but never the path or query") | ok |
+| Goes to TMDB only | as a bearer header, or as `api_key` in the address for a v3 key; the client knows one host | `tmdb_client_test.dart`; finding 1 | ok |
+| An Emby/Jellyfin session token | in memory only, sent to the server that gave it | `media_sessions_test.dart`, `emby_adapter_test.dart` | ok |
+| Source lists hold no passwords | addresses with a user name or password are refused | `source_list_test.dart` | ok |
+
+## Privacy
+
+| Rule | Where | Checked by | |
+|---|---|---|---|
+| No telemetry, analytics or crash upload | no such package and no such call | *guard* | ok |
+| Logs stay local, rotate, hold no secrets | there are no logs | *guard* | ok |
+| What leaves the PC | to a source: requests for its pages and files, as "Dhara"; to an Emby/Jellyfin server also a made-up device id (finding 5). To TMDB: titles and years. To AniList: nothing about the library | the client tests | ok |
+| What is kept | library, history and My List in `library.db`; settings in `shared_preferences.json`; pictures in `images`; all under `%APPDATA%\com.dhara\dhara` | | ok |
+
+## Least privilege
+
+| Rule | Where | Checked by | |
+|---|---|---|---|
+| No admin rights | the program asks for `asInvoker` | *guard* (reads the built `dhara.exe`) | ok |
+| No background service, no start-up entry | the runner writes no registry key and starts nothing | *guard* | ok |
+| No silent auto-update | the app has no updater and contacts no host for one | *guard* (hosts) | ok |
+| Per-user install | the installer | | later (increments 9 and 10) |
+
+## Supply chain
+
+| Rule | Where | Checked by | |
+|---|---|---|---|
+| Few dependencies | 10 packages named in `pubspec.yaml` (plus Flutter), 2 for development | *guard* (the list) | ok |
+| Pinned versions, `pubspec.lock` committed | exact versions; the lock file names a SHA-256 for every package | *guard* | ok |
+| Nothing known against them | `flutter pub outdated` on 2026-11-17: the direct dependencies are the latest, no advisory is reported | by hand; again before a release | ok |
+| SQLite | the `sqlite3` package downloads its library at build time and checks its SHA-256 | the package | ok |
+| libmpv and ANGLE | downloaded by media_kit's build script, MD5 only | | later (finding 4) |
+| CI: Actions pinned to commit SHAs | there is no CI | | n/a; a workflow, if one is added, pins them |
+| How to keep media_kit/libmpv updated | README | | later (increment 13) |
+
+## The bundled libraries
+
+SHA-256 of the libraries in the release folder built on 2026-11-16, for the
+packaging script to compare against. They come from the pinned packages
+(media_kit_libs_windows_video 1.0.11, sqlite3 3.9.1) and Flutter 3.47.9.
+
+| File | SHA-256 |
+|---|---|
+| `libmpv-2.dll` | `d5f0694b08c124e785d858d00082f3e3b158dd9138bfc48c0382bf1eb443a5fc` |
+| `flutter_windows.dll` | `30494fb08f9f101a8fbe42568110aaa160efbd7341f3cfe877dc14214be3a233` |
+| `sqlite3.dll` | `643956b011d5c705c6eae79d93085f5b206e4bfecf5d57a05aea3e2242612028` |
+| `libEGL.dll` | `b2590bd0692f0381fc45c20bf1c7f7f713c9ea19c7ea6bab62efdd1fadc4eaac` |
+| `libGLESv2.dll` | `620bb6e38d7ed6c760a0cf4a8eb6a8f64b259b96ff286551cd32cefc6c35ca39` |
+| `d3dcompiler_47.dll` | `5653bc7b0e2701561464ef36602ff6171c96bffe96e4c3597359cd7addcba88a` |
+| `vk_swiftshader.dll` | `4f33eea716491972cb1ad123a78acef485f852581130d3f3a98a1981009004f2` |
+| `vulkan-1.dll` | `3be9a95dd9019aa1aca47ade26f5c1c7c0047f3cf6f633d586c9ec0d3b459566` |
+| `zlib.dll` | `82d5bf175cf882ac9afc1558b416e674606d055966bc09529076b28a498fc0e4` |
+
+These were taken on a PC that is not trusted (finding 8): they say what
+this build holds, not that it is what the publishers made. After the PC is
+reset, build again and compare; a difference in `libmpv-2.dll` in particular
+wants an explanation.
