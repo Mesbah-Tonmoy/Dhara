@@ -21,7 +21,8 @@ A Bangla + English README is written in Phase 8.
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
 | 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. Frame rate while scrolling and cold start were measured in Phase 7 (see [Keeping frames cheap](#keeping-frames-cheap)). **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests) |
 | 7. Smart playback | Done in code and in automated tests, and tried in the running app against a web server on this PC that can be slow, stall, drop the connection or send no video: the player is set up for streaming (buffer size and hardware decoding in Settings), seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, Settings has a preferred quality and the languages a video starts in, Play starts on the fastest copy, a video that stalls goes on from another copy by itself, the next episode's copy is chosen before this one ends, and files of Emby and Jellyfin servers are fetched with a session; see [Smart playback](#smart-playback) and what was [measured](#measured-in-phase-7). Tried on real BDIX servers on 2026-11-17 (two folder-listing servers and an Emby server answering, one h5ai server down): see [Tried on real servers](#tried-on-real-servers). **Not yet tried there:** a server that stalls in the middle of a video (it cannot be made to), and a real Dolby TrueHD file |
-| 8–9 | Not started |
+| 8. Packaging, security review and docs | Under way: the app was gone through against section 7 of the brief ([docs/security-review.md](docs/security-review.md)), and there is a per-user installer with a checksum (see [Installer](#installer)). Still to come: the README in Bangla and English |
+| 9 | Not started |
 
 ## Prerequisites (Windows)
 
@@ -52,6 +53,64 @@ If `flutter run` fails with hundreds of `Undefined name` errors in packages
 reports `No available native assets`, a package was missing when the build
 first ran and the build cache remembers that. Run `flutter pub get`, delete
 `.dart_tool\flutter_build` (or run `flutter clean`) and start again.
+
+## Installer
+
+```powershell
+pwsh tool/package.ps1
+```
+
+needs Flutter, the Visual Studio Build Tools and
+[Inno Setup 6](https://jrsoftware.org/isinfo.php)
+(`winget install --id JRSoftware.InnoSetup -e`), and makes, in `dist/`:
+
+- `Dhara-<version>/`: the release as it will be installed. The C++ runtime
+  (`msvcp140.dll`, `vcruntime140.dll`, `vcruntime140_1.dll`, checked to be
+  signed by Microsoft) lies beside the program, so nothing of Microsoft's
+  has to be installed with admin rights. Two files a release does not use
+  are left out: `kernel_blob.bin` (80 MB a debug build leaves among the
+  assets) and media_kit's `zlib.dll` (nothing loads it, and it is a debug
+  build).
+- `Dhara-Setup-<version>.exe`: the installer (`installer/dhara.iss`).
+- `Dhara-Setup-<version>.exe.sha256`: its SHA-256. To check a copy of the
+  installer: `(Get-FileHash Dhara-Setup-1.0.0.exe -Algorithm SHA256).Hash`
+  must be the value in that file.
+
+Before the installer is made, every bundled library is compared with
+`tool/bundled-libraries.sha256`; a file that differs, or is not on the
+list, stops the script. After a deliberate update of Flutter, media_kit or
+sqlite3, look at where the new file comes from and put its hash there.
+
+**What the installer does.** It copies the app to
+`%LOCALAPPDATA%\Programs\Dhara`, adds a Start Menu shortcut (a desktop
+shortcut if ticked) and registers its uninstaller for the user who ran it.
+It asks for no admin rights and cannot: no service, no start-up entry, no
+scheduled task, no updater, nothing under Program Files or `HKLM`, nothing
+downloaded (`test/security/code_rules_test.dart` reads the script and fails
+if that changes). A newer version is installed over the older one: run its
+installer.
+
+**Uninstalling** (Settings, Apps, or the Start Menu's right-click) removes
+the app and its shortcuts. Your data stays:
+
+- the library, settings, sources and pictures in
+  `%APPDATA%\com.dhara\dhara`: delete that folder to remove them
+- the TMDB key: Control Panel, Credential Manager, Windows Credentials,
+  `Dhara/tmdb`, Remove
+
+**Tried on 2026-11-17** with a copy that keeps its data elsewhere
+(`tool/package.ps1 -TestDataDir <folder>` makes "Dhara Test", which
+installs beside the real app): a silent install wrote one uninstall entry
+under `HKCU` and one shortcut in the user's Start Menu, nothing under
+`HKLM` or Program Files, no start-up entry, service or task; the installed
+app started and loaded the C++ runtime from its own folder; the uninstaller
+removed all of it and left the data folder. Not tried: a PC without Visual
+Studio, an update over an older version, and the installer's pages by hand.
+
+**How far to trust it.** The PC the 1.0.0 installer was made on was found
+to hold old malware (2026-11-16) and has not been reset yet. The checksum
+says the file is the one the script made; it cannot say the build was
+clean. After the reset, run the script again and use that installer.
 
 ## Player hardening
 
@@ -93,8 +152,8 @@ Windows 11), release build, the real library (2026-11-16):
 | Search | under 100 ms over 100k files | 2 to 7 ms by title over 23,389 videos (Phase 5); the browse page counts and lists 19,749 titles in 71 ms |
 | Playback start | under 2 s on a good BDIX link | 1.5 s on a real server before Play chose the fastest copy (the user's info panel: the server answered in 320 ms); 0.3 to 0.8 s from a server on this PC, 0.3 s for a next episode asked ahead of time |
 | Seeking | feels instant | inside the buffer no request goes to the server; a jump to the middle or to the end of a film on a real server showed the picture within the 3 s before the next look at it (2026-11-17), not timed more finely |
-| Idle memory | report | 136 MB working set, 219 MB private, 12 s after start on Home |
-| Installer size | about 80 MB at most | no installer yet (Phase 8); the release folder is 79 MB, of which libmpv is 28 MB and the Flutter engine 20 MB |
+| Idle memory | report | 213 to 225 MB working set, 376 to 394 MB private, 18 to 40 s after start on Home (version 1.0.0 as installed, window 1920×1020, 2026-11-17). About 40 MB of it is Home keeping all its rows built, which is what makes a fast scroll smooth: without that, 170 to 184 MB and 325 to 333 MB. On 2026-11-16, before that change, 136 MB and 219 MB were measured 12 s after start |
+| Installer size | about 80 MB at most | 24.9 MB (`Dhara-Setup-1.0.0.exe`); 83.7 MB once installed, of which libmpv is 28 MB and the Flutter engine 20 MB |
 
 ### Tried on real servers
 

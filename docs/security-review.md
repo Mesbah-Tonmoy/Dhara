@@ -19,10 +19,11 @@ something is absent; what the code does is proved by the other tests named.
 | 1 | Request headers (an Emby session token, the TMDB key as a bearer token) went along on a redirect to the same host even from `https` down to plain `http` | low: only the first host itself could ask for it | **fixed** in `6fe94bd` |
 | 2 | The bundled libmpv is mpv 0.36 / FFmpeg 6.0 of 2023-09-24, the last build media_kit published; decoders are the main attack surface and this one gets no fixes | the largest known risk | **gap**: kept for now, see "Keeping libmpv up to date" in the README (increment 13); a newer build is a job of its own, after the PC is reset |
 | 3 | FFmpeg follows a redirect the server sends the player itself, to any http(s) host, and takes the request headers along; this build has no option to stop it | low: the app follows redirects first under its own rule and hands the player the final address | **gap**, needs a newer libmpv (finding 2) |
-| 4 | media_kit's build script checks the libmpv and ANGLE downloads by MD5 only | low: fetched over https from GitHub releases | **later**: the packaging script (increment 8) compares the SHA-256 of every bundled library with the list below before it makes an installer |
+| 4 | media_kit's build script checks the libmpv and ANGLE downloads by MD5 only | low: fetched over https from GitHub releases | **fixed**: `tool/package.ps1` compares the SHA-256 of every bundled library with `tool/bundled-libraries.sha256` and makes no installer if one differs or is not listed |
 | 5 | One made-up device id is given to every Emby/Jellyfin server, so two operators could tell it is the same installation | very low: random, says nothing about the PC | **gap**, accepted |
 | 6 | A file or folder name may hold Unicode direction marks, which can make a name read differently from what it is | very low: names are only shown and played, never run or saved under that name | **gap**, accepted |
 | 7 | `packages/media_kit/assets/web/hls1.4.10.js` (a web-only file of media_kit) is in the bundle | none: nothing in the app can run a script | noted |
+| 9 | media_kit's ANGLE download carries a `zlib.dll` that is a debug build (it imports `VCRUNTIME140D.dll`) | none: no file of the app imports it or names it | **fixed**: left out of the installed app |
 | 8 | This PC's own certificate store holds a root that should not be there (found 2026-11-16), so `https` from this PC can be read on the way | outside the app | the TMDB key should be replaced after the PC is reset |
 
 Not findings, but worth knowing:
@@ -112,7 +113,7 @@ Not findings, but worth knowing:
 | No admin rights | the program asks for `asInvoker` | *guard* (reads the built `dhara.exe`) | ok |
 | No background service, no start-up entry | the runner writes no registry key and starts nothing | *guard* | ok |
 | No silent auto-update | the app has no updater and contacts no host for one | *guard* (hosts) | ok |
-| Per-user install | the installer | | later (increments 9 and 10) |
+| Per-user install | `installer/dhara.iss`: `PrivilegesRequired=lowest`, into `%LOCALAPPDATA%ProgramsDhara`, no registry key, service, start-up entry, task or download | *guard* (reads the script); a silent install and uninstall of a test copy on 2026-11-17 wrote one `HKCU` uninstall entry and one Start Menu shortcut, nothing under `HKLM` or Program Files, and removed both again | ok |
 
 ## Supply chain
 
@@ -122,14 +123,15 @@ Not findings, but worth knowing:
 | Pinned versions, `pubspec.lock` committed | exact versions; the lock file names a SHA-256 for every package | *guard* | ok |
 | Nothing known against them | `flutter pub outdated` on 2026-11-17: the direct dependencies are the latest, no advisory is reported | by hand; again before a release | ok |
 | SQLite | the `sqlite3` package downloads its library at build time and checks its SHA-256 | the package | ok |
-| libmpv and ANGLE | downloaded by media_kit's build script, MD5 only | | later (finding 4) |
+| libmpv and ANGLE | downloaded by media_kit's build script, MD5 only; compared by SHA-256 before an installer is made | `tool/package.ps1` (tried with a wrong hash: it stops) | fixed (finding 4) |
 | CI: Actions pinned to commit SHAs | there is no CI | | n/a; a workflow, if one is added, pins them |
 | How to keep media_kit/libmpv updated | README | | later (increment 13) |
 
 ## The bundled libraries
 
-SHA-256 of the libraries in the release folder built on 2026-11-16, for the
-packaging script to compare against. They come from the pinned packages
+SHA-256 of the libraries in the release folder built on 2026-11-16; the
+packaging script compares against the same list in
+`tool/bundled-libraries.sha256` (without `zlib.dll`, which is left out). They come from the pinned packages
 (media_kit_libs_windows_video 1.0.11, sqlite3 3.9.1) and Flutter 3.47.9.
 
 | File | SHA-256 |

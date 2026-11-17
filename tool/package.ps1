@@ -131,6 +131,14 @@ if ($test) { $isccArgs += '/DTestCopy' }
 & $iscc @isccArgs (Join-Path $root 'installer\dhara.iss')
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path $setup)) { Fail 'Inno Setup did not make the installer.' }
 
+# --- Checksum -----------------------------------------------------------------
+# In the form `sha256sum -c` reads. It says that the installer is the file
+# this script made, not that the PC it was made on can be trusted.
+$hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
+Set-Content "$setup.sha256" "$hash *$(Split-Path -Leaf $setup)" -Encoding ascii
+
 Step 'Done'
 Write-Host ("  folder:    {0} ({1} MB, {2} files)" -f $stage, (SizeMb $stage), (Get-ChildItem $stage -Recurse -File).Count)
 Write-Host ("  installer: {0} ({1} MB)" -f $setup, [math]::Round((Get-Item $setup).Length / 1MB, 1))
+Write-Host "  sha-256:   $hash"
+Write-Host '  to check:  (Get-FileHash <installer> -Algorithm SHA256).Hash'
