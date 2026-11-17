@@ -10,6 +10,7 @@ import 'package:dhara/features/player/track_options.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 
+import '../../support/local_server.dart';
 import 'libmpv_tuning_checks.dart' as tuning;
 
 File? _findLibmpv() {
@@ -136,6 +137,52 @@ void main() {
       skip: _sampleVideo.existsSync() ? false : 'no sample video on this PC',
       timeout: const Timeout(Duration(seconds: 30)),
     );
+
+    // The app only ever hands the player an http(s) address, but what a
+    // server sends there need not be a video. mpv also reads playlists and
+    // its own edit lists (EDL), and both can name other things to open.
+    for (final (kind, list) in const [
+      ('a playlist', '#EXTM3U\n@\n'),
+      ('an edit list', '# mpv EDL v0\n@\n'),
+    ]) {
+      test(
+        '$kind sent in place of a video cannot open a file of this PC',
+        () async {
+          final server = await LocalServer.start();
+          addTearDown(server.close);
+          server.serveFile('/film.mkv', _sampleVideo);
+          server.serve(
+            '/local.mkv',
+            list.replaceFirst('@', _sampleVideo.path),
+            contentType: 'video/x-matroska',
+          );
+          // The same list naming the server's own video plays: the one
+          // above is refused, not merely not understood.
+          server.serve(
+            '/web.mkv',
+            list.replaceFirst('@', '${server.url('/film.mkv')}'),
+            contentType: 'video/x-matroska',
+          );
+
+          await hardenPlayer(player);
+          Future<Duration> opened(String path) async {
+            await player.open(Media('${server.url(path)}'), play: false);
+            return player.stream.duration
+                .firstWhere((d) => d > Duration.zero)
+                .timeout(
+                  const Duration(seconds: 4),
+                  onTimeout: () => Duration.zero,
+                );
+          }
+
+          expect(await opened('/local.mkv'), Duration.zero);
+          expect(await native.getProperty('path'), isNot(_sampleVideo.path));
+          expect(await opened('/web.mkv'), greaterThan(Duration.zero));
+        },
+        skip: _sampleVideo.existsSync() ? false : 'no sample video on this PC',
+        timeout: const Timeout(Duration(seconds: 30)),
+      );
+    }
   }, skip: libmpv == null ? 'libmpv-2.dll not built yet' : false);
 
   // In this process, after the checks above (see the note in that file).
