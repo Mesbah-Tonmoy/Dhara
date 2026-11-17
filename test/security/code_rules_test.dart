@@ -272,6 +272,22 @@ void main() {
     });
   });
 
+  group('the data folder', () {
+    test('keeps its name: it is the company and product name of the '
+        'program', () {
+      // path_provider reads the two from the program's version resource,
+      // so "%APPDATA%\com.dhara\dhara" follows them. A new name would
+      // leave the library, the settings and the sources of an installed
+      // app behind.
+      final resource = runner
+          .singleWhere((file) => file.path.endsWith('Runner.rc'))
+          .lines
+          .join('\n');
+      expect(resource, contains('VALUE "CompanyName", "com.dhara"'));
+      expect(resource, contains('VALUE "ProductName", "dhara"'));
+    });
+  });
+
   group('least privilege (Windows runner)', () {
     test('the app runs as the user who started it', () {
       final manifest = runner.singleWhere(

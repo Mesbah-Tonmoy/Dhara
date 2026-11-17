@@ -89,8 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
+            // CompanyName and ProductName are also the folder the app
+            // keeps its data in (%APPDATA%\com.dhara\dhara): change one
+            // and an installed app starts with an empty library.
             VALUE "CompanyName", "com.dhara" "\0"
-            VALUE "FileDescription", "dhara" "\0"
+            VALUE "FileDescription", "Dhara" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "dhara" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.dhara. All rights reserved." "\0"
