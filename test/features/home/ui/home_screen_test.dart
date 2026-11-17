@@ -159,6 +159,25 @@ void main() {
       expect(_row('top'), findsNothing, reason: 'nothing is rated');
     });
 
+    testWidgets('every row is built once Home is up, also those far below '
+        'the window', (tester) async {
+      await _boot(tester, db: _library());
+
+      // A list by itself builds what is in the window and 250 pixels
+      // beyond it; the last row starts further down than that.
+      final last = find.byKey(const Key('home-row-top'), skipOffstage: false);
+      expect(last, findsOneWidget);
+      expect(tester.getTopLeft(last).dy, greaterThan(720 + 250));
+      expect(
+        find.descendant(
+          of: last,
+          matching: find.byType(PosterCard, skipOffstage: false),
+          skipOffstage: false,
+        ),
+        findsNWidgets(4),
+      );
+    });
+
     testWidgets('Top Rated numbers its cards', (tester) async {
       await _boot(tester, db: _library());
       await tester.scrollUntilVisible(

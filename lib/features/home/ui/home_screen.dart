@@ -25,6 +25,7 @@ import 'package:dhara/widgets/logo.dart';
 import 'package:dhara/widgets/surfaces.dart';
 import 'package:dhara/widgets/toast.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 /// Opens a film or show from its card.
 typedef OpenTitle = void Function(BuildContext context, TitleCard title);
@@ -106,6 +107,33 @@ class _Rows extends StatefulWidget {
 
 class _RowsState extends State<_Rows> {
   final _scroll = ScrollController();
+
+  /// How far beyond the window Home is kept built, step by step over the
+  /// frames that follow the first one.
+  ///
+  /// Home is a few windows long at most. A list builds a row when it
+  /// comes near the window and throws it away once it has left, and
+  /// building a row of cards is the one costly thing a fast scroll did
+  /// here: a frame of 20 to 30 ms in a release build and many times that
+  /// in a debug build, most of all on the way back up to the banner. With
+  /// every row built, scrolling only moves what is there.
+  static const _keepSteps = <double>[900, 1800, 3000, 6000];
+  var _kept = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _keepMore();
+  }
+
+  /// Not all at once: the first frame of Home stays as quick as it was.
+  void _keepMore() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _kept >= _keepSteps.length) return;
+      setState(() => _kept++);
+      _keepMore();
+    });
+  }
 
   @override
   void dispose() {
@@ -206,6 +234,9 @@ class _RowsState extends State<_Rows> {
       // The banner's backdrop runs on under the title bar and the rail,
       // and so do the rows once they are scrolled.
       clipBehavior: Clip.none,
+      scrollCacheExtent: _kept == 0
+          ? null
+          : ScrollCacheExtent.pixels(_keepSteps[_kept - 1]),
       padding: EdgeInsets.only(
         top: featured.isEmpty ? .9 * rem : 0,
         bottom: DharaSpace.s7,

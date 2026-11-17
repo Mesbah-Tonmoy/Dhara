@@ -17,8 +17,10 @@ import 'package:flutter/material.dart';
 /// moves on by itself every [DharaMotion.heroInterval].
 ///
 /// It stops moving on while the pointer is over it, and never does when
-/// animations are switched off. The backdrop runs on under the title bar
-/// and the rail (see [ArtUnderShell]).
+/// animations are switched off. Scrolled out of the window it holds still
+/// altogether, so that a page left further down draws no frames for it.
+/// The backdrop runs on under the title bar and the rail (see
+/// [ArtUnderShell]).
 class HeroBanner extends StatefulWidget {
   const HeroBanner({
     super.key,
@@ -68,6 +70,15 @@ class _HeroBannerState extends State<HeroBanner>
   /// The "Rotate featured titles" setting.
   var _rotates = true;
 
+  /// The page has scrolled the whole banner out of the window.
+  var _away = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.scroll?.addListener(_onScroll);
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -79,14 +90,29 @@ class _HeroBannerState extends State<HeroBanner>
   @override
   void didUpdateWidget(HeroBanner old) {
     super.didUpdateWidget(old);
+    if (old.scroll != widget.scroll) {
+      old.scroll?.removeListener(_onScroll);
+      widget.scroll?.addListener(_onScroll);
+    }
     if (_index >= widget.titles.length) _index = 0;
     _run();
   }
 
   @override
   void dispose() {
+    widget.scroll?.removeListener(_onScroll);
     _turn.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    final scroll = widget.scroll;
+    if (!mounted || scroll == null || !scroll.hasClients) return;
+    final height = HeroBanner.heightFor(MediaQuery.sizeOf(context).height);
+    final away = scroll.offset >= height;
+    if (away == _away) return;
+    setState(() => _away = away);
+    _run();
   }
 
   void _onTurn(AnimationStatus status) {
@@ -95,7 +121,7 @@ class _HeroBannerState extends State<HeroBanner>
 
   /// Lets the time of the title on show run, or holds it.
   void _run() {
-    if (_still || !_rotates || _hovered || widget.titles.length < 2) {
+    if (_still || !_rotates || _hovered || _away || widget.titles.length < 2) {
       _turn.stop();
     } else if (!_turn.isAnimating) {
       _turn.forward();
@@ -123,92 +149,106 @@ class _HeroBannerState extends State<HeroBanner>
     return MouseRegion(
       onEnter: (_) => _hover(true),
       onExit: (_) => _hover(false),
-      child: ArtUnderShell(
-        height: HeroBanner.heightFor(window.height),
-        overhangBelow: HeroBanner.overlap,
-        scroll: widget.scroll,
-        // A backdrop is drawn larger than its place while it zooms out, and
-        // the shade over it is not: without the clip its edge shows below
-        // the banner's foot, over the first row.
-        art: ClipRect(
-          key: const Key('hero-art'),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              const ColoredBox(color: DharaColors.bg),
-              for (final (index, each) in titles.indexed)
-                AnimatedOpacity(
-                  key: ValueKey('hero-art-${each.id}'),
-                  opacity: index == _index ? 1 : 0,
-                  duration: motion(context, DharaMotion.hero),
-                  curve: DharaMotion.easeInOut,
-                  child: AnimatedScale(
-                    scale: index == _index ? 1 : 1.08,
-                    duration: slow,
-                    child: TmdbCover(
-                      path: each.backdropPath,
-                      size: 'w1280',
-                      placeholder: PlaceholderArt(seed: each.name, wide: true),
-                    ),
+      // Out of the window, the zoom and the fades hold as well.
+      child: TickerMode(
+        enabled: !_away,
+        child: _banner(context, titles, title, window, slow),
+      ),
+    );
+  }
+
+  Widget _banner(
+    BuildContext context,
+    List<TitleCard> titles,
+    TitleCard title,
+    Size window,
+    Duration slow,
+  ) {
+    return ArtUnderShell(
+      height: HeroBanner.heightFor(window.height),
+      overhangBelow: HeroBanner.overlap,
+      scroll: widget.scroll,
+      // A backdrop is drawn larger than its place while it zooms out, and
+      // the shade over it is not: without the clip its edge shows below
+      // the banner's foot, over the first row.
+      art: ClipRect(
+        key: const Key('hero-art'),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const ColoredBox(color: DharaColors.bg),
+            for (final (index, each) in titles.indexed)
+              AnimatedOpacity(
+                key: ValueKey('hero-art-${each.id}'),
+                opacity: index == _index ? 1 : 0,
+                duration: motion(context, DharaMotion.hero),
+                curve: DharaMotion.easeInOut,
+                child: AnimatedScale(
+                  scale: index == _index ? 1 : 1.08,
+                  duration: slow,
+                  child: TmdbCover(
+                    path: each.backdropPath,
+                    size: 'w1280',
+                    placeholder: PlaceholderArt(seed: each.name, wide: true),
                   ),
                 ),
-              const _Shade(),
-            ],
-          ),
+              ),
+            const _Shade(),
+          ],
         ),
-        child: Stack(
-          children: [
-            Positioned(
-              left: widget.contentLeft,
-              right: DharaLayout.pageRight,
-              bottom: 6.5 * rem,
-              child: Align(
-                alignment: Alignment.bottomLeft,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 40 * rem),
-                  child: AnimatedSwitcher(
-                    duration: motion(context, DharaMotion.slow),
-                    switchInCurve: DharaMotion.easeOut,
-                    layoutBuilder: (current, previous) => Stack(
-                      alignment: Alignment.bottomLeft,
-                      children: [...previous, ?current],
-                    ),
-                    child: _Body(
-                      key: ValueKey(title.id),
-                      title: title,
-                      resume: widget.resumable.contains(title.id),
-                      windowWidth: window.width,
-                      onPlay: () => widget.onPlay(title),
-                      onMore: () => widget.onMore(title),
-                    ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            left: widget.contentLeft,
+            right: DharaLayout.pageRight,
+            bottom: 6.5 * rem,
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 40 * rem),
+                child: AnimatedSwitcher(
+                  duration: motion(context, DharaMotion.slow),
+                  switchInCurve: DharaMotion.easeOut,
+                  layoutBuilder: (current, previous) => Stack(
+                    alignment: Alignment.bottomLeft,
+                    children: [...previous, ?current],
+                  ),
+                  child: _Body(
+                    key: ValueKey(title.id),
+                    title: title,
+                    resume: widget.resumable.contains(title.id),
+                    windowWidth: window.width,
+                    onPlay: () => widget.onPlay(title),
+                    onMore: () => widget.onMore(title),
                   ),
                 ),
               ),
             ),
-            // Only where there is room for it beside the text.
-            if (titles.length > 1 && window.width >= 70 * rem)
-              Positioned(
-                right: DharaLayout.pageRight,
-                bottom: 6.5 * rem,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final (index, each) in titles.indexed)
-                      Padding(
-                        padding: const EdgeInsets.only(left: .6 * rem),
-                        child: _Pick(
-                          key: Key('hero-pick-$index'),
-                          title: each,
-                          on: index == _index,
-                          turn: _turn,
-                          onPressed: () => _show(index),
-                        ),
+          ),
+          // Only where there is room for it beside the text.
+          if (titles.length > 1 && window.width >= 70 * rem)
+            Positioned(
+              right: DharaLayout.pageRight,
+              bottom: 6.5 * rem,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final (index, each) in titles.indexed)
+                    Padding(
+                      padding: const EdgeInsets.only(left: .6 * rem),
+                      child: _Pick(
+                        key: Key('hero-pick-$index'),
+                        title: each,
+                        on: index == _index,
+                        turn: _turn,
+                        onPressed: () => _show(index),
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

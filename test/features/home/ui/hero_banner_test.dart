@@ -49,6 +49,7 @@ void main() {
     bool disableAnimations = false,
     Size window = const Size(1280, 720),
     SettingsController? settings,
+    ScrollController? scroll,
   }) async {
     tester.view
       ..physicalSize = window
@@ -69,14 +70,18 @@ void main() {
             home: Material(
               color: DharaColors.bg,
               child: ListView(
+                controller: scroll,
                 clipBehavior: Clip.none,
                 children: [
                   HeroBanner(
                     titles: titles ?? _titles,
                     resumable: resumable,
+                    scroll: scroll,
                     onPlay: (title) => played.add(title.id),
                     onMore: (title) => opened.add(title.id),
                   ),
+                  // A page to scroll, where the test asks for one.
+                  if (scroll != null) const SizedBox(height: 2000),
                 ],
               ),
             ),
@@ -173,6 +178,37 @@ void main() {
     await tester.pump();
     await tester.pump(DharaMotion.heroInterval);
     await tester.pump(const Duration(seconds: 1));
+    expect(shown(tester), 'Title 2');
+  });
+
+  testWidgets('holds still while the page has scrolled it out of the '
+      'window', (tester) async {
+    final scroll = ScrollController();
+    addTearDown(scroll.dispose);
+    await pump(tester, scroll: scroll);
+
+    // Out of the window, but still built.
+    String kept() => tester
+        .widget<Text>(
+          find.byKey(const Key('hero-title'), skipOffstage: false).last,
+        )
+        .data!;
+
+    scroll.jumpTo(HeroBanner.heightFor(720) + 10);
+    await tester.pump();
+    await tester.pump(DharaMotion.heroInterval * 2);
+    await tester.pump(const Duration(seconds: 1));
+    expect(kept(), 'Title 1');
+    expect(
+      tester.binding.hasScheduledFrame,
+      isFalse,
+      reason: 'nothing of it animates',
+    );
+
+    scroll.jumpTo(0);
+    await tester.pump();
+    await tester.pump(DharaMotion.heroInterval);
+    await tester.pump(const Duration(milliseconds: 600));
     expect(shown(tester), 'Title 2');
   });
 
