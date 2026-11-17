@@ -1,5 +1,7 @@
 # Dhara
 
+**[বাংলায় পড়ুন](README.bn.md)**
+
 Dhara is a Windows desktop app that turns the films, series and anime on
 BDIX media servers into one library. It finds what is on the servers your
 connection can reach, gives every title a poster and a page of its own,

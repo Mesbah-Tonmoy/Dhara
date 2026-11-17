@@ -2,7 +2,8 @@
 
 How the app is built, why it is built that way, what was measured and what
 is still open. It was written phase by phase while the app was made. What
-the app is and how to install and use it is in the [README](../README.md).
+the app is and how to install and use it is in the [README](../README.md)
+([বাংলা](../README.bn.md)).
 
 The full project brief lives in [BRIEF.md](../BRIEF.md) (mirrored in
 `CLAUDE.md`); the review against its security rules is in
