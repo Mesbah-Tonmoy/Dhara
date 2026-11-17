@@ -17,7 +17,7 @@ something is absent; what the code does is proved by the other tests named.
 | # | What | Weight | State |
 |---|---|---|---|
 | 1 | Request headers (an Emby session token, the TMDB key as a bearer token) went along on a redirect to the same host even from `https` down to plain `http` | low: only the first host itself could ask for it | **fixed** in `6fe94bd` |
-| 2 | The bundled libmpv is mpv 0.36 / FFmpeg 6.0 of 2023-09-24, the last build media_kit published; decoders are the main attack surface and this one gets no fixes | the largest known risk | **gap**: kept for now, see "Keeping libmpv up to date" in the README (increment 13); a newer build is a job of its own, after the PC is reset |
+| 2 | The bundled libmpv is mpv 0.36 / FFmpeg 6.0 of 2023-09-24, the last build media_kit published; decoders are the main attack surface and this one gets no fixes | the largest known risk | **gap**: kept for now. On 2026-11-18 media_kit had nothing newer (its libmpv build repository was archived in October 2024). What to check and how, and the untried way to a newer build, are under "Keeping the player up to date" in the README; that is a job of its own, after the PC is reset |
 | 3 | FFmpeg follows a redirect the server sends the player itself, to any http(s) host, and takes the request headers along; this build has no option to stop it | low: the app follows redirects first under its own rule and hands the player the final address | **gap**, needs a newer libmpv (finding 2) |
 | 4 | media_kit's build script checks the libmpv and ANGLE downloads by MD5 only | low: fetched over https from GitHub releases | **fixed**: `tool/package.ps1` compares the SHA-256 of every bundled library with `tool/bundled-libraries.sha256` and makes no installer if one differs or is not listed |
 | 5 | One made-up device id is given to every Emby/Jellyfin server, so two operators could tell it is the same installation | very low: random, says nothing about the PC | **gap**, accepted |
@@ -127,7 +127,7 @@ Not findings, but worth knowing:
 | SQLite | the `sqlite3` package downloads its library at build time and checks its SHA-256 | the package | ok |
 | libmpv and ANGLE | downloaded by media_kit's build script, MD5 only; compared by SHA-256 before an installer is made | `tool/package.ps1` (tried with a wrong hash: it stops) | fixed (finding 4) |
 | CI: Actions pinned to commit SHAs | there is no CI | | n/a; a workflow, if one is added, pins them |
-| How to keep media_kit/libmpv updated | README | | later (increment 13) |
+| How to keep media_kit/libmpv updated | "Keeping the player up to date" in `README.md` and `README.bn.md` | the steps up to the hash check were run (`tool/package.ps1` stops on a library that is not on the list); taking a newer libmpv was not tried | ok |
 
 ## The bundled libraries
 

@@ -138,7 +138,78 @@ script নেই, yt-dlp নেই, configuration file নেই, আর network
 
 জানা ঝুঁকির মধ্যে সবচেয়ে বড় হলো সাথে দেওয়া player-এর বয়স: libmpv 0.36 আর
 FFmpeg 6.0, September 2023-এ বানানো। ক্ষতিকর file আক্রমণ করলে media
-decoder-এই করবে, আর এই build-এ নতুন কোনো fix আসে না।
+decoder-এই করবে, আর এই build-এ নতুন কোনো fix আসে না। বিস্তারিত নিচে,
+[Player আপডেট রাখা](#player-আপডেট-রাখা) অংশে।
+
+## Player আপডেট রাখা
+
+যে dependency-র দিকে সবচেয়ে বেশি নজর রাখা দরকার, সেটা player-এর library।
+এটা app-এ ঢোকে এভাবে:
+
+- `pubspec.yaml`-এ `media_kit`, `media_kit_video` আর
+  `media_kit_libs_windows_video`-এর version একদম নির্দিষ্ট করে লেখা (pin
+  করা)।
+- `media_kit_libs_windows_video`-এর build script (ওই package-এর
+  `windows/CMakeLists.txt`) একটা নির্দিষ্ট libmpv archive download করে,
+  আর build তার `libmpv-2.dll`-টা app-এর পাশে রাখে। App ওই file-টাকেই তার
+  পুরো path ধরে load করে, অন্য কোনোটা নয়।
+- `tool/bundled-libraries.sha256`-এ ওই file-এর SHA-256 লেখা আছে, আর
+  `tool/package.ps1` অন্য কোনো file দিয়ে installer বানায় না।
+
+কোনো build-এ কোন libmpv আছে দেখতে file-টার version stamp দেখুন (এখন
+`v0.36.0-403-g652a1dd907`):
+
+```powershell
+(Get-Item dist\Dhara-1.0.0\libmpv-2.dll).VersionInfo.ProductVersion
+```
+
+**এক-দুই মাস পরপর, আর প্রতিটা নতুন installer বানানোর আগে:**
+
+1. `flutter pub outdated` চালিয়ে media_kit-এর তিনটা package দেখুন। কোনোটার
+   নতুন version থাকলে pub.dev-এ তার changelog পড়ুন।
+2. `pubspec.yaml`-এ তিনটার version একসাথে বাড়ান (এগুলো একে অপরের সাথে
+   মিলিয়ে release হয়), তারপর `flutter pub get` চালান।
+3. `flutter build windows --release` চালান, তারপর `flutter test`। Build
+   থাকলে test-গুলো আসল `libmpv-2.dll` চালিয়ে দেখে: প্রতিটা hardening option
+   বসিয়ে আবার পড়ে মেলায়, video-র জায়গায় পাঠানো playlist এই PC-র কোনো file
+   খুলতে পারে না তা দেখে, আর একটা local web server থেকে video চালায়। এখানে
+   কোনো test fail করা মানে কোনো option-এর নাম বা অর্থ বদলেছে। কারণটা না
+   বোঝা পর্যন্ত আর এগোবেন না।
+4. `pwsh tool/package.ps1` চালান। এটা থেমে যাবে, কারণ `libmpv-2.dll` আর
+   তালিকার file-টা নয়, আর নতুন SHA-256 দেখাবে। নতুন file কোথা থেকে আসছে
+   দেখে নিন (package-এর `windows/CMakeLists.txt`-এর ঠিকানা আর checksum),
+   নতুন hash-টা `tool/bundled-libraries.sha256`-এ বসান, তারপর script আবার
+   চালান।
+5. Install করে [docs/manual-test.bn.md](docs/manual-test.bn.md) ধরে দেখে
+   নিন: একটা film, seek, subtitle, দ্বিতীয় audio track, episode-এর শেষ, আর
+   info panel-এর (I key) decoder লাইন।
+6. নতুন version-টা [docs/security-review.md](docs/security-review.md)-তে
+   লিখুন: finding 2 আর bundled library-র table।
+
+**২০২৬-১১-১৮ তারিখে অবস্থা: নেওয়ার মতো নতুন কিছু নেই।**
+`media_kit_libs_windows_video` 1.0.11-ই সবচেয়ে নতুন version, আর সেটা প্রায়
+২০ মাস পুরনো। যে repository তার libmpv build বানাত
+(`media-kit/libmpv-win32-video-build`), সেটা October 2024-এ archive করা
+হয়েছে। তাই ধাপ ১-এ কিছু পাওয়া যায় না, আর সাথে দেওয়া libmpv September
+2023-এর build-ই থেকে যাচ্ছে।
+
+**বের হওয়ার পথটা এখনো চেষ্টা করা হয়নি:** সাথে দেওয়া `libmpv-2.dll`-এর
+জায়গায় নতুন একটা বসানো। GitHub-এর `shinchiro/mpv-winbuild-cmake` mpv-র
+চলতি Windows build প্রকাশ করে (`mpv-dev-x86_64-<date>-git-<hash>.7z`,
+release page-এ প্রতিটার SHA-256 সহ), আর তাতে `libmpv-2.dll` থাকে। এটার উপর
+ভরসা করার আগে এই প্রশ্নগুলোর উত্তর লাগবে:
+
+- media_kit 1.2.6 এর সাথে কাজ করে কি? তার binding বানানো ২০২৩-এর libmpv-র
+  জন্য। নতুন mpv কোন option আর নেয় না, তা ধাপ ৩-এর test-গুলো দেখিয়ে দেবে।
+- File-টা build-এ ঢুকবে কীভাবে? `tool/package.ps1`-এ এর জন্য কোনো switch
+  নেই। এমন একটা লাগবে যা download করা file-টা release page-এর সাথে মিলিয়ে
+  নিয়ে, hash পরীক্ষার আগে, সাথে দেওয়া file-এর উপর বসিয়ে দেয়।
+- খরচ কত? ওই archive pack করা অবস্থাতেই 30 MB, যেখানে আজ পুরো installer
+  24.9 MB; আর mpv-র পুরো build-এ app-এর দরকারের চেয়ে বেশি জিনিস থাকে।
+
+এটা আলাদা একটা কাজ। সেটা না হওয়া পর্যন্ত ক্ষতিকর file আর decoder-এর মাঝখানে
+দুটো জিনিস দাঁড়িয়ে আছে: hardening, আর এই ব্যাপারটা যে app শুধু তা-ই চালায়
+যা আপনার চালু করা server বা আপনি নিজে তাকে দেন।
 
 ## নিজে build করা
 
@@ -189,8 +260,10 @@ version 1.0.0, ২৩,৩৮৯টা video-র library:
 
 ## আরও পড়তে চাইলে
 
-নিচের file-গুলো English-এ লেখা।
+প্রথমটা বাদে নিচের file-গুলো English-এ লেখা।
 
+- [docs/manual-test.bn.md](docs/manual-test.bn.md): নতুন installer বানানোর
+  পরে নিজে যা পরীক্ষা করবেন
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): প্রতিটা অংশ কীভাবে কাজ করে,
   কী মাপা আর পরীক্ষা করা হয়েছে, আর কোন ফাঁক জানা আছে
 - [docs/security-review.md](docs/security-review.md): security review
