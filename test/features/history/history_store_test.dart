@@ -118,6 +118,104 @@ void main() {
     expect(store.trim(keep: 10), 0);
   });
 
+  group('the History page', () {
+    /// A film (title 1) on three servers and its trailer, and the first
+    /// two episodes of a show (title 2), the first on two servers.
+    setUp(() {
+      final db = library.db
+        ..execute("INSERT INTO sources (id, source_id) VALUES (1, 'a')")
+        ..execute(
+          'INSERT INTO folders (id, source, url, path, depth) '
+          "VALUES (1, 1, 'http://a.test/', 'All', 0)",
+        )
+        ..execute(
+          'INSERT INTO titles (id, kind, name, year, added_at) VALUES '
+          "(1, 0, 'Film', 2020, 0), (2, 1, 'Show', 2021, 0)",
+        );
+      void add(String name, int title, {int? episode, int? extra}) {
+        db
+          ..execute(
+            'INSERT INTO files (folder, name, url, added_at) '
+            'VALUES (1, ?, ?, 0)',
+            [name, 'http://a.test/$name'],
+          )
+          ..execute(
+            'INSERT INTO file_meta (file, parser, kind, title, season, '
+            'episode, extra) VALUES (last_insert_rowid(), 1, ?, ?, ?, ?, ?)',
+            [
+              if (episode == null) 0 else 1,
+              title,
+              if (episode != null) 1 else null,
+              episode,
+              extra,
+            ],
+          );
+      }
+
+      add('film-1.mkv', 1);
+      add('film-2.mkv', 1);
+      add('film-3.mkv', 1);
+      add('film-trailer.mkv', 1, extra: 1);
+      add('show-e1.mkv', 2, episode: 1);
+      add('show-e1-b.mkv', 2, episode: 1);
+      add('show-e2.mkv', 2, episode: 2);
+    });
+
+    List<String> listed() => [
+      for (final item in store.items(sourceIds: ['a']))
+        item.video.url.split('/').last,
+    ];
+
+    test('lists a film that went on from another server once, as the copy '
+        'watched last', () {
+      watch('film-1.mkv', minutes: 10);
+      watch('film-2.mkv', minutes: 20);
+      watch('other.mkv');
+      watch('film-3.mkv', minutes: 40);
+
+      expect(listed(), ['film-3.mkv', 'other.mkv']);
+      final film = store.items(sourceIds: ['a']).first;
+      expect(film.video.position, const Duration(minutes: 40));
+      expect(film.otherCopies, [
+        'http://a.test/film-2.mkv',
+        'http://a.test/film-1.mkv',
+      ]);
+      expect(film.title?.name, 'Film');
+    });
+
+    test('keeps episodes apart, and a trailer apart from its film', () {
+      watch('show-e1.mkv');
+      watch('show-e2.mkv');
+      watch('show-e1-b.mkv');
+      watch('film-trailer.mkv');
+      watch('film-1.mkv');
+
+      expect(listed(), [
+        'film-1.mkv',
+        'film-trailer.mkv',
+        'show-e1-b.mkv',
+        'show-e2.mkv',
+      ]);
+    });
+
+    test('a video that is taken out does not come back as another copy', () {
+      watch('film-1.mkv');
+      watch('film-2.mkv');
+      watch('show-e2.mkv');
+      library.db.execute(
+        'INSERT INTO playback (url, position_ms, duration_ms, updated_at) '
+        "VALUES ('http://a.test/film-1.mkv', 5, 9, 1)",
+      );
+
+      final film = store.items(sourceIds: ['a'])[1];
+      store.forget(film.video.url, otherCopies: film.otherCopies);
+
+      expect(listed(), ['show-e2.mkv']);
+      expect(store.count(), 1);
+      expect(library.db.select('SELECT url FROM playback'), isEmpty);
+    });
+  });
+
   test('takes a URL as it is, whatever it holds', () {
     const odd = "http://a.test/it's'; DROP TABLE watch_history; --.mkv";
     store.record(odd, positionMs: 1, durationMs: 2, finished: false);

@@ -122,6 +122,7 @@ class HistoryItem {
     this.episode,
     this.episodeName,
     this.stillPath,
+    this.otherCopies = const [],
   });
 
   /// When and how far it was watched. Its position is where the player
@@ -140,6 +141,12 @@ class HistoryItem {
   final int? episode;
   final String? episodeName;
   final String? stillPath;
+
+  /// The addresses of the other copies of this film or episode that were
+  /// watched before this one: a video that went on from another server
+  /// (or was watched there another day) is in the history once, as the
+  /// copy watched last.
+  final List<String> otherCopies;
 }
 
 /// The history with titles, and the changes the History page makes.
@@ -147,6 +154,11 @@ extension HistoryPage on HistoryStore {
   /// The [limit] videos watched last, the latest first, each with its
   /// title if it has one. [sourceIds] are the enabled sources: a title's
   /// card counts only their videos (the history itself lists everything).
+  ///
+  /// The history is kept by address, and a film on three servers has
+  /// three. Here each film and each episode is listed once, as the copy
+  /// watched last; the others are its [HistoryItem.otherCopies]. Trailers,
+  /// samples and videos that are in no title stay one each.
   List<HistoryItem> items({
     required Iterable<String> sourceIds,
     int limit = 300,
@@ -155,7 +167,7 @@ extension HistoryPage on HistoryStore {
       'SELECT h.url, h.watched_at, h.finished, h.duration_ms, '
       // What can be resumed is where the player would go on.
       'ifnull(p.position_ms, h.position_ms) AS position_ms, '
-      'f.name, s.source_id, m.title, m.season, m.episode, '
+      'f.name, s.source_id, m.title, m.season, m.episode, m.extra, '
       'coalesce(e.name, m.episode_name) AS episode_name, e.still_path '
       'FROM (SELECT * FROM watch_history ORDER BY watched_at DESC LIMIT ?) h '
       'LEFT JOIN playback p ON p.url = h.url '
@@ -180,9 +192,29 @@ extension HistoryPage on HistoryStore {
       ))
         card.id: card,
     };
+    // The rows come latest first: the first of a video is the one to
+    // show, and the later ones are its other copies.
+    final copies = <String, List<String>>{};
+    final shown = <Row>[];
+    for (final row in rows) {
+      final title = row['title'];
+      final video = title == null || row['extra'] != null
+          ? null
+          : '$title|${row['season']}|${row['episode']}';
+      final others = video == null ? null : copies[video];
+      if (others != null) {
+        others.add(row['url'] as String);
+        continue;
+      }
+      if (video != null) copies[video] = [];
+      shown.add(row);
+    }
     return [
-      for (final row in rows)
+      for (final row in shown)
         HistoryItem(
+          otherCopies: row['title'] == null || row['extra'] != null
+              ? const []
+              : copies['${row['title']}|${row['season']}|${row['episode']}']!,
           video: WatchedVideo(
             url: row['url'] as String,
             watchedAt: DateTime.fromMillisecondsSinceEpoch(
@@ -204,12 +236,17 @@ extension HistoryPage on HistoryStore {
   }
 
   /// Takes [url] out of the history and forgets where it was left, so that
-  /// it does not come back as something to continue.
-  void forget(String url) => _library.transaction(() {
-    _db
-      ..execute('DELETE FROM watch_history WHERE url = ?', [url])
-      ..execute('DELETE FROM playback WHERE url = ?', [url]);
-  });
+  /// it does not come back as something to continue. With [otherCopies]
+  /// (see [HistoryItem.otherCopies]), those go with it: the video would
+  /// otherwise be back in the list as the copy watched before.
+  void forget(String url, {List<String> otherCopies = const []}) =>
+      _library.transaction(() {
+        for (final each in [url, ...otherCopies]) {
+          _db
+            ..execute('DELETE FROM watch_history WHERE url = ?', [each])
+            ..execute('DELETE FROM playback WHERE url = ?', [each]);
+        }
+      });
 
   /// Empties the history and forgets every position.
   void forgetAll() => _library.transaction(() {

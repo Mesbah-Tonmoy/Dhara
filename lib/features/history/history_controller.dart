@@ -63,9 +63,11 @@ class HistoryController extends ChangeNotifier {
         if (other.video.url != url) other,
     ];
     notifyListeners();
-    final address = Uri.tryParse(url);
-    if (address != null) _resume.clear(address);
-    await _change(_forget, url);
+    for (final each in [url, ...item.otherCopies]) {
+      final address = Uri.tryParse(each);
+      if (address != null) _resume.clear(address);
+    }
+    await _change(_forget, (url, item.otherCopies));
   }
 
   /// Empties the history and forgets every position.
@@ -129,6 +131,7 @@ class HistoryScope extends InheritedNotifier<HistoryController> {
 List<HistoryItem> _read(LibraryDb db, List<String> sourceIds) =>
     HistoryStore(db).items(sourceIds: sourceIds);
 
-void _forget(LibraryDb db, String url) => HistoryStore(db).forget(url);
+void _forget(LibraryDb db, (String, List<String>) video) =>
+    HistoryStore(db).forget(video.$1, otherCopies: video.$2);
 
 void _forgetAll(LibraryDb db, Object? _) => HistoryStore(db).forgetAll();
