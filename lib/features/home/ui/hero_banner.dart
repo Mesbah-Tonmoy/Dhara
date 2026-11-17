@@ -127,28 +127,34 @@ class _HeroBannerState extends State<HeroBanner>
         height: HeroBanner.heightFor(window.height),
         overhangBelow: HeroBanner.overlap,
         scroll: widget.scroll,
-        art: Stack(
-          fit: StackFit.expand,
-          children: [
-            const ColoredBox(color: DharaColors.bg),
-            for (final (index, each) in titles.indexed)
-              AnimatedOpacity(
-                key: ValueKey('hero-art-${each.id}'),
-                opacity: index == _index ? 1 : 0,
-                duration: motion(context, DharaMotion.hero),
-                curve: DharaMotion.easeInOut,
-                child: AnimatedScale(
-                  scale: index == _index ? 1 : 1.08,
-                  duration: slow,
-                  child: TmdbCover(
-                    path: each.backdropPath,
-                    size: 'w1280',
-                    placeholder: PlaceholderArt(seed: each.name, wide: true),
+        // A backdrop is drawn larger than its place while it zooms out, and
+        // the shade over it is not: without the clip its edge shows below
+        // the banner's foot, over the first row.
+        art: ClipRect(
+          key: const Key('hero-art'),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              const ColoredBox(color: DharaColors.bg),
+              for (final (index, each) in titles.indexed)
+                AnimatedOpacity(
+                  key: ValueKey('hero-art-${each.id}'),
+                  opacity: index == _index ? 1 : 0,
+                  duration: motion(context, DharaMotion.hero),
+                  curve: DharaMotion.easeInOut,
+                  child: AnimatedScale(
+                    scale: index == _index ? 1 : 1.08,
+                    duration: slow,
+                    child: TmdbCover(
+                      path: each.backdropPath,
+                      size: 'w1280',
+                      placeholder: PlaceholderArt(seed: each.name, wide: true),
+                    ),
                   ),
                 ),
-              ),
-            const _Shade(),
-          ],
+              const _Shade(),
+            ],
+          ),
         ),
         child: Stack(
           children: [

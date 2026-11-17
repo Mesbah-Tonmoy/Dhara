@@ -7,6 +7,7 @@ import 'package:dhara/features/home/ui/title_meta.dart';
 import 'package:dhara/features/home/ui/wide_card.dart';
 import 'package:dhara/features/metadata/video_identity.dart';
 import 'package:dhara/features/my_list/my_list_controller.dart';
+import 'package:dhara/shell/page_bleed.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:dhara/widgets/buttons.dart';
 import 'package:flutter/gestures.dart';
@@ -111,6 +112,35 @@ void main() {
     expect(HeroBanner.heightFor(720), 720 * .74);
     expect(HeroBanner.heightFor(300), 27 * rem);
     expect(HeroBanner.heightFor(2000), 48 * rem);
+  });
+
+  testWidgets('a backdrop that is zoomed is cut off at the banner\'s foot', (
+    tester,
+  ) async {
+    await pump(tester);
+
+    // The backdrops not on show are drawn 8% larger than their place.
+    final zoomed = tester.widget<AnimatedScale>(
+      find.descendant(
+        of: find.byKey(const ValueKey('hero-art-2')),
+        matching: find.byType(AnimatedScale),
+      ),
+    );
+    expect(zoomed.scale, greaterThan(1));
+
+    final clip = find.byKey(const Key('hero-art'));
+    expect(tester.widget(clip), isA<ClipRect>());
+    expect(
+      find.descendant(
+        of: clip,
+        matching: find.byKey(const ValueKey('hero-art-2')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      tester.getRect(clip).bottom,
+      moreOrLessEquals(HeroBanner.heightFor(720) - PageInsets.top),
+    );
   });
 
   testWidgets('moves on by itself, and round again', (tester) async {
