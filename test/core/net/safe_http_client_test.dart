@@ -160,6 +160,22 @@ void main() {
       expect(seen.last.headers.value('x-token'), isNull);
     });
 
+    test(
+        'take the request headers along on the first host only, and not '
+        'from https down to http', () {
+      bool carries(String first, String current) =>
+          SafeHttpClient.carriesHeaders(Uri.parse(first), Uri.parse(current));
+
+      expect(carries('http://10.0.0.1/a', 'http://10.0.0.1/b'), isTrue);
+      expect(carries('http://10.0.0.1/a', 'https://10.0.0.1/a'), isTrue);
+      expect(carries('https://t.example/a', 'https://t.example/b'), isTrue);
+      expect(carries('http://10.0.0.1:8096/a', 'http://10.0.0.1/a'), isTrue);
+
+      expect(carries('http://10.0.0.1/a', 'http://10.0.0.2/a'), isFalse);
+      expect(carries('https://t.example/a', 'http://t.example/a'), isFalse);
+      expect(carries('https://t.example/a', 'https://u.example/a'), isFalse);
+    });
+
     test('to a host that is not allowed are blocked', () async {
       routes['/a'] = (request) => redirect(request, 'http://example.com/x');
 

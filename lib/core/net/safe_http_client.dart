@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dhara/core/net/media_url.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 /// Why [SafeHttpClient] gave up on a request.
 enum SafeHttpFailure {
@@ -80,8 +81,8 @@ class SafeHttpResponse {
 ///   172.16.x.
 /// - Redirects are followed by hand, at most [maxRedirects] times, and only
 ///   to the host first asked or to another allowed host. Request headers
-///   (which may carry a session token) are never sent on to a different
-///   host.
+///   (which may carry a session token or the TMDB key) are never sent on
+///   to a different host, nor from an https address down to plain http.
 /// - Every request has a total time limit and a body size limit. The size
 ///   limit counts decompressed bytes.
 /// - No cookies are kept and no proxy settings are read.
@@ -210,8 +211,9 @@ class SafeHttpClient {
           throw const _Cancelled();
         }
         request.followRedirects = false;
-        // Headers may hold a token meant for the first host only.
-        if (current.host == url.host) headers.forEach(request.headers.set);
+        if (carriesHeaders(url, current)) {
+          headers.forEach(request.headers.set);
+        }
         if (jsonBody != null) {
           final bytes = utf8.encode(jsonBody);
           request.headers.contentType = ContentType.json;
@@ -256,6 +258,18 @@ class SafeHttpClient {
       throw _networkError(url, 'sent a broken answer');
     }
   }
+
+  /// Whether the request headers go along to [current], where a request
+  /// for [first] was sent on to by redirects.
+  ///
+  /// They may hold a session token or a key: meant for the first host
+  /// only, and, if the request was encrypted, not for anyone listening on
+  /// the way either. A server that sends an https request on to plain
+  /// http gets the request, but not the headers.
+  @visibleForTesting
+  static bool carriesHeaders(Uri first, Uri current) =>
+      current.host == first.host &&
+      (first.scheme != 'https' || current.scheme == 'https');
 
   /// Where a redirect from [current] may go, or a [SafeHttpException].
   Uri _redirectTarget(Uri first, Uri current, String location) {
