@@ -116,5 +116,21 @@ if ($wrong) {
     'tool/bundled-libraries.sha256.')
 }
 
+# --- Installer ----------------------------------------------------------------
+Step 'Making the installer (Inno Setup)'
+$iscc = @(
+  "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+  "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+  "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $iscc) { Fail 'Inno Setup 6 is not installed (winget install --id JRSoftware.InnoSetup -e).' }
+$setup = Join-Path $root "dist\$name-Setup-$version.exe"
+Remove-Item $setup -ErrorAction SilentlyContinue
+$isccArgs = @("/DAppVersion=$version", "/DSourceDir=$stage", "/DOutputDir=$root\dist", '/Qp')
+if ($test) { $isccArgs += '/DTestCopy' }
+& $iscc @isccArgs (Join-Path $root 'installer\dhara.iss')
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path $setup)) { Fail 'Inno Setup did not make the installer.' }
+
 Step 'Done'
 Write-Host ("  folder:    {0} ({1} MB, {2} files)" -f $stage, (SizeMb $stage), (Get-ChildItem $stage -Recurse -File).Count)
+Write-Host ("  installer: {0} ({1} MB)" -f $setup, [math]::Round((Get-Item $setup).Length / 1MB, 1))

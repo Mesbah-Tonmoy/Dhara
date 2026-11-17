@@ -335,6 +335,55 @@ void main() {
     });
   });
 
+  group('least privilege (installer)', () {
+    final script = [
+      for (final line in File('installer/dhara.iss').readAsLinesSync())
+        if (!line.trimLeft().startsWith(';')) line,
+    ].join('\n');
+
+    test('installs for the user who runs it, and cannot ask for more', () {
+      expect(script, contains('PrivilegesRequired=lowest'));
+      expect(script, isNot(contains('PrivilegesRequiredOverridesAllowed')));
+      expect(script, contains(r'DefaultDirName={autopf}\'));
+      // Places only an administrator can write to.
+      expect(
+        RegExp(
+          r'\{(commonpf|commonpf32|commonpf64|commoncf|win|sys|sysnative|'
+          r'commonappdata|commonprograms|commonstartmenu|commondesktop|'
+          r'commonstartup)\}',
+          caseSensitive: false,
+        ).allMatches(script),
+        isEmpty,
+      );
+    });
+
+    test('adds no service, start-up entry, task, registry key or download', () {
+      expect(
+        RegExp(
+          r'^\[(Registry|INI|Code|UninstallRun)\]|'
+          r'\{(userstartup|commonstartup|autostartup)\}|'
+          r'CurrentVersion\\Run|schtasks|sc\.exe|\bsc create\b|'
+          r'https?://|DownloadTemporaryFile|runascurrentuser|runasoriginaluser',
+          caseSensitive: false,
+          multiLine: true,
+        ).allMatches(script).map((match) => match[0]),
+        isEmpty,
+      );
+    });
+
+    test('runs nothing but the app itself, and only when asked', () {
+      final run = script.split('[Run]').last;
+      final entries = [
+        for (final line in run.split('\n'))
+          if (line.startsWith('Filename:')) line,
+      ];
+      expect(entries, hasLength(1));
+      expect(entries.single, contains(r'Filename: "{app}\dhara.exe"'));
+      expect(entries.single, contains('postinstall'));
+      expect(entries.single, contains('skipifsilent'));
+    });
+  });
+
   group('supply chain', () {
     final pubspec = File('pubspec.yaml').readAsLinesSync();
 
