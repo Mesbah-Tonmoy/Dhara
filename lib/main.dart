@@ -41,7 +41,7 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Loads the bundled libmpv; no external player install is needed.
-  MediaKit.ensureInitialized();
+  MediaKit.ensureInitialized(libmpv: _bundledLibmpv());
   // On Windows the app draws its own title bar. Asked for before the first
   // frame, so the window never shows with the system's one. Elsewhere, and if
   // this fails, the system's title bar stays and the app draws none.
@@ -169,6 +169,18 @@ Future<void> main() async {
       const Duration(seconds: 40),
     ).then((_) => images.trim()),
   );
+}
+
+/// The `libmpv-2.dll` that lies beside the program, by its full path.
+///
+/// Left to look for itself, media_kit would first load whatever library the
+/// `LIBMPV_LIBRARY_PATH` environment variable names, and after that search
+/// by name alone. Named in full, the player is the file the installer put
+/// there and no other. Systems other than Windows keep media_kit's search.
+String? _bundledLibmpv() {
+  if (!Platform.isWindows) return null;
+  final folder = File(Platform.resolvedExecutable).parent.path;
+  return '$folder${Platform.pathSeparator}libmpv-2.dll';
 }
 
 /// Reads the size of the index, then, once the app has settled, brings an

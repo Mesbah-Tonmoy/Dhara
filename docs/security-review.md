@@ -25,6 +25,7 @@ something is absent; what the code does is proved by the other tests named.
 | 7 | `packages/media_kit/assets/web/hls1.4.10.js` (a web-only file of media_kit) is in the bundle | none: nothing in the app can run a script | noted |
 | 9 | media_kit's ANGLE download carries a `zlib.dll` that is a debug build (it imports `VCRUNTIME140D.dll`) | none: no file of the app imports it or names it | **fixed**: left out of the installed app |
 | 8 | This PC's own certificate store holds a root that should not be there (found 2026-11-16), so `https` from this PC can be read on the way | outside the app | the TMDB key should be replaced after the PC is reset |
+| 10 | media_kit, left to find libmpv itself, first loads whatever library the `LIBMPV_LIBRARY_PATH` environment variable names | low: whoever can set a variable for this user can already start programs as them | **fixed**: the app names the `libmpv-2.dll` beside the program by its full path. Tried on 2026-11-18 with the variable naming another copy of the library: the one in the app's folder was loaded |
 
 Not findings, but worth knowing:
 
@@ -44,6 +45,7 @@ Not findings, but worth knowing:
 | The player is only ever given an `http`/`https` address | `parseMediaUrl` (`lib/core/net/media_url.dart`) on every pasted and every indexed address. The whitelist above is FFmpeg's: mpv itself can open a local path, which the app uses for a subtitle file the user picks, and for nothing else | `media_url_test.dart` | ok |
 | What a server sends cannot make the player open something on this PC | `load-unsafe-playlists=no`, and mpv's own rule for edit lists that come over the network | `libmpv_hardening_test.dart`: a playlist and an mpv edit list (EDL), served in place of a video and naming a local file, are refused by the real libmpv, while the same list naming the server's own video plays | ok |
 | A player is made in one place only | `createPlayer()` | *guard* | ok |
+| libmpv is the file beside the program | `_bundledLibmpv()` in `lib/main.dart` hands media_kit the full path, so no environment variable and no search by name decides which library is loaded | *guard* | fixed (finding 10) |
 | No mpv command that runs or loads something | the app sends `seek` and sets subtitle and audio properties | *guard* | ok |
 | Option names are those of the bundled mpv | read back at run time, and compared with the 0.36 manual in Phase 2 and Phase 7 | `libmpv_hardening_test.dart`, `libmpv_tuning_checks.dart` | ok |
 | Decoder itself | bundled libmpv | | gap (finding 2) |
@@ -113,7 +115,7 @@ Not findings, but worth knowing:
 | No admin rights | the program asks for `asInvoker` | *guard* (reads the built `dhara.exe`) | ok |
 | No background service, no start-up entry | the runner writes no registry key and starts nothing | *guard* | ok |
 | No silent auto-update | the app has no updater and contacts no host for one | *guard* (hosts) | ok |
-| Per-user install | `installer/dhara.iss`: `PrivilegesRequired=lowest`, into `%LOCALAPPDATA%ProgramsDhara`, no registry key, service, start-up entry, task or download | *guard* (reads the script); a silent install and uninstall of a test copy on 2026-11-17 wrote one `HKCU` uninstall entry and one Start Menu shortcut, nothing under `HKLM` or Program Files, and removed both again | ok |
+| Per-user install | `installer/dhara.iss`: `PrivilegesRequired=lowest`, into `%LOCALAPPDATA%\Programs\Dhara`, no registry key, service, start-up entry, task or download | *guard* (reads the script); a silent install and uninstall of a test copy on 2026-11-17 wrote one `HKCU` uninstall entry and one Start Menu shortcut, nothing under `HKLM` or Program Files, and removed both again | ok |
 
 ## Supply chain
 

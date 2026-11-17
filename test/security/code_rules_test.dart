@@ -203,6 +203,16 @@ void main() {
       });
     });
 
+    test('libmpv is loaded from the folder of the program, by its path', () {
+      // Without a path media_kit takes one from an environment variable.
+      final calls = _hits(lib, RegExp(r'MediaKit\.ensureInitialized\((.*)$'));
+      expect(calls.map((hit) => hit.file), ['lib/main.dart']);
+      expect(calls.single.match.group(1), startsWith('libmpv: '));
+      expect(_hits(lib, RegExp('LIBMPV_LIBRARY_PATH')), isEmpty);
+      final main = File('lib/main.dart').readAsStringSync();
+      expect(main, contains('File(Platform.resolvedExecutable).parent.path'));
+    });
+
     test('no mpv command that runs or loads something is used', () {
       expect(
         _hits(
