@@ -89,9 +89,10 @@ foreach ($file in $runtime) {
 }
 
 # --- Check the bundled libraries ----------------------------------------------
-# media_kit's build script checks its downloads (libmpv, ANGLE) by MD5 only.
-# Every library that comes from elsewhere is compared with the SHA-256 that
-# was looked at; a library that is not on the list stops the script as well.
+# media_kit's build script checks its download (ANGLE) by MD5 only, and
+# libmpv is a build of its own (windows/libmpv.cmake). Every library that
+# comes from elsewhere is compared with the SHA-256 that was looked at; a
+# library that is not on the list stops the script as well.
 Step 'Checking the bundled libraries'
 $expected = @{}
 foreach ($line in Get-Content (Join-Path $PSScriptRoot 'bundled-libraries.sha256')) {
@@ -112,8 +113,8 @@ if ($wrong) {
   # Not left behind to be taken for a folder that passed.
   Remove-Item $stage -Recurse -Force
   Fail ('a bundled library is not the one that was looked at. After a deliberate update ' +
-    '(Flutter, media_kit, sqlite3) check where the new file comes from, then put its hash into ' +
-    'tool/bundled-libraries.sha256.')
+    '(Flutter, media_kit, sqlite3, libmpv) check where the new file comes from, then put its ' +
+    'hash into tool/bundled-libraries.sha256.')
 }
 
 # --- Installer ----------------------------------------------------------------

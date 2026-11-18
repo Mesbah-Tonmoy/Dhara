@@ -57,6 +57,9 @@ add_subdirectory("runner")
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# The libmpv the app ships: fetched, checked and unpacked there.
+include(libmpv.cmake)
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can
@@ -82,10 +85,16 @@ install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
 if(PLUGIN_BUNDLED_LIBRARIES)
+  # Not media_kit's libmpv of 2023: the one of libmpv.cmake goes in its
+  # place, below.
+  list(FILTER PLUGIN_BUNDLED_LIBRARIES EXCLUDE REGEX "/libmpv-2\\.dll$")
   install(FILES "${PLUGIN_BUNDLED_LIBRARIES}"
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endif()
+
+install(FILES "${DHARA_LIBMPV_DLL}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime)
 
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")

@@ -46,6 +46,14 @@ void main() {
 
     tearDown(() => player.dispose());
 
+    test('is the build the app pins, not the one media_kit brings', () async {
+      // media_kit's plugin bundles mpv 0.36 of 2023; `windows/libmpv.cmake`
+      // puts a current build in its place.
+      final version = await native.getProperty('mpv-version');
+      expect(version, startsWith('mpv v'));
+      expect(version, isNot(contains('v0.36.')));
+    });
+
     test('is not hardened until hardenPlayer runs', () async {
       final actual = <String, String>{};
       for (final name in requiredMpvValues.keys) {

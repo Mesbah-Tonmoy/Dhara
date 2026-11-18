@@ -42,6 +42,9 @@ secrets.json
 *.db-wal
 *.db-shm
 
+# The libmpv archive windows/libmpv.cmake downloads and keeps
+windows/libmpv/
+
 # Packaging output
 dist/
 *.exe

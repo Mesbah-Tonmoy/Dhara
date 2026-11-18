@@ -455,6 +455,48 @@ void main() {
       expect(hashed, hosted);
       expect(lock, isNot(contains('source: git')));
     });
+
+    test('libmpv is one fixed build, fetched over https and checked', () {
+      final pin = File('windows/libmpv.cmake').readAsStringSync();
+      String value(String name) =>
+          RegExp('set\\($name\\s+"([^"]+)"\\)').firstMatch(pin)![1]!;
+
+      final archive = value('DHARA_LIBMPV_ARCHIVE');
+      expect(archive, matches(r'^mpv-dev-x86_64-\d{8}-git-[0-9a-f]+\.7z$'));
+      expect(
+        value('DHARA_LIBMPV_URL'),
+        matches(
+          r'^https://github\.com/shinchiro/mpv-winbuild-cmake/releases/'
+          r'download/\d{8}/\$\{DHARA_LIBMPV_ARCHIVE\}$',
+        ),
+      );
+      expect(value('DHARA_LIBMPV_SHA256'), matches(r'^[0-9a-f]{64}$'));
+      // Nothing is used that does not match that hash: neither what is
+      // downloaded nor an archive kept from an earlier build.
+      expect(pin, contains(r'EXPECTED_HASH SHA256=${DHARA_LIBMPV_SHA256}'));
+      expect(pin, contains('TLS_VERIFY ON'));
+      expect(pin, contains(r'file(SHA256 "${DHARA_LIBMPV_CACHE}"'));
+
+      // That file is what gets installed, not the libmpv of 2023 that
+      // media_kit's plugin brings along.
+      final build = File('windows/CMakeLists.txt').readAsStringSync();
+      expect(build, contains('include(libmpv.cmake)'));
+      expect(
+        build,
+        contains(
+          r'list(FILTER PLUGIN_BUNDLED_LIBRARIES EXCLUDE REGEX '
+          r'"/libmpv-2\\.dll$")',
+        ),
+      );
+      expect(build, contains(r'install(FILES "${DHARA_LIBMPV_DLL}"'));
+
+      // And the installer is only made from the library that was looked at.
+      final listed = File('tool/bundled-libraries.sha256').readAsLinesSync();
+      expect(
+        listed.where((line) => line.endsWith('*libmpv-2.dll')),
+        hasLength(1),
+      );
+    });
   });
 }
 
