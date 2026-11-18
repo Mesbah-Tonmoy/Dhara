@@ -21,7 +21,7 @@ The full project brief lives in [BRIEF.md](../BRIEF.md) (mirrored in
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
 | 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. Frame rate while scrolling and cold start were measured in Phase 7 (see [Keeping frames cheap](#keeping-frames-cheap)). **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests) |
 | 7. Smart playback | Done in code and in automated tests, and tried in the running app against a web server on this PC that can be slow, stall, drop the connection or send no video: the player is set up for streaming (buffer size and hardware decoding in Settings), seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, Settings has a preferred quality and the languages a video starts in, Play starts on the fastest copy, a video that stalls goes on from another copy by itself, the next episode's copy is chosen before this one ends, and files of Emby and Jellyfin servers are fetched with a session; see [Smart playback](#smart-playback) and what was [measured](#measured-in-phase-7). Tried on real BDIX servers on 2026-11-17 (two folder-listing servers and an Emby server answering, one h5ai server down): see [Tried on real servers](#tried-on-real-servers). **Not yet tried there:** a server that stalls in the middle of a video (it cannot be made to), and a real Dolby TrueHD file |
-| 8. Packaging, security review and docs | Done: the app was gone through against section 7 of the brief ([security-review.md](security-review.md)), there is a per-user installer with a checksum (see [Installer](#installer)), and the README is there in English and Bangla, with how to keep the player up to date and a list of what to try by hand ([manual-test.bn.md](manual-test.bn.md)). **Not yet tried:** the installer on a PC without Visual Studio, an update over an older version, the installer's pages by hand, and a libmpv newer than the bundled one. The installer is to be made again after the PC it was built on is reset |
+| 8. Packaging, security review and docs | Done: the app was gone through against section 7 of the brief ([security-review.md](security-review.md)), there is a per-user installer with a checksum (see [Installer](#installer)), and the README is there in English and Bangla, with how to keep the player up to date and a list of what to try by hand ([manual-test.bn.md](manual-test.bn.md)). On 2026-11-18 the libmpv of 2023 was replaced by a current build (see [Player hardening](#player-hardening)). **Not yet tried:** the installer on a PC without the Visual C++ runtime, an update over an older version, and the newer libmpv on real BDIX servers. The installer is to be made again after the PC it was built on is reset |
 | 9 | Not started |
 
 ## Prerequisites (Windows)
@@ -104,8 +104,10 @@ installs beside the real app): a silent install wrote one uninstall entry
 under `HKCU` and one shortcut in the user's Start Menu, nothing under
 `HKLM` or Program Files, no start-up entry, service or task; the installed
 app started and loaded the C++ runtime from its own folder; the uninstaller
-removed all of it and left the data folder. Not tried: a PC without Visual
-Studio, an update over an older version, and the installer's pages by hand.
+removed all of it and left the data folder. On 2026-11-18 the user
+installed 1.0.0 on a second PC, one without Visual Studio but with
+Microsoft's Visual C++ runtime installed, and it ran well there. Not
+tried: a PC without that runtime, and an update over an older version.
 
 **How far to trust it.** The PC the 1.0.0 installer was made on was found
 to hold old malware (2026-11-16) and has not been reset yet. The checksum
@@ -115,32 +117,61 @@ clean. After the reset, run the script again and use that installer.
 ## Player hardening
 
 Every player is created in `lib/features/player/secure_player.dart`. Before a
-URL is opened, the app sets the restricted mpv options (`ytdl=no`,
-`load-scripts=no`, `load-unsafe-playlists=no`, no auto-loaded external files,
-FFmpeg `protocol_whitelist=http,https,tcp,tls,crypto`), reads each one back
-from libmpv and refuses to play if any value is not what it expects.
+URL is opened, the app sets the restricted mpv options, reads each one back
+from libmpv and refuses to play if any value is not what it expects:
+
+- `ytdl=no`, `load-scripts=no`, `osc=no` and every other `load-…` option
+  the libmpv at hand lists: no script runs, neither the user's nor one of
+  the scripts mpv starts by itself (the yt-dlp hook, a statistics overlay,
+  a console, menus)
+- `load-unsafe-playlists=no`, and no external file loaded on mpv's own
+  initiative
+- `curl-enabled=no`: http(s) is opened by FFmpeg and not by the libcurl
+  newer mpv has, so that the next two hold
+- FFmpeg `protocol_whitelist=http,https,tcp,tls,crypto`
+- `max_redirects=0`: the player follows no redirect. The app follows
+  redirects first, under its own rule (same host or a configured source,
+  at most 5), refuses to play if the chain breaks it, and hands the player
+  the final address (the live ping does this, see
+  [Starting on the fastest copy](#starting-on-the-fastest-copy))
 
 `flutter test` also runs these checks against the real `libmpv-2.dll` once a
 Windows build exists (`test/features/player/libmpv_hardening_test.dart`).
 
-Known gaps, tracked for later phases:
+**Which libmpv.** media_kit's plugin bundles mpv 0.36 with FFmpeg 6.0 of
+2023-09-24, the last build its authors made
+(`media-kit/libmpv-win32-video-build`, archived in October 2024). Since
+2026-11-18 the app ships a current build in its place: mpv 0.42 of
+2026-11-11, one fixed archive of `shinchiro/mpv-winbuild-cmake`, checked
+by SHA-256 (`windows/libmpv.cmake`; the plugin's own file is left out of
+the bundle in `windows/CMakeLists.txt`). media_kit 1.2.6 works with it
+unchanged. How to take a newer build is under "Keeping the player up to
+date" in the [README](../README.md#keeping-the-player-up-to-date).
 
-- The bundled libmpv is mpv 0.36 / FFmpeg 6.0 from 2023-09-24, the last
-  release of the now-archived `media-kit/libmpv-win32-video-build`. What
-  to check from time to time, and the untried way to a newer build, are
-  under "Keeping the player up to date" in the
-  [README](../README.md#keeping-the-player-up-to-date).
-- FFmpeg follows HTTP redirects itself, to any http(s) host, and this
-  build has no option to stop it (checked: the DLL has no `max_redirects`).
-  The app therefore follows redirects first, under its own rule (same host
-  or a configured source, at most 5), refuses to play if the chain breaks
-  it, and hands the player the final address (the live ping does this,
-  see [Starting on the fastest copy](#starting-on-the-fastest-copy)).
-  What is left: a server could
-  still answer the player itself with a new redirect. Closing that needs a
-  libmpv whose FFmpeg can limit redirects.
+What changed with it, besides the decoders:
+
+- that build is a whole mpv with Lua and libcurl in it, which is why the
+  list above grew (findings 11 and 12 of the
+  [security review](security-review.md))
+- the graphics card now decodes straight into what is drawn (`d3d11va`
+  in the info panel, where the old build said `d3d11va-copy`)
+- it has a decoder for Dolby TrueHD
+- `libmpv-2.dll` is 122 MB where it was 30 MB
+
+Tried with it on 2026-11-18: all automated tests, and in the running app
+a video from a web server on this PC (played, hardware decoding, a seek).
+**Not yet tried with it:** real BDIX servers, a file with several sound
+tracks or subtitles, a TrueHD track, and an `https` server.
+
+Known gaps:
+
+- A playlist that a server sends in place of a video can name a video on
+  another http(s) host, and the player fetches it. It cannot name a file
+  of this PC (checked by test). mpv has no option to refuse playlists.
 - If no server can be asked beforehand (unreachable, slower than 2 s),
-  the video is opened unchecked and the player reports the real error.
+  the video is opened unchecked and the player reports the real error. If
+  that server answers with a redirect, the video does not start; "Try
+  again" asks the server first once more.
 
 ## Smart playback
 
@@ -155,8 +186,8 @@ Windows 11), release build, the real library (2026-11-16):
 | Search | under 100 ms over 100k files | 2 to 7 ms by title over 23,389 videos (Phase 5); the browse page counts and lists 19,749 titles in 71 ms |
 | Playback start | under 2 s on a good BDIX link | 1.5 s on a real server before Play chose the fastest copy (the user's info panel: the server answered in 320 ms); 0.3 to 0.8 s from a server on this PC, 0.3 s for a next episode asked ahead of time |
 | Seeking | feels instant | inside the buffer no request goes to the server; a jump to the middle or to the end of a film on a real server showed the picture within the 3 s before the next look at it (2026-11-17), not timed more finely |
-| Idle memory | report | 213 to 225 MB working set, 376 to 394 MB private, 18 to 40 s after start on Home (version 1.0.0 as installed, window 1920×1020, 2026-11-17). About 40 MB of it is Home keeping all its rows built, which is what makes a fast scroll smooth: without that, 170 to 184 MB and 325 to 333 MB. On 2026-11-16, before that change, 136 MB and 219 MB were measured 12 s after start |
-| Installer size | about 80 MB at most | 24.9 MB (`Dhara-Setup-1.0.0.exe`); 83.7 MB once installed, of which libmpv is 28 MB and the Flutter engine 20 MB |
+| Idle memory | report | 196 to 210 MB working set, 381 to 389 MB private, 24 and 45 s after start on Home (release build with the newer libmpv, window 1920×1020, 2026-11-18); with the libmpv of 2023 it was 213 to 225 MB and 376 to 394 MB (2026-11-17). About 40 MB of it is Home keeping all its rows built, which is what makes a fast scroll smooth: without that, 170 to 184 MB and 325 to 333 MB were measured. On 2026-11-16, before that change, 136 MB and 219 MB were measured 12 s after start |
+| Installer size | about 80 MB at most | 48.2 MB (`Dhara-Setup-1.0.0.exe`); the app's files are 167 MB, of which libmpv is 122 MB and the Flutter engine 20 MB. With the libmpv of 2023, which is a quarter of that size, the installer was 24.9 MB and the files 80 MB |
 
 ### Tried on real servers
 
@@ -264,9 +295,9 @@ for a file of that server:
 - it goes to the server that gave it and to no other host. The app's own
   requests do not carry headers across a redirect to another host, and
   where the chosen copy leads to another host the player is given no
-  headers. What is left is the gap named under
-  [Player hardening](#player-hardening): FFmpeg follows a redirect the
-  server sends the player itself, and would take the headers along
+  headers. A redirect the server sends the player itself is not
+  followed (see [Player hardening](#player-hardening)), so the headers
+  go nowhere else
 - if the sign-in does not work (no guest user, server down), the file is
   asked for without a session, the server refuses it, and the copy counts
   as not answering
@@ -470,12 +501,12 @@ Every control does something and is saved as it is changed
   panels change them while it plays. Checked that libmpv takes the
   options; a film with English and Hindi sound started in English with
   "Original" (2026-11-17).
-- The bundled libmpv has no decoder for Dolby TrueHD (or MLP), the first
-  sound track of many 4K films. Such a track says "cannot be played" in the
-  list, and when libmpv picks one, the player switches to another track by
-  itself (the same language if there is one) and says so
-  (`lib/features/player/track_options.dart`). DTS, E-AC3, AC3, AAC, FLAC and
-  Opus are decoded.
+- A sound track in a format libmpv has no decoder for says "cannot be
+  played" in the list, and when libmpv picks one, the player switches to
+  another track by itself (the same language if there is one) and says so
+  (`lib/features/player/track_options.dart`). The libmpv of 2023 had none
+  for Dolby TrueHD (or MLP), the first sound track of many 4K films; the
+  build shipped since 2026-11-18 has one, not yet tried on a real file.
 - A long track name is shown on up to three lines.
 - What libmpv reports as an error goes away after 8 seconds once the video
   plays; it stays while nothing is playing.

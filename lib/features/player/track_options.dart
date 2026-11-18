@@ -33,7 +33,8 @@ const _pseudoIds = {'auto', 'no'};
 /// The audio tracks of the current file. Empty for a video without sound.
 ///
 /// A track in a format the player has no decoder for (see
-/// [decodableCodecs]) says so: the bundled libmpv cannot play Dolby TrueHD.
+/// [decodableCodecs]) says so: the libmpv media_kit bundles has none for
+/// Dolby TrueHD (the build the app ships has).
 List<TrackOption> audioOptions(
   List<AudioTrack> tracks, {
   Set<String> decoders = const {},

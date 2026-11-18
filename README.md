@@ -134,9 +134,10 @@ no yt-dlp, no configuration file, and network protocols limited to
 `http` and `https`. The whole review, rule by rule, is in
 [docs/security-review.md](docs/security-review.md).
 
-The largest known risk is the age of the bundled player: libmpv 0.36 with
-FFmpeg 6.0, built in September 2023. Media decoders are where a hostile
-file would attack, and this build gets no fixes. See
+The player is where a hostile file would attack, so the app does not ship
+the libmpv that media_kit bundles, a build of September 2023 that gets no
+fixes. It ships a current one in its place (mpv 0.42 of November 2026).
+That holds only as long as newer builds are taken: see
 [Keeping the player up to date](#keeping-the-player-up-to-date).
 
 ## Keeping the player up to date
@@ -145,72 +146,74 @@ The player library is the dependency to watch. This is how it gets into
 the app:
 
 - `pubspec.yaml` pins `media_kit`, `media_kit_video` and
-  `media_kit_libs_windows_video` to exact versions.
-- The build script of `media_kit_libs_windows_video`
-  (`windows/CMakeLists.txt` in that package) downloads one fixed libmpv
-  archive, and the build puts its `libmpv-2.dll` beside the app. The app
-  loads that file by its full path and no other.
-- `tool/bundled-libraries.sha256` holds the SHA-256 of that file, and
-  `tool/package.ps1` makes no installer from a different one.
+  `media_kit_libs_windows_video`. media_kit drives libmpv; the libmpv it
+  bundles itself is the one of 2023 and is left out of the app.
+- `windows/libmpv.cmake` names one build of libmpv: an archive of the
+  Windows builds that mpv.io lists (`shinchiro/mpv-winbuild-cmake` on
+  GitHub), its address and its SHA-256. A build of the app downloads that
+  archive once, keeps it in `windows/libmpv/` (not in git), uses it only
+  if its SHA-256 is the one written there, and puts the `libmpv-2.dll`
+  from it beside the app. The app loads that file by its full path and no
+  other.
+- `tool/bundled-libraries.sha256` holds the SHA-256 of that
+  `libmpv-2.dll`, and `tool/package.ps1` makes no installer from a
+  different one.
 
 To see which libmpv a build holds, look at the version stamp of the file
-(today `v0.36.0-403-g652a1dd907`):
+(today `v0.42.0-38-gbcde6b93c`):
 
 ```powershell
 (Get-Item dist\Dhara-1.0.0\libmpv-2.dll).VersionInfo.ProductVersion
 ```
 
-**Every month or two, and before every new installer:**
+**Every month or two, and before every new installer, take the newest
+build:**
 
-1. Run `flutter pub outdated` and look at the three media_kit packages.
-   If one is newer, read its changelog on pub.dev.
-2. Raise the three versions together in `pubspec.yaml` (they are released
-   to fit each other) and run `flutter pub get`.
-3. Run `flutter build windows --release`, then `flutter test`. With a
-   build in place, the tests drive the real `libmpv-2.dll`: every
-   hardening option is set and read back, a playlist sent in place of a
-   video must not open a file of this PC, and a video is played from a
-   local web server. A failure here means an option changed its name or
-   its meaning. Do not go on until it is understood.
+1. Open <https://github.com/shinchiro/mpv-winbuild-cmake/releases>. In the
+   newest release find `mpv-dev-x86_64-<date>-git-<hash>.7z` (not the
+   `v3` file, which only runs on newer processors) and the SHA-256 shown
+   beside it.
+2. Put its three values into `windows/libmpv.cmake`: the file name, the
+   date in the address, and the SHA-256.
+3. Run `flutter build windows --release`, then `flutter test`. The tests
+   drive the real `libmpv-2.dll`: every hardening option is set and read
+   back, every script mpv starts by itself must be off, a redirect must
+   not be followed, a playlist sent in place of a video must not open a
+   file of this PC, and a video is played from a local web server. A
+   failure here means an option changed its name or its meaning, or mpv
+   has begun to do something new by itself. Do not go on until it is
+   understood.
 4. Run `pwsh tool/package.ps1`. It stops, because `libmpv-2.dll` is no
-   longer the file on the list, and prints the new SHA-256. Check where
-   the new file comes from (the address and checksum in the package's
-   `windows/CMakeLists.txt`), put the new hash into
-   `tool/bundled-libraries.sha256`, and run the script again.
+   longer the file on the list, and prints the new SHA-256. Put it into
+   `tool/bundled-libraries.sha256` and run the script again.
 5. Install it and go through [docs/manual-test.bn.md](docs/manual-test.bn.md)
    (in Bangla): a film, a seek, subtitles, a second sound track, the end
    of an episode, and the decoder line of the info panel (the I key).
-6. Write the new version into
-   [docs/security-review.md](docs/security-review.md): finding 2 and the
-   table of bundled libraries.
+6. Write the new version into the table of bundled libraries in
+   [docs/security-review.md](docs/security-review.md).
 
-**As things stand on 2026-11-18, there is nothing newer to take.**
-`media_kit_libs_windows_video` 1.0.11 is the latest version and about 20
-months old, and the repository that made its libmpv builds
-(`media-kit/libmpv-win32-video-build`) was archived in October 2024. So
-step 1 finds nothing, and the bundled libmpv stays the build of September
-2023.
+Do not wait much longer than that. On 2026-11-18 that source kept its
+last 30 builds, the oldest less than six weeks old. Once the pinned build
+is gone from there, a PC without the archive in `windows/libmpv/` cannot
+build the app until a newer build is pinned.
 
-**The way out has not been tried yet:** putting a newer `libmpv-2.dll` in
-the place of the bundled one. `shinchiro/mpv-winbuild-cmake` on GitHub
-publishes current Windows builds of mpv
-(`mpv-dev-x86_64-<date>-git-<hash>.7z`, each with a SHA-256 on the release
-page), and they hold a `libmpv-2.dll`. Before that can be relied on, these
-need an answer:
+Now and then also run `flutter pub outdated` and look at the three
+media_kit packages. If one is newer, read its changelog, raise the three
+versions together in `pubspec.yaml`, and go through steps 3 to 5.
 
-- Does media_kit 1.2.6 work with it? Its bindings were made for the
-  libmpv of 2023. The tests of step 3 show which options the newer mpv no
-  longer takes.
-- How does the file get into the build? `tool/package.ps1` has no switch
-  for it. It would need one that copies the downloaded file, checked
-  against the release page, over the bundled one before the hash check.
-- What does it cost? That archive is 30 MB packed, against 24.9 MB for
-  the whole installer today, and a full build of mpv has more in it than
-  the app needs.
+**What the first change of build took (2026-11-18).** mpv 0.42 has things
+in it that the build of 2023 lacked, and the app had to switch them off
+before it could ship: Lua scripts that mpv starts by itself, among them a
+hook that runs `yt-dlp`, and a libcurl that opens `http` addresses past
+the protocol whitelist. Findings 11 and 12 of the security review say
+what was done. A newer build may bring more of that kind; the tests of
+step 3 are there to notice.
 
-This is a job of its own. Until it is done, two things stand between a
-hostile file and the decoder: the hardening, and the fact that the app
-plays only what the servers you enabled, or you yourself, give it.
+**What was tried with it:** all automated tests, and in the running app a
+video from a web server on this PC, which played with hardware decoding
+and was sought in. **Not tried yet:** real BDIX servers, a file with
+several sound tracks or subtitles, a Dolby TrueHD track (this build has a
+decoder for it, the old one had none) and an `https` server.
 
 ## Building it
 
@@ -247,15 +250,13 @@ Windows 11), version 1.0.0, a library of 23,389 videos:
 | Cold start | under 2 s | 0.85 to 0.9 s |
 | Search | under 100 ms | 2 to 7 ms by title |
 | Playback start | under 2 s | 0.7 to 1.8 s on real BDIX servers |
-| Installer | about 80 MB at most | 24.9 MB (83.7 MB installed) |
-| Idle memory | | 213 to 225 MB working set on Home |
+| Installer | about 80 MB at most | 48.2 MB (the app's files: 167 MB) |
+| Idle memory | | 196 to 210 MB working set on Home |
 
 ## What it cannot do yet
 
 - 20 of the 38 servers in the list are websites of their own kind. The app
   can test them but cannot read them.
-- Dolby TrueHD sound is not decoded; the player switches to another track
-  of the file by itself.
 - `https` servers with a self-signed certificate are refused.
 - It was built and tried on Windows only.
 

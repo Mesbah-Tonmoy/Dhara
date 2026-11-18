@@ -136,10 +136,11 @@ script নেই, yt-dlp নেই, configuration file নেই, আর network
 `http` আর `https`। প্রতিটা নিয়ম ধরে ধরে পুরো review আছে
 [docs/security-review.md](docs/security-review.md)-তে (English)।
 
-জানা ঝুঁকির মধ্যে সবচেয়ে বড় হলো সাথে দেওয়া player-এর বয়স: libmpv 0.36 আর
-FFmpeg 6.0, September 2023-এ বানানো। ক্ষতিকর file আক্রমণ করলে media
-decoder-এই করবে, আর এই build-এ নতুন কোনো fix আসে না। বিস্তারিত নিচে,
-[Player আপডেট রাখা](#player-আপডেট-রাখা) অংশে।
+ক্ষতিকর file আক্রমণ করলে player-এই করবে। তাই media_kit-এর সাথে যে libmpv
+আসে (September 2023-এর build, যাতে নতুন কোনো fix আসে না), app সেটা ব্যবহার
+করে না; তার জায়গায় চলতি একটা build দেয় (November 2026-এর mpv 0.42)। তবে
+এটা ততদিনই ঠিক থাকে যতদিন নতুন build নেওয়া হয়: নিচে
+[Player আপডেট রাখা](#player-আপডেট-রাখা) দেখুন।
 
 ## Player আপডেট রাখা
 
@@ -147,69 +148,72 @@ decoder-এই করবে, আর এই build-এ নতুন কোনো f
 এটা app-এ ঢোকে এভাবে:
 
 - `pubspec.yaml`-এ `media_kit`, `media_kit_video` আর
-  `media_kit_libs_windows_video`-এর version একদম নির্দিষ্ট করে লেখা (pin
-  করা)।
-- `media_kit_libs_windows_video`-এর build script (ওই package-এর
-  `windows/CMakeLists.txt`) একটা নির্দিষ্ট libmpv archive download করে,
-  আর build তার `libmpv-2.dll`-টা app-এর পাশে রাখে। App ওই file-টাকেই তার
-  পুরো path ধরে load করে, অন্য কোনোটা নয়।
-- `tool/bundled-libraries.sha256`-এ ওই file-এর SHA-256 লেখা আছে, আর
-  `tool/package.ps1` অন্য কোনো file দিয়ে installer বানায় না।
+  `media_kit_libs_windows_video`-এর version pin করা। media_kit libmpv-কে
+  চালায়; সে নিজে যে libmpv সাথে আনে সেটা ২০২৩-এর, আর সেটা app-এ রাখা হয় না।
+- `windows/libmpv.cmake`-এ libmpv-র একটা নির্দিষ্ট build লেখা আছে: mpv.io
+  যে Windows build-গুলোর তালিকা দেয় তার একটা archive (GitHub-এর
+  `shinchiro/mpv-winbuild-cmake`), তার ঠিকানা আর তার SHA-256। App build
+  করার সময় ওই archive একবার download হয়, `windows/libmpv/`-এ রাখা হয়
+  (git-এ নয়), SHA-256 মিললে তবেই ব্যবহার হয়, আর তার ভেতরের `libmpv-2.dll`
+  app-এর পাশে বসে। App ওই file-টাকেই তার পুরো path ধরে load করে, অন্য
+  কোনোটা নয়।
+- `tool/bundled-libraries.sha256`-এ ওই `libmpv-2.dll`-এর SHA-256 লেখা আছে,
+  আর `tool/package.ps1` অন্য কোনো file দিয়ে installer বানায় না।
 
 কোনো build-এ কোন libmpv আছে দেখতে file-টার version stamp দেখুন (এখন
-`v0.36.0-403-g652a1dd907`):
+`v0.42.0-38-gbcde6b93c`):
 
 ```powershell
 (Get-Item dist\Dhara-1.0.0\libmpv-2.dll).VersionInfo.ProductVersion
 ```
 
-**এক-দুই মাস পরপর, আর প্রতিটা নতুন installer বানানোর আগে:**
+**এক-দুই মাস পরপর, আর প্রতিটা নতুন installer বানানোর আগে, সবচেয়ে নতুন
+build-টা নিন:**
 
-1. `flutter pub outdated` চালিয়ে media_kit-এর তিনটা package দেখুন। কোনোটার
-   নতুন version থাকলে pub.dev-এ তার changelog পড়ুন।
-2. `pubspec.yaml`-এ তিনটার version একসাথে বাড়ান (এগুলো একে অপরের সাথে
-   মিলিয়ে release হয়), তারপর `flutter pub get` চালান।
-3. `flutter build windows --release` চালান, তারপর `flutter test`। Build
-   থাকলে test-গুলো আসল `libmpv-2.dll` চালিয়ে দেখে: প্রতিটা hardening option
-   বসিয়ে আবার পড়ে মেলায়, video-র জায়গায় পাঠানো playlist এই PC-র কোনো file
-   খুলতে পারে না তা দেখে, আর একটা local web server থেকে video চালায়। এখানে
-   কোনো test fail করা মানে কোনো option-এর নাম বা অর্থ বদলেছে। কারণটা না
-   বোঝা পর্যন্ত আর এগোবেন না।
+1. <https://github.com/shinchiro/mpv-winbuild-cmake/releases> খুলুন। সবচেয়ে
+   নতুন release-এ `mpv-dev-x86_64-<date>-git-<hash>.7z` file-টা খুঁজুন
+   (`v3` লেখাটা নয়; ওটা শুধু নতুন processor-এ চলে) আর তার পাশে দেখানো
+   SHA-256 নিন।
+2. তার তিনটা মান `windows/libmpv.cmake`-এ বসান: file-এর নাম, ঠিকানার ভেতরের
+   তারিখ, আর SHA-256।
+3. `flutter build windows --release` চালান, তারপর `flutter test`। Test-গুলো
+   আসল `libmpv-2.dll` চালিয়ে দেখে: প্রতিটা hardening option বসিয়ে আবার পড়ে
+   মেলায়, mpv নিজে থেকে যে script চালু করে তার সবগুলো বন্ধ কি না দেখে,
+   redirect মানা হয় না তা দেখে, video-র জায়গায় পাঠানো playlist এই PC-র
+   কোনো file খুলতে পারে না তা দেখে, আর একটা local web server থেকে video
+   চালায়। এখানে কোনো test fail করা মানে কোনো option-এর নাম বা অর্থ বদলেছে,
+   অথবা mpv নিজে থেকে নতুন কিছু করতে শুরু করেছে। কারণটা না বোঝা পর্যন্ত আর
+   এগোবেন না।
 4. `pwsh tool/package.ps1` চালান। এটা থেমে যাবে, কারণ `libmpv-2.dll` আর
-   তালিকার file-টা নয়, আর নতুন SHA-256 দেখাবে। নতুন file কোথা থেকে আসছে
-   দেখে নিন (package-এর `windows/CMakeLists.txt`-এর ঠিকানা আর checksum),
-   নতুন hash-টা `tool/bundled-libraries.sha256`-এ বসান, তারপর script আবার
-   চালান।
+   তালিকার file-টা নয়, আর নতুন SHA-256 দেখাবে। সেটা
+   `tool/bundled-libraries.sha256`-এ বসিয়ে script আবার চালান।
 5. Install করে [docs/manual-test.bn.md](docs/manual-test.bn.md) ধরে দেখে
    নিন: একটা film, seek, subtitle, দ্বিতীয় audio track, episode-এর শেষ, আর
    info panel-এর (I key) decoder লাইন।
-6. নতুন version-টা [docs/security-review.md](docs/security-review.md)-তে
-   লিখুন: finding 2 আর bundled library-র table।
+6. নতুন version-টা [docs/security-review.md](docs/security-review.md)-র
+   bundled library-র table-এ লিখুন।
 
-**২০২৬-১১-১৮ তারিখে অবস্থা: নেওয়ার মতো নতুন কিছু নেই।**
-`media_kit_libs_windows_video` 1.0.11-ই সবচেয়ে নতুন version, আর সেটা প্রায়
-২০ মাস পুরনো। যে repository তার libmpv build বানাত
-(`media-kit/libmpv-win32-video-build`), সেটা October 2024-এ archive করা
-হয়েছে। তাই ধাপ ১-এ কিছু পাওয়া যায় না, আর সাথে দেওয়া libmpv September
-2023-এর build-ই থেকে যাচ্ছে।
+এর চেয়ে বেশি দেরি করবেন না। ২০২৬-১১-১৮ তারিখে ওই উৎস তার শেষ ৩০টা build
+রাখছিল, যার সবচেয়ে পুরনোটা ছয় সপ্তাহেরও কম আগের। Pin করা build-টা ওখান
+থেকে সরে গেলে, যে PC-র `windows/libmpv/`-এ archive-টা নেই সেখানে নতুন build
+pin না করা পর্যন্ত app আর build হবে না।
 
-**বের হওয়ার পথটা এখনো চেষ্টা করা হয়নি:** সাথে দেওয়া `libmpv-2.dll`-এর
-জায়গায় নতুন একটা বসানো। GitHub-এর `shinchiro/mpv-winbuild-cmake` mpv-র
-চলতি Windows build প্রকাশ করে (`mpv-dev-x86_64-<date>-git-<hash>.7z`,
-release page-এ প্রতিটার SHA-256 সহ), আর তাতে `libmpv-2.dll` থাকে। এটার উপর
-ভরসা করার আগে এই প্রশ্নগুলোর উত্তর লাগবে:
+মাঝে মাঝে `flutter pub outdated`-ও চালিয়ে media_kit-এর তিনটা package দেখুন।
+কোনোটার নতুন version থাকলে তার changelog পড়ুন, `pubspec.yaml`-এ তিনটার
+version একসাথে বাড়ান, আর ধাপ ৩ থেকে ৫ করুন।
 
-- media_kit 1.2.6 এর সাথে কাজ করে কি? তার binding বানানো ২০২৩-এর libmpv-র
-  জন্য। নতুন mpv কোন option আর নেয় না, তা ধাপ ৩-এর test-গুলো দেখিয়ে দেবে।
-- File-টা build-এ ঢুকবে কীভাবে? `tool/package.ps1`-এ এর জন্য কোনো switch
-  নেই। এমন একটা লাগবে যা download করা file-টা release page-এর সাথে মিলিয়ে
-  নিয়ে, hash পরীক্ষার আগে, সাথে দেওয়া file-এর উপর বসিয়ে দেয়।
-- খরচ কত? ওই archive pack করা অবস্থাতেই 30 MB, যেখানে আজ পুরো installer
-  24.9 MB; আর mpv-র পুরো build-এ app-এর দরকারের চেয়ে বেশি জিনিস থাকে।
+**প্রথমবার build বদলাতে যা লেগেছে (২০২৬-১১-১৮)।** mpv 0.42-এ এমন কিছু
+জিনিস আছে যা ২০২৩-এর build-এ ছিল না, আর app ছাড়ার আগে সেগুলো বন্ধ করতে
+হয়েছে: Lua script, যা mpv নিজে থেকেই চালু করে (তার একটা `yt-dlp` চালানোর
+hook), আর একটা libcurl, যা protocol whitelist এড়িয়ে `http` ঠিকানা খোলে। কী
+করা হয়েছে তা security review-র finding 11 আর 12-তে লেখা। আরও নতুন build
+এ ধরনের আরও কিছু আনতে পারে; ধাপ ৩-এর test-গুলো সেটা ধরার জন্যই।
 
-এটা আলাদা একটা কাজ। সেটা না হওয়া পর্যন্ত ক্ষতিকর file আর decoder-এর মাঝখানে
-দুটো জিনিস দাঁড়িয়ে আছে: hardening, আর এই ব্যাপারটা যে app শুধু তা-ই চালায়
-যা আপনার চালু করা server বা আপনি নিজে তাকে দেন।
+**এটা দিয়ে যা পরীক্ষা হয়েছে:** সব automated test, আর চালু app-এ এই PC-র
+একটা web server থেকে একটা video, যেটা hardware decoding দিয়ে চলেছে আর
+তাতে seek করা গেছে। **এখনো পরীক্ষা হয়নি:** আসল BDIX server, একাধিক audio
+track বা subtitle-ওয়ালা file, Dolby TrueHD track (এই build-এ তার decoder
+আছে, পুরনোটায় ছিল না) আর `https` server।
 
 ## নিজে build করা
 
@@ -246,15 +250,13 @@ version 1.0.0, ২৩,৩৮৯টা video-র library:
 | Cold start | ২ s-এর কম | 0.85 থেকে 0.9 s |
 | Search | ১০০ ms-এর কম | title দিয়ে 2 থেকে 7 ms |
 | Playback শুরু | ২ s-এর কম | আসল BDIX server-এ 0.7 থেকে 1.8 s |
-| Installer | বড়জোর ~80 MB | 24.9 MB (install-এর পরে 83.7 MB) |
-| Idle memory | | Home-এ 213 থেকে 225 MB working set |
+| Installer | বড়জোর ~80 MB | 48.2 MB (app-এর file-গুলো: 167 MB) |
+| Idle memory | | Home-এ 196 থেকে 210 MB working set |
 
 ## যা এখনো পারে না
 
 - তালিকার ৩৮টা server-এর ২০টা নিজস্ব ধরনের website। App এগুলো পরীক্ষা
   করতে পারে, কিন্তু পড়তে পারে না।
-- Dolby TrueHD audio decode হয় না; player নিজে থেকেই file-এর অন্য একটা
-  track-এ চলে যায়।
 - Self-signed certificate-এর `https` server-এ app যুক্ত হয় না।
 - App শুধু Windows-এ build আর পরীক্ষা করা হয়েছে।
 

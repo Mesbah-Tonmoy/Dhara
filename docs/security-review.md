@@ -2,7 +2,8 @@
 
 A walk through section 7 of the brief (`BRIEF.md`), point by point: where the
 code does it, how that is checked, and what was found. Done on 2026-11-17, with
-1,438 automated tests passing.
+1,438 automated tests passing, and brought up to date on 2026-11-18, when the
+libmpv of 2023 was replaced by a current build (findings 2, 3 and 11 to 14).
 
 Verdicts: **ok** (done and checked), **gap** (known and accepted, with the
 reason), **fixed** (found in this review and put right), **later** (belongs
@@ -17,8 +18,8 @@ something is absent; what the code does is proved by the other tests named.
 | # | What | Weight | State |
 |---|---|---|---|
 | 1 | Request headers (an Emby session token, the TMDB key as a bearer token) went along on a redirect to the same host even from `https` down to plain `http` | low: only the first host itself could ask for it | **fixed** in `6fe94bd` |
-| 2 | The bundled libmpv is mpv 0.36 / FFmpeg 6.0 of 2023-09-24, the last build media_kit published; decoders are the main attack surface and this one gets no fixes | the largest known risk | **gap**: kept for now. On 2026-11-18 media_kit had nothing newer (its libmpv build repository was archived in October 2024). What to check and how, and the untried way to a newer build, are under "Keeping the player up to date" in the README; that is a job of its own, after the PC is reset |
-| 3 | FFmpeg follows a redirect the server sends the player itself, to any http(s) host, and takes the request headers along; this build has no option to stop it | low: the app follows redirects first under its own rule and hands the player the final address | **gap**, needs a newer libmpv (finding 2) |
+| 2 | The libmpv that media_kit bundles is mpv 0.36 / FFmpeg 6.0 of 2023-09-24, the last build its authors made; decoders are the main attack surface and that one gets no fixes | was the largest known risk | **fixed** on 2026-11-18: the app ships a current build in its place (mpv 0.42 of 2026-11-11, pinned by SHA-256 in `windows/libmpv.cmake`). It stays fixed only while newer builds are taken: "Keeping the player up to date" in the README says how |
+| 3 | FFmpeg followed a redirect the server sends the player itself, to any http(s) host, and took the request headers along; the build of 2023 had no option to stop it | low: the app follows redirects first under its own rule and hands the player the final address | **fixed** on 2026-11-18 with the newer libmpv: the player follows no redirect at all (`max_redirects=0`). What is left is finding 13 |
 | 4 | media_kit's build script checks the libmpv and ANGLE downloads by MD5 only | low: fetched over https from GitHub releases | **fixed**: `tool/package.ps1` compares the SHA-256 of every bundled library with `tool/bundled-libraries.sha256` and makes no installer if one differs or is not listed |
 | 5 | One made-up device id is given to every Emby/Jellyfin server, so two operators could tell it is the same installation | very low: random, says nothing about the PC | **gap**, accepted |
 | 6 | A file or folder name may hold Unicode direction marks, which can make a name read differently from what it is | very low: names are only shown and played, never run or saved under that name | **gap**, accepted |
@@ -26,6 +27,10 @@ something is absent; what the code does is proved by the other tests named.
 | 9 | media_kit's ANGLE download carries a `zlib.dll` that is a debug build (it imports `VCRUNTIME140D.dll`) | none: no file of the app imports it or names it | **fixed**: left out of the installed app |
 | 8 | This PC's own certificate store holds a root that should not be there (found 2026-11-16), so `https` from this PC can be read on the way | outside the app | the TMDB key should be replaced after the PC is reset |
 | 10 | media_kit, left to find libmpv itself, first loads whatever library the `LIBMPV_LIBRARY_PATH` environment variable names | low: whoever can set a variable for this user can already start programs as them | **fixed**: the app names the `libmpv-2.dll` beside the program by its full path. Tried on 2026-11-18 with the variable naming another copy of the library: the one in the app's folder was loaded |
+| 11 | The newer libmpv has Lua in it, and there mpv starts scripts of its own: the yt-dlp hook, which runs a program called `yt-dlp` for an address that does not open, if the PC has one; a statistics overlay; a console; menus. The build of 2023 had no Lua | would have been high (the hook) | **fixed** before it shipped: `ytdl=no` shuts the hook down, and every `load-…` option the build lists is switched off and read back, so a script a later mpv adds is covered too |
+| 12 | The newer mpv opens http(s) with a libcurl of its own, which knows nothing of the FFmpeg protocol whitelist, follows up to 16 redirects and speaks ftp as well | would have been medium | **fixed** before it shipped: `curl-enabled=no`, so http(s) goes through FFmpeg as before |
+| 13 | A playlist that a server sends in place of a video can name a video on another http(s) host, and the player fetches it (never a file of this PC: a test checks that) | low: only a server the user enabled can send one, and the other host gets nothing but a request | **gap**, as it was before the update: mpv has no option to refuse playlists, and its rule knows protocols, not hosts |
+| 14 | The newer build is a whole mpv: it reads more file formats and has more decoders than media_kit's cut-down one (Dolby TrueHD among them) | more code that reads what a server sends, but code that is maintained | accepted |
 
 Not findings, but worth knowing:
 
@@ -40,15 +45,16 @@ Not findings, but worth knowing:
 
 | Rule | Where | Checked by | |
 |---|---|---|---|
-| `load-scripts=no`, `ytdl=no`, `config=no`, `load-unsafe-playlists=no`, nothing loaded on mpv's own initiative | `lib/features/player/secure_player.dart`: set after libmpv starts, each value read back, playback refused on a mismatch | `secure_player_test.dart`; `libmpv_hardening_test.dart` against the real `libmpv-2.dll` | ok |
-| FFmpeg protocols limited to `http,https,tcp,tls,crypto` | the same file: `stream-lavf-o` and `demuxer-lavf-o` | the same tests | ok |
+| `load-scripts=no`, `ytdl=no`, `config=no`, `load-unsafe-playlists=no`, nothing loaded on mpv's own initiative, none of mpv's own scripts running (`osc=no` and every `load-…` option the build has) | `lib/features/player/secure_player.dart`: set after libmpv starts, each value read back, playback refused on a mismatch | `secure_player_test.dart`; `libmpv_hardening_test.dart` against the real `libmpv-2.dll`, which also sees mpv shut the yt-dlp hook down | ok (finding 11) |
+| FFmpeg protocols limited to `http,https,tcp,tls,crypto` | the same file: `stream-lavf-o` and `demuxer-lavf-o`, and `curl-enabled=no` so that it is FFmpeg that opens http(s) | the same tests | ok (finding 12) |
+| The player follows no redirect | the same file: `max_redirects=0` in `stream-lavf-o` | `libmpv_hardening_test.dart`: a redirect is followed by a player left as it comes and refused by a hardened one, which still plays the address itself | fixed (finding 3) |
 | The player is only ever given an `http`/`https` address | `parseMediaUrl` (`lib/core/net/media_url.dart`) on every pasted and every indexed address. The whitelist above is FFmpeg's: mpv itself can open a local path, which the app uses for a subtitle file the user picks, and for nothing else | `media_url_test.dart` | ok |
 | What a server sends cannot make the player open something on this PC | `load-unsafe-playlists=no`, and mpv's own rule for edit lists that come over the network | `libmpv_hardening_test.dart`: a playlist and an mpv edit list (EDL), served in place of a video and naming a local file, are refused by the real libmpv, while the same list naming the server's own video plays | ok |
 | A player is made in one place only | `createPlayer()` | *guard* | ok |
 | libmpv is the file beside the program | `_bundledLibmpv()` in `lib/main.dart` hands media_kit the full path, so no environment variable and no search by name decides which library is loaded | *guard* | fixed (finding 10) |
 | No mpv command that runs or loads something | the app sends `seek` and sets subtitle and audio properties | *guard* | ok |
-| Option names are those of the bundled mpv | read back at run time, and compared with the 0.36 manual in Phase 2 and Phase 7 | `libmpv_hardening_test.dart`, `libmpv_tuning_checks.dart` | ok |
-| Decoder itself | bundled libmpv | | gap (finding 2) |
+| Option names are those of the bundled mpv | read back at run time; compared with the 0.36 manual in Phase 2 and Phase 7, and for mpv 0.42 every option was read back and every behaviour test run on 2026-11-18 | `libmpv_hardening_test.dart`, `libmpv_tuning_checks.dart` | ok |
+| Decoder itself | a current libmpv in place of the one media_kit bundles (`windows/libmpv.cmake`) | `libmpv_hardening_test.dart` fails if the build holds mpv 0.36; *guard* (the pin) | ok while it is kept current (finding 2) |
 
 ## Network
 
@@ -58,7 +64,7 @@ Not findings, but worth knowing:
 | TMDB and AniList over `https` | `Uri.https(...)` in `tmdb_client.dart`, `anilist_client.dart`, `image_store.dart` | their tests | ok |
 | `http`/`https` only, no scheme from a server | `parseMediaUrl` (`lib/core/net/media_url.dart`); `childEntry` (`listing_parser.dart`) drops links to other schemes | `media_url_test.dart`, `listing_parser_test.dart`; *guard* (no other scheme written in code) | ok |
 | Redirects: same host or a configured source, capped | `_redirectTarget`, at most 5; headers stay with the first host and do not go from https to http | `safe_http_client_test.dart` ("redirects") | fixed (finding 1) |
-| Redirects the player follows | FFmpeg | | gap (finding 3) |
+| Redirects the player follows | none: `max_redirects=0` | `libmpv_hardening_test.dart` | fixed (finding 3); a playlist may still name another host (finding 13) |
 | Every request has a time limit and a size limit | 15 s and 4 MB by default (8 MB for a folder page, 3 MB for a picture), counted after decompression | `safe_http_client_test.dart` ("the size limit", "the time limit") | ok |
 | A video stream | no size limit can apply; `network-timeout` 5 s, and the stall watch | `stall_watch_test.dart` | ok |
 | Private addresses are not blocked | no such check exists | `safe_http_client_test.dart` runs against 127.0.0.1 | ok |
@@ -125,20 +131,22 @@ Not findings, but worth knowing:
 | Pinned versions, `pubspec.lock` committed | exact versions; the lock file names a SHA-256 for every package | *guard* | ok |
 | Nothing known against them | `flutter pub outdated` on 2026-11-17: the direct dependencies are the latest, no advisory is reported | by hand; again before a release | ok |
 | SQLite | the `sqlite3` package downloads its library at build time and checks its SHA-256 | the package | ok |
-| libmpv and ANGLE | downloaded by media_kit's build script, MD5 only; compared by SHA-256 before an installer is made | `tool/package.ps1` (tried with a wrong hash: it stops) | fixed (finding 4) |
+| libmpv | one fixed archive of the Windows builds mpv.io lists (`shinchiro/mpv-winbuild-cmake`), downloaded over https by `windows/libmpv.cmake` and used only if its SHA-256 is the one written there; the `libmpv-2.dll` in it is compared once more before an installer is made | *guard* (the pin); `tool/package.ps1` | ok |
+| ANGLE | downloaded by media_kit's build script, MD5 only; compared by SHA-256 before an installer is made | `tool/package.ps1` (tried with a wrong hash: it stops) | fixed (finding 4) |
 | CI: Actions pinned to commit SHAs | there is no CI | | n/a; a workflow, if one is added, pins them |
-| How to keep media_kit/libmpv updated | "Keeping the player up to date" in `README.md` and `README.bn.md` | the steps up to the hash check were run (`tool/package.ps1` stops on a library that is not on the list); taking a newer libmpv was not tried | ok |
+| How to keep media_kit/libmpv updated | "Keeping the player up to date" in `README.md` and `README.bn.md` | the steps were gone through once, for the build of 2026-11-11 | ok |
 
 ## The bundled libraries
 
-SHA-256 of the libraries in the release folder built on 2026-11-16; the
+SHA-256 of the libraries in the release folder; the
 packaging script compares against the same list in
 `tool/bundled-libraries.sha256` (without `zlib.dll`, which is left out). They come from the pinned packages
-(media_kit_libs_windows_video 1.0.11, sqlite3 3.9.1) and Flutter 3.47.9.
+(media_kit_libs_windows_video 1.0.11, sqlite3 3.9.1) and Flutter 3.47.9;
+libmpv is the build pinned in `windows/libmpv.cmake`.
 
 | File | SHA-256 |
 |---|---|
-| `libmpv-2.dll` | `d5f0694b08c124e785d858d00082f3e3b158dd9138bfc48c0382bf1eb443a5fc` |
+| `libmpv-2.dll` (mpv v0.42.0-38-gbcde6b93c, from `mpv-dev-x86_64-20261111-git-bcde6b93cc.7z`) | `88504ee5560942a955405e99dfb5971368e4cf851321f36565bf2a667271db1b` |
 | `flutter_windows.dll` | `30494fb08f9f101a8fbe42568110aaa160efbd7341f3cfe877dc14214be3a233` |
 | `sqlite3.dll` | `643956b011d5c705c6eae79d93085f5b206e4bfecf5d57a05aea3e2242612028` |
 | `libEGL.dll` | `b2590bd0692f0381fc45c20bf1c7f7f713c9ea19c7ea6bab62efdd1fadc4eaac` |
