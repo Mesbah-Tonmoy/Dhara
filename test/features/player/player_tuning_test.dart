@@ -21,7 +21,9 @@ void main() {
 
   test('the options are the ones the brief asks for', () {
     final options = const PlayerTuning().mpvOptions;
-    expect(options['hwdec'], 'auto-safe');
+    // The brief's `auto-safe`, with the frames copied back: see
+    // `PlayerTuning.hwdec` for the green band that asks for it.
+    expect(options['hwdec'], 'auto-copy-safe');
     expect(options['cache'], 'yes');
     // Nothing of a video is written to disk.
     expect(options['cache-on-disk'], 'no');
@@ -81,7 +83,7 @@ void main() {
     expect(sameMpvValue('yes', 'yes'), isTrue);
     expect(sameMpvValue('5', '5.000000'), isTrue);
     expect(sameMpvValue('117964800', '117964800'), isTrue);
-    expect(sameMpvValue('auto-safe', 'auto'), isFalse);
+    expect(sameMpvValue('auto-copy-safe', 'auto'), isFalse);
     expect(sameMpvValue('no', ''), isFalse);
     expect(sameMpvValue('5', '60.000000'), isFalse);
   });

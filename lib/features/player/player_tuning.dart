@@ -53,9 +53,15 @@ class PlayerTuning {
   /// is not in use to the part behind: `demuxer-donate-buffer`.)
   int get backBytes => bufferMegabytes * _megabyte - forwardBytes;
 
-  /// mpv `hwdec`: `auto-safe` only takes decoders mpv has on its list of
-  /// ones known to work; plain `auto` (media_kit's default) takes any.
-  String get hwdec => hardwareDecoding ? 'auto-safe' : 'no';
+  /// mpv `hwdec`: the graphics card decodes, with a decoder from mpv's list
+  /// of ones known to work (`-safe`; plain `auto`, media_kit's default,
+  /// takes any), and the frames are copied back to memory (`-copy`).
+  ///
+  /// Without the copy (`auto-safe`), mpv 0.42 decodes straight into what
+  /// is drawn, and a 4K HEVC film then showed a green band under the
+  /// picture: the rows of the decoder's surface that hold no picture. The
+  /// libmpv of 2023 copied under `auto-safe` as well.
+  String get hwdec => hardwareDecoding ? 'auto-copy-safe' : 'no';
 
   /// The mpv options, by name. Names and values were checked against the
   /// manual of mpv 0.36 and by reading each back from the bundled libmpv.

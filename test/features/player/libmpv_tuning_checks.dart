@@ -53,7 +53,7 @@ void main() {
       const tuning = PlayerTuning();
       expect(await tunePlayer(player, tuning), isEmpty);
 
-      expect(await native.getProperty('hwdec'), 'auto-safe');
+      expect(await native.getProperty('hwdec'), 'auto-copy-safe');
       expect(await native.getProperty('cache'), 'yes');
       expect(await native.getProperty('cache-on-disk'), 'no');
       expect(
@@ -228,6 +228,13 @@ void main() {
           greaterThan(3),
         );
         expect(await native.getProperty('demuxer-via-network'), 'yes');
+        // Decoded by the graphics card with the frames copied back, or by
+        // the processor where the card cannot: never straight into a
+        // surface, which is what left a green band under a 4K film.
+        expect(
+          await native.getProperty('hwdec-current'),
+          anyOf(endsWith('-copy'), 'no', ''),
+        );
       },
       skip: noVideo,
       timeout: const Timeout(Duration(seconds: 30)),
