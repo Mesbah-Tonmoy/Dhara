@@ -67,6 +67,49 @@ void main() {
       }
     });
 
+    test('every script mpv starts by itself is switched off', () async {
+      final switches = (await native.getProperty('options'))
+          .split(',')
+          .where(isScriptSwitch)
+          .toList();
+      expect(switches, contains('load-scripts'));
+
+      await hardenPlayer(player);
+
+      for (final name in switches) {
+        expect(await native.getProperty(name), 'no', reason: name);
+      }
+    });
+
+    test('the yt-dlp hook is shut down, where the build has one', () async {
+      // Its start is not seen from here; its end is, in mpv's own log.
+      final logged = Player(
+        configuration: const PlayerConfiguration(
+          logLevel: MPVLogLevel.debug,
+          protocolWhitelist: allowedPlayerProtocols,
+        ),
+      );
+      addTearDown(logged.dispose);
+      final lines = <String>[];
+      final listening = logged.stream.log.listen((log) => lines.add(log.text));
+      addTearDown(listening.cancel);
+      final hasHook =
+          await (logged.platform! as NativePlayer).getProperty('ytdl') ==
+              'yes';
+
+      await hardenPlayer(logged);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+
+      if (!hasHook) {
+        markTestSkipped('this libmpv is built without Lua: no hook in it');
+        return;
+      }
+      expect(
+        lines,
+        contains(contains('Unloading script @ytdl_hook.lua')),
+      );
+    });
+
     test('libmpv does not read user config files', () async {
       expect(await native.getProperty('config'), 'no');
     });

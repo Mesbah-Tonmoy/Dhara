@@ -6,6 +6,8 @@ Map<String, String> hardenedValues() => {
       'config': 'no',
       'ytdl': 'no',
       'load-scripts': 'no',
+      'osc': 'no',
+      'curl-enabled': 'no',
       'load-unsafe-playlists': 'no',
       'autoload-files': 'no',
       'sub-auto': 'no',
@@ -23,6 +25,8 @@ void main() {
   test('hardened options cover the must-haves from the brief', () {
     expect(hardenedMpvOptions['ytdl'], 'no');
     expect(hardenedMpvOptions['load-scripts'], 'no');
+    expect(hardenedMpvOptions['osc'], 'no');
+    expect(hardenedMpvOptions['curl-enabled'], 'no');
     expect(hardenedMpvOptions['load-unsafe-playlists'], 'no');
     for (final name in ['stream-lavf-o', 'demuxer-lavf-o']) {
       expect(
@@ -54,6 +58,8 @@ void main() {
       'config': 'yes',
       'ytdl': 'yes',
       'load-scripts': 'yes',
+      'osc': 'yes',
+      'curl-enabled': 'yes',
       'load-unsafe-playlists': 'yes',
       'autoload-files': 'yes',
       'sub-auto': 'exact',
@@ -81,11 +87,41 @@ void main() {
       expect(violations, ['load-scripts was not checked']);
     });
 
-    test('an empty value only passes for ytdl', () {
+    test('an empty value only passes for what a build may not have', () {
+      // The yt-dlp hook and mpv's on-screen controls (builds without Lua),
+      // and the libcurl stream (builds without libcurl).
+      const mayBeAbsent = {'ytdl', 'osc', 'curl-enabled'};
       final actual = {for (final name in requiredMpvValues.keys) name: ''};
       final violations = findHardeningViolations(actual);
-      expect(violations, hasLength(requiredMpvValues.length - 1));
-      expect(violations.any((v) => v.startsWith('ytdl')), isFalse);
+      expect(
+        violations,
+        hasLength(requiredMpvValues.length - mayBeAbsent.length),
+      );
+      for (final name in mayBeAbsent) {
+        expect(violations.any((v) => v.startsWith('$name ')), isFalse);
+      }
+    });
+
+    test('a script of mpv\'s own must be off, whatever it is called', () {
+      expect(isScriptSwitch('load-stats-overlay'), isTrue);
+      expect(isScriptSwitch('load-something-new'), isTrue);
+      expect(isScriptSwitch('ytdl'), isFalse);
+      expect(
+        findHardeningViolations(
+          hardenedValues()
+            ..['load-stats-overlay'] = 'no'
+            ..['load-something-new'] = 'no',
+        ),
+        isEmpty,
+      );
+      for (final left in ['yes', 'auto', '']) {
+        expect(
+          findHardeningViolations(
+            hardenedValues()..['load-something-new'] = left,
+          ),
+          ['load-something-new is "$left"'],
+        );
+      }
     });
   });
 }
