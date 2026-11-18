@@ -7,21 +7,21 @@
 
 ## ১. Installer
 
-1. Checksum মেলান। নিচের command-এর ফল `dist\Dhara-Setup-1.0.1.exe.sha256`
+1. Checksum মেলান। নিচের command-এর ফল `dist\Dhara-Setup-<version>.exe.sha256`
    file-এর মানের সাথে মিলতে হবে:
 
    ```powershell
-   (Get-FileHash dist\Dhara-Setup-1.0.1.exe -Algorithm SHA256).Hash
+   (Get-FileHash dist\Dhara-Setup-*.exe -Algorithm SHA256).Hash
    ```
 
-2. `dist\Dhara-Setup-1.0.1.exe` চালান। Admin prompt আসার কথা নয়, আর
+2. `dist\Dhara-Setup-<version>.exe` চালান। Admin prompt আসার কথা নয়, আর
    install-এর folder বেছে নিতে বলার কথা নয়।
 3. Start Menu-তে "Dhara" আছে, আর app বসেছে
    `%LOCALAPPDATA%\Programs\Dhara`-তে।
 4. Start Menu থেকে Dhara খুলুন। আগে ব্যবহার করে থাকলে library, settings,
    My List আর History আগের মতোই থাকবে।
 5. Taskbar-এ আর window-এর title-এ app-এর নিজের icon আর "Dhara" নাম আছে;
-   Settings-এ version 1.0.1।
+   Settings-এ installer-এর নামের version-টাই লেখা।
 
 ## ২. Server আর library
 

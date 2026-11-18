@@ -73,7 +73,7 @@ needs Flutter, the Visual Studio Build Tools and
   build).
 - `Dhara-Setup-<version>.exe`: the installer (`installer/dhara.iss`).
 - `Dhara-Setup-<version>.exe.sha256`: its SHA-256. To check a copy of the
-  installer: `(Get-FileHash Dhara-Setup-1.0.1.exe -Algorithm SHA256).Hash`
+  installer: `(Get-FileHash Dhara-Setup-<version>.exe -Algorithm SHA256).Hash`
   must be the value in that file.
 
 Before the installer is made, every bundled library is compared with
@@ -153,15 +153,23 @@ What changed with it, besides the decoders:
 - that build is a whole mpv with Lua and libcurl in it, which is why the
   list above grew (findings 11 and 12 of the
   [security review](security-review.md))
-- the graphics card now decodes straight into what is drawn (`d3d11va`
-  in the info panel, where the old build said `d3d11va-copy`)
+- asked for `hwdec=auto-safe`, it decodes straight into what is drawn
+  (`d3d11va` in the info panel, where the old build said `d3d11va-copy`),
+  and a 4K HEVC film then had a green band under the picture. The app
+  asks for `auto-copy-safe` now, which is `d3d11va-copy` again (see
+  [Streaming set-up](#streaming-set-up))
 - it has a decoder for Dolby TrueHD
 - `libmpv-2.dll` is 122 MB where it was 30 MB
 
 Tried with it on 2026-11-18: all automated tests, and in the running app
 a video from a web server on this PC (played, hardware decoding, a seek).
-**Not yet tried with it:** real BDIX servers, a file with several sound
-tracks or subtitles, a TrueHD track, and an `https` server.
+On 2026-11-19 the user went through the list of
+[manual-test.bn.md](manual-test.bn.md) with version 1.0.1 on real BDIX
+servers and found everything working, among it a 4K HEVC film with
+Dolby TrueHD sound (8 channels), which the old build could not play.
+That film showed the green band named above, and took 7.5 s to start
+(13 copies asked, 2 answered); why so long has not been looked into.
+**Not yet tried with it:** an `https` server.
 
 Known gaps:
 
@@ -187,7 +195,7 @@ Windows 11), release build, the real library (2026-11-16):
 | Playback start | under 2 s on a good BDIX link | 1.5 s on a real server before Play chose the fastest copy (the user's info panel: the server answered in 320 ms); 0.3 to 0.8 s from a server on this PC, 0.3 s for a next episode asked ahead of time |
 | Seeking | feels instant | inside the buffer no request goes to the server; a jump to the middle or to the end of a film on a real server showed the picture within the 3 s before the next look at it (2026-11-17), not timed more finely |
 | Idle memory | report | 196 to 210 MB working set, 381 to 389 MB private, 24 and 45 s after start on Home (release build with the newer libmpv, window 1920×1020, 2026-11-18); with the libmpv of 2023 it was 213 to 225 MB and 376 to 394 MB (2026-11-17). About 40 MB of it is Home keeping all its rows built, which is what makes a fast scroll smooth: without that, 170 to 184 MB and 325 to 333 MB were measured. On 2026-11-16, before that change, 136 MB and 219 MB were measured 12 s after start |
-| Installer size | about 80 MB at most | 48.2 MB (`Dhara-Setup-1.0.1.exe`); the app's files are 167 MB, of which libmpv is 122 MB and the Flutter engine 20 MB. With the libmpv of 2023, which is a quarter of that size, the installer was 24.9 MB and the files 80 MB |
+| Installer size | about 80 MB at most | 48.2 MB (version 1.0.1); the app's files are 167 MB, of which libmpv is 122 MB and the Flutter engine 20 MB. With the libmpv of 2023, which is a quarter of that size, the installer was 24.9 MB and the files 80 MB |
 
 ### Tried on real servers
 
@@ -218,7 +226,7 @@ own choices are replaced where they do not suit a desktop player:
 
 | mpv option | Value | media_kit's own | Why |
 |---|---|---|---|
-| `hwdec` | `auto-safe` (`no` with Hardware decoding off) | `auto` | the graphics card decodes, but only with decoders mpv lists as safe |
+| `hwdec` | `auto-copy-safe` (`no` with Hardware decoding off) | `auto` | the graphics card decodes, but only with decoders mpv lists as safe, and the frames are copied back to memory. Without the copy (`auto-safe`), mpv 0.42 showed a green band under a 4K HEVC film: the rows of the decoder's surface that hold no picture |
 | `cache-on-disk` | `no` | `yes` | what was read stays in memory; nothing of a video is written to disk |
 | `demuxer-max-bytes` | 112.5 MB | 32 MB | how far the player reads ahead |
 | `demuxer-max-back-bytes` | 37.5 MB | 32 MB | what stays behind, for skipping back without asking the server |
@@ -488,8 +496,10 @@ Every control does something and is saved as it is changed
 ## Subtitles and audio tracks
 
 - Subtitles are drawn by libmpv itself (libass), so styled ASS subtitles and
-  picture-based ones (PGS, VobSub) work. They move up while the control bar
-  is showing.
+  picture-based ones (PGS, VobSub) work. While the control bar is showing
+  they stand just above it (`lib/features/player/subtitle_place.dart`);
+  a wide film that ends above the bar keeps them at its foot, since
+  libmpv cannot draw them outside the picture.
 - Size (50–200%) is saved; delay (±0.1 s steps) applies to the current video.
 - Which tracks a video starts with follows Settings: **Default
   subtitles** asks mpv for that language (`slang`); a video without it

@@ -2,7 +2,7 @@
 ;
 ; Made by tool\package.ps1, which passes the version, the folder to pack and
 ; where the installer goes. To compile by hand:
-;   ISCC /DAppVersion=1.0.1 /DSourceDir=..\dist\Dhara-1.0.1 /DOutputDir=..\dist installer\dhara.iss
+;   ISCC /DAppVersion=1.2.3 /DSourceDir=..\dist\Dhara-1.2.3 /DOutputDir=..\dist installer\dhara.iss
 ;
 ; What it does on the PC it runs on, and nothing else:
 ;   - copies the app to %LOCALAPPDATA%\Programs\Dhara

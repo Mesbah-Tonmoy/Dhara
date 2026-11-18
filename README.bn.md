@@ -39,14 +39,14 @@ account, বিজ্ঞাপন বা telemetry নেই।
 Dhara-র জন্য Windows 10 বা 11 (64-bit) লাগে। Player সহ আর যা কিছু দরকার,
 সব app-এর সাথেই আসে।
 
-1. `Dhara-Setup-1.0.1.exe` চালান। এটা কোথাও প্রকাশ করা হয় না: এই
+1. `Dhara-Setup-<version>.exe` চালান। এটা কোথাও প্রকাশ করা হয় না: এই
    repository থেকে বানাতে হয় ([নিজে build করা](#নিজে-build-করা) দেখুন),
    আর বানানোর পরে `dist\` folder-এ থাকে।
 2. Installer-এর কোনো copy সত্যিই বানানো file-টাই কি না দেখতে তার SHA-256
-   মিলিয়ে নিন `Dhara-Setup-1.0.1.exe.sha256`-এর মানের সাথে:
+   মিলিয়ে নিন পাশের `.sha256` file-এর মানের সাথে:
 
    ```powershell
-   (Get-FileHash Dhara-Setup-1.0.1.exe -Algorithm SHA256).Hash
+   (Get-FileHash dist\Dhara-Setup-*.exe -Algorithm SHA256).Hash
    ```
 
 Installer app-টা `%LOCALAPPDATA%\Programs\Dhara`-তে বসায় আর Start Menu-তে
@@ -164,7 +164,7 @@ script নেই, yt-dlp নেই, configuration file নেই, আর network
 `v0.42.0-38-gbcde6b93c`):
 
 ```powershell
-(Get-Item dist\Dhara-1.0.1\libmpv-2.dll).VersionInfo.ProductVersion
+(Get-Item dist\Dhara-*\libmpv-2.dll).VersionInfo.ProductVersion
 ```
 
 **এক-দুই মাস পরপর, আর প্রতিটা নতুন installer বানানোর আগে, সবচেয়ে নতুন

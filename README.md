@@ -37,14 +37,14 @@ ads and no telemetry.
 Dhara needs Windows 10 or 11 (64-bit). The player and everything else it
 uses come with it.
 
-1. Run `Dhara-Setup-1.0.1.exe`. It is not published anywhere: it is made
+1. Run `Dhara-Setup-<version>.exe`. It is not published anywhere: it is made
    from this repository (see [Building it](#building-it)) and lies in
    `dist\` afterwards.
 2. To check that a copy of the installer is the file that was made,
-   compare its SHA-256 with the value in `Dhara-Setup-1.0.1.exe.sha256`:
+   compare its SHA-256 with the value in the `.sha256` file beside it:
 
    ```powershell
-   (Get-FileHash Dhara-Setup-1.0.1.exe -Algorithm SHA256).Hash
+   (Get-FileHash dist\Dhara-Setup-*.exe -Algorithm SHA256).Hash
    ```
 
 The installer copies the app to `%LOCALAPPDATA%\Programs\Dhara` and adds a
@@ -163,7 +163,7 @@ To see which libmpv a build holds, look at the version stamp of the file
 (today `v0.42.0-38-gbcde6b93c`):
 
 ```powershell
-(Get-Item dist\Dhara-1.0.1\libmpv-2.dll).VersionInfo.ProductVersion
+(Get-Item dist\Dhara-*\libmpv-2.dll).VersionInfo.ProductVersion
 ```
 
 **Every month or two, and before every new installer, take the newest
