@@ -189,6 +189,43 @@ void main() {
       timeout: const Timeout(Duration(seconds: 30)),
     );
 
+    test(
+      'a redirect the server sends the player itself is not followed',
+      () async {
+        final server = await LocalServer.start();
+        addTearDown(server.close);
+        server.serveFile('/film.mkv', _sampleVideo);
+        server.redirect('/moved.mkv', '${server.url('/film.mkv')}');
+        Future<Duration> opened(String path) async {
+          await player.open(Media('${server.url(path)}'), play: false);
+          final duration = await player.stream.duration
+              .firstWhere((d) => d > Duration.zero)
+              .timeout(
+                const Duration(seconds: 4),
+                onTimeout: () => Duration.zero,
+              );
+          await player.stop();
+          return duration;
+        }
+
+        // Left as it comes, the player goes where the server sends it: what
+        // is refused below is refused by the hardening.
+        expect(await opened('/moved.mkv'), greaterThan(Duration.zero));
+
+        await hardenPlayer(player);
+        server.requests.clear();
+        expect(await opened('/moved.mkv'), Duration.zero);
+        expect(
+          server.requests.map((request) => request.uri.path),
+          isNot(contains('/film.mkv')),
+        );
+        // The address itself still plays.
+        expect(await opened('/film.mkv'), greaterThan(Duration.zero));
+      },
+      skip: _sampleVideo.existsSync() ? false : 'no sample video on this PC',
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
+
     // The app only ever hands the player an http(s) address, but what a
     // server sends there need not be a video. mpv also reads playlists and
     // its own edit lists (EDL), and both can name other things to open.

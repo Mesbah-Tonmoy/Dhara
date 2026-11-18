@@ -13,7 +13,8 @@ Map<String, String> hardenedValues() => {
       'sub-auto': 'no',
       'audio-file-auto': 'no',
       'cover-art-auto': 'no',
-      'stream-lavf-o': 'protocol_whitelist=http,https,tcp,tls,crypto',
+      'stream-lavf-o':
+          'protocol_whitelist=http,https,tcp,tls,crypto,max_redirects=0',
       'demuxer-lavf-o': 'protocol_whitelist=http,https,tcp,tls,crypto',
     };
 
@@ -28,12 +29,14 @@ void main() {
     expect(hardenedMpvOptions['osc'], 'no');
     expect(hardenedMpvOptions['curl-enabled'], 'no');
     expect(hardenedMpvOptions['load-unsafe-playlists'], 'no');
-    for (final name in ['stream-lavf-o', 'demuxer-lavf-o']) {
-      expect(
-        hardenedMpvOptions[name],
-        'protocol_whitelist=[http,https,tcp,tls,crypto]',
-      );
-    }
+    expect(
+      hardenedMpvOptions['stream-lavf-o'],
+      'protocol_whitelist=[http,https,tcp,tls,crypto],max_redirects=0',
+    );
+    expect(
+      hardenedMpvOptions['demuxer-lavf-o'],
+      'protocol_whitelist=[http,https,tcp,tls,crypto]',
+    );
     // `config` cannot be set after init; it must still be verified.
     expect(requiredMpvValues['config'], {'no'});
   });

@@ -47,8 +47,12 @@ final Map<String, String> hardenedMpvOptions = Map.unmodifiable({
   'sub-auto': 'no',
   'audio-file-auto': 'no',
   'cover-art-auto': 'no',
-  // Protocol whitelist for the stream layer (the main URL) ...
-  'stream-lavf-o': _whitelistOption,
+  // Protocol whitelist for the stream layer (the main URL), and no redirect
+  // followed there: the app follows redirects itself, under its own rule,
+  // and hands the player the address they end at (see `CopyProber`). A
+  // server that answers the player with one more redirect is not obeyed.
+  // (`max_redirects` is FFmpeg's; the one of mpv 0.36 does not have it.)
+  'stream-lavf-o': '$_whitelistOption,max_redirects=0',
   // ... and for the demuxer (nested resources such as HLS segments). This
   // also replaces media_kit's default, dropping its `allowed_extensions=ALL`
   // and `strict=experimental` relaxations.
@@ -73,7 +77,7 @@ final Map<String, Set<String>> requiredMpvValues = Map.unmodifiable({
   'audio-file-auto': const {'no'},
   'cover-art-auto': const {'no'},
   'stream-lavf-o': {
-    'protocol_whitelist=${allowedPlayerProtocols.join(',')}',
+    'protocol_whitelist=${allowedPlayerProtocols.join(',')},max_redirects=0',
   },
   'demuxer-lavf-o': {
     'protocol_whitelist=${allowedPlayerProtocols.join(',')}',
