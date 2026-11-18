@@ -73,7 +73,7 @@ needs Flutter, the Visual Studio Build Tools and
   build).
 - `Dhara-Setup-<version>.exe`: the installer (`installer/dhara.iss`).
 - `Dhara-Setup-<version>.exe.sha256`: its SHA-256. To check a copy of the
-  installer: `(Get-FileHash Dhara-Setup-1.0.0.exe -Algorithm SHA256).Hash`
+  installer: `(Get-FileHash Dhara-Setup-1.0.1.exe -Algorithm SHA256).Hash`
   must be the value in that file.
 
 Before the installer is made, every bundled library is compared with
@@ -109,7 +109,7 @@ installed 1.0.0 on a second PC, one without Visual Studio but with
 Microsoft's Visual C++ runtime installed, and it ran well there. Not
 tried: a PC without that runtime, and an update over an older version.
 
-**How far to trust it.** The PC the 1.0.0 installer was made on was found
+**How far to trust it.** The PC the installers so far were made on was found
 to hold old malware (2026-11-16) and has not been reset yet. The checksum
 says the file is the one the script made; it cannot say the build was
 clean. After the reset, run the script again and use that installer.
@@ -187,7 +187,7 @@ Windows 11), release build, the real library (2026-11-16):
 | Playback start | under 2 s on a good BDIX link | 1.5 s on a real server before Play chose the fastest copy (the user's info panel: the server answered in 320 ms); 0.3 to 0.8 s from a server on this PC, 0.3 s for a next episode asked ahead of time |
 | Seeking | feels instant | inside the buffer no request goes to the server; a jump to the middle or to the end of a film on a real server showed the picture within the 3 s before the next look at it (2026-11-17), not timed more finely |
 | Idle memory | report | 196 to 210 MB working set, 381 to 389 MB private, 24 and 45 s after start on Home (release build with the newer libmpv, window 1920×1020, 2026-11-18); with the libmpv of 2023 it was 213 to 225 MB and 376 to 394 MB (2026-11-17). About 40 MB of it is Home keeping all its rows built, which is what makes a fast scroll smooth: without that, 170 to 184 MB and 325 to 333 MB were measured. On 2026-11-16, before that change, 136 MB and 219 MB were measured 12 s after start |
-| Installer size | about 80 MB at most | 48.2 MB (`Dhara-Setup-1.0.0.exe`); the app's files are 167 MB, of which libmpv is 122 MB and the Flutter engine 20 MB. With the libmpv of 2023, which is a quarter of that size, the installer was 24.9 MB and the files 80 MB |
+| Installer size | about 80 MB at most | 48.2 MB (`Dhara-Setup-1.0.1.exe`); the app's files are 167 MB, of which libmpv is 122 MB and the Flutter engine 20 MB. With the libmpv of 2023, which is a quarter of that size, the installer was 24.9 MB and the files 80 MB |
 
 ### Tried on real servers
 
