@@ -546,6 +546,22 @@ void main() {
       expect(calls.subtitleDelays, [closeTo(.1, 1e-9), closeTo(-.1, 1e-9)]);
     });
 
+    testWidgets('each panel is as wide as PlayerPanelWidths says', (
+      tester,
+    ) async {
+      await _pump(tester);
+
+      for (final (button, panel, width) in const [
+        ('audio-button', 'audio-panel', PlayerPanelWidths.audio),
+        ('subtitles-button', 'subtitles-panel', PlayerPanelWidths.subtitles),
+        ('seek-step-button', 'seek-step-panel', PlayerPanelWidths.seekSteps),
+      ]) {
+        await tapButton(tester, button);
+        expect(tester.getSize(find.byKey(Key(panel))).width, width);
+        expect(tester.takeException(), isNull, reason: panel);
+      }
+    });
+
     testWidgets('only one panel is open at a time', (tester) async {
       await _pump(tester);
 

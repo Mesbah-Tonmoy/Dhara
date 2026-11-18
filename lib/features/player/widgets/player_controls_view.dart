@@ -70,6 +70,7 @@ class PlayerControlsView extends StatefulWidget {
     this.onToggleInfo,
     this.onSwitchServer,
     this.onControlsShownChanged,
+    this.bottomBarKey,
     this.hideDelay = const Duration(seconds: 3),
   });
 
@@ -154,6 +155,10 @@ class PlayerControlsView extends StatefulWidget {
   /// Reports when the control bars appear or disappear (first call: the
   /// initial state), so subtitles can be kept clear of them.
   final ValueChanged<bool>? onControlsShownChanged;
+
+  /// Put on the control bar at the foot, so that whoever places the
+  /// subtitles can ask how high it is.
+  final GlobalKey? bottomBarKey;
   final Duration hideDelay;
 
   @override
@@ -528,6 +533,7 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
                 hiddenOffset: const Offset(0, .25),
                 onPointer: _setPointerOnControls,
                 child: Padding(
+                  key: widget.bottomBarKey,
                   padding: const EdgeInsets.fromLTRB(32, 8, 32, 18),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -734,7 +740,9 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
       case _Panel.speed:
         return ConstrainedBox(
           key: const Key('speed-panel'),
-          constraints: const BoxConstraints(maxWidth: 240),
+          constraints: const BoxConstraints(
+            maxWidth: PlayerPanelWidths.speed,
+          ),
           child: SpeedPanel(
             speed: widget.speed,
             onSelected: widget.onSpeedChanged,
@@ -743,7 +751,9 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
       case _Panel.audio:
         return ConstrainedBox(
           key: const Key('audio-panel'),
-          constraints: const BoxConstraints(maxWidth: 460),
+          constraints: const BoxConstraints(
+            maxWidth: PlayerPanelWidths.audio,
+          ),
           child: AudioPanel(
             options: widget.audioOptions,
             selectedId: widget.selectedAudioId,
@@ -753,7 +763,9 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
       case _Panel.subtitles:
         return ConstrainedBox(
           key: const Key('subtitles-panel'),
-          constraints: const BoxConstraints(maxWidth: 460),
+          constraints: const BoxConstraints(
+            maxWidth: PlayerPanelWidths.subtitles,
+          ),
           child: SubtitlePanel(
             options: widget.subtitleOptions,
             selectedId: widget.selectedSubtitleId,
@@ -768,7 +780,9 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
       case _Panel.seekStep:
         return ConstrainedBox(
           key: const Key('seek-step-panel'),
-          constraints: const BoxConstraints(maxWidth: 520),
+          constraints: const BoxConstraints(
+            maxWidth: PlayerPanelWidths.seekSteps,
+          ),
           child: SeekStepPanel(
             backSeconds: widget.seekBackSeconds,
             forwardSeconds: widget.seekForwardSeconds,
@@ -782,6 +796,27 @@ class _PlayerControlsViewState extends State<PlayerControlsView> {
 
 /// The pop-up panels of the player; at most one is open.
 enum _Panel { speed, audio, subtitles, seekStep }
+
+/// How wide the pop-up panels of the player are, at most. Change a number
+/// here to make that panel wider or narrower.
+///
+/// The numbers are for a window 1280 wide; in a wider window the panels
+/// grow with everything else (see `DharaScale`). The audio and subtitle
+/// panels are exactly this wide; in the seek-step panel the choices wrap
+/// onto more lines when it gets narrower.
+abstract final class PlayerPanelWidths {
+  /// Playback speed (the "1×" button).
+  static const speed = 240.0;
+
+  /// Audio tracks.
+  static const audio = 400.0;
+
+  /// Subtitles: tracks, external file, size and delay.
+  static const subtitles = 400.0;
+
+  /// Seek steps (the sliders button).
+  static const seekSteps = 460.0;
+}
 
 /// A short message for the player to flash on screen, e.g. the result of
 /// loading a subtitle file. A new instance is shown even if the text is the

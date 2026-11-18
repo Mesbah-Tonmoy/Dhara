@@ -5,6 +5,7 @@ import 'package:dhara/features/player/playback_info.dart';
 import 'package:dhara/features/player/playback_progress.dart';
 import 'package:dhara/features/player/seek_math.dart';
 import 'package:dhara/features/player/subtitle_file.dart';
+import 'package:dhara/features/player/subtitle_place.dart';
 import 'package:dhara/features/player/track_options.dart';
 import 'package:dhara/features/player/widgets/player_controls_view.dart';
 import 'package:file_selector/file_selector.dart';
@@ -91,8 +92,13 @@ class _PlayerControlsState extends State<PlayerControls> {
   /// How often the info panel reads its numbers while it is open.
   static const _infoInterval = Duration(seconds: 1);
 
-  /// mpv `sub-pos` (percent of the picture height) that clears the bar.
-  static const _subtitlePositionAboveControls = '84';
+  /// The control bar at the foot, to ask how high it is.
+  final _bottomBarKey = GlobalKey();
+
+  // Whether the control bars are showing, and the mpv `sub-pos` that was
+  // set last (see [_placeSubtitles]).
+  bool _controlsShown = false;
+  int? _subtitlePosition;
 
   final _subscriptions = <StreamSubscription<Object?>>[];
 
@@ -149,6 +155,9 @@ class _PlayerControlsState extends State<PlayerControls> {
         unawaited(_refreshSelection());
       }),
       stream.track.listen((_) => unawaited(_refreshSelection())),
+      // A picture of another shape ends at another height.
+      stream.width.listen((_) => _placeSubtitles()),
+      stream.height.listen((_) => _placeSubtitles()),
     ]);
     _applyVolume();
     unawaited(_setUpTracks());
@@ -405,16 +414,33 @@ class _PlayerControlsState extends State<PlayerControls> {
     unawaited(_applySubtitleScale());
   }
 
-  /// Lifts the subtitles above the control bar while it is showing; libmpv
-  /// draws them into the picture, so they would otherwise sit underneath.
   void _setControlsShown(bool shown) {
+    _controlsShown = shown;
+    _placeSubtitles();
+  }
+
+  /// Puts the subtitles just above the control bar while it is showing;
+  /// libmpv draws them into the picture, so they would otherwise sit
+  /// underneath. Called whenever the bar, the window or the picture
+  /// changes; libmpv is only told when the place does (see
+  /// [subtitlePosition]).
+  void _placeSubtitles() {
     if (!mounted) return;
-    unawaited(
-      _native?.setProperty(
-        'sub-pos',
-        shown ? _subtitlePositionAboveControls : '100',
-      ),
+    final area = context.size;
+    if (area == null) return;
+    final picture = widget.player.state;
+    final width = picture.width ?? 0;
+    final height = picture.height ?? 0;
+    final position = subtitlePosition(
+      area: area,
+      barHeight: _controlsShown
+          ? _bottomBarKey.currentContext?.size?.height ?? 0
+          : 0,
+      aspect: width > 0 && height > 0 ? width / height : null,
     );
+    if (position == _subtitlePosition) return;
+    _subtitlePosition = position;
+    unawaited(_native?.setProperty('sub-pos', '$position'));
   }
 
   void _setSubtitleDelay(double seconds) {
@@ -433,6 +459,9 @@ class _PlayerControlsState extends State<PlayerControls> {
         ? upNextSecondsLeft(_position, _duration)
         : null;
     final infoValues = _infoValues;
+    // After the frame the sizes are known: a window that changed its size
+    // puts the bar and the foot of the picture elsewhere.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _placeSubtitles());
     return ListenableBuilder(
       listenable: settings,
       builder: (context, _) => PlayerControlsView(
@@ -496,6 +525,7 @@ class _PlayerControlsState extends State<PlayerControls> {
         onToggleInfo: _toggleInfo,
         onSwitchServer: widget.onSwitchServer,
         onControlsShownChanged: _setControlsShown,
+        bottomBarKey: _bottomBarKey,
       ),
     );
   }
