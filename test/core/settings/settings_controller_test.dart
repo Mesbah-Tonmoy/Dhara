@@ -167,6 +167,30 @@ void main() {
     expect(next.interfaceScalePercent, 125);
   });
 
+  test('the filters of the browse page start unfolded, and folding them '
+      'is saved', () {
+    final store = MemoryKeyValueStore();
+    final settings = SettingsController(store);
+    expect(settings.browseFiltersShown, isTrue);
+
+    var changes = 0;
+    settings
+      ..addListener(() => changes++)
+      ..setBrowseFiltersShown(false)
+      ..setBrowseFiltersShown(false);
+    expect(changes, 1);
+    expect(store.getInt('look.browseFiltersShown'), 0);
+    expect(SettingsController(store).browseFiltersShown, isFalse);
+
+    // Anything but 0 or 1 is the default.
+    expect(
+      SettingsController(
+        MemoryKeyValueStore({'look.browseFiltersShown': 9}),
+      ).browseFiltersShown,
+      isTrue,
+    );
+  });
+
   test('an interface size that is not offered is not taken, set or saved', () {
     final settings = SettingsController(MemoryKeyValueStore())
       ..setInterfaceScalePercent(300);

@@ -62,6 +62,15 @@ class BrowseQuery {
       year == null &&
       genres.isEmpty;
 
+  /// How many filters narrow the results: the type, the quality, the
+  /// rating and the year as one each, and every genre.
+  int get filterCount =>
+      (kind == BrowseKind.all ? 0 : 1) +
+      (minHeight == null ? 0 : 1) +
+      (minRating == null ? 0 : 1) +
+      (year == null ? 0 : 1) +
+      genres.length;
+
   BrowseQuery copyWith({
     String? text,
     BrowseKind? kind,

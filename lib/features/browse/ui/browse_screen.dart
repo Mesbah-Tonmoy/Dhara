@@ -1,3 +1,4 @@
+import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/browse/browse_controller.dart';
 import 'package:dhara/features/browse/browse_store.dart';
 import 'package:dhara/features/details/ui/details_screen.dart';
@@ -8,6 +9,7 @@ import 'package:dhara/theme/tokens.dart';
 import 'package:dhara/widgets/buttons.dart';
 import 'package:dhara/widgets/chips.dart';
 import 'package:dhara/widgets/icons.dart';
+import 'package:dhara/widgets/pressable.dart';
 import 'package:dhara/widgets/surfaces.dart';
 import 'package:flutter/material.dart';
 
@@ -63,6 +65,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
   @override
   Widget build(BuildContext context) {
     final browse = BrowseScope.of(context);
+    final settings = SettingsScope.maybeOf(context);
+    final filtersShown = settings?.browseFiltersShown ?? true;
     final query = browse.query;
     final result = browse.result;
     final text = query.text.trim();
@@ -132,7 +136,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                           ],
                         ),
                       ),
-                      if (!query.hasNoFilters)
+                      if (!query.hasNoFilters) ...[
                         DharaButton(
                           key: const Key('browse-reset'),
                           label: 'Reset filters',
@@ -140,11 +144,41 @@ class _BrowseScreenState extends State<BrowseScreen> {
                           small: true,
                           onPressed: browse.resetFilters,
                         ),
+                        const SizedBox(width: .6 * rem),
+                      ],
+                      DharaButton(
+                        key: const Key('browse-filters-toggle'),
+                        // Folded away, the filters that are on still count:
+                        // the button says how many.
+                        label: filtersShown || query.hasNoFilters
+                            ? 'Filters'
+                            : 'Filters · ${query.filterCount}',
+                        icon: DharaIcons.filters,
+                        small: true,
+                        on: filtersShown,
+                        tooltip: filtersShown
+                            ? 'Hide the filters'
+                            : 'Show the filters',
+                        onPressed: () =>
+                            settings?.setBrowseFiltersShown(!filtersShown),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 1.4 * rem),
-                  _Filters(browse: browse, year: widget.now().year),
-                  const SizedBox(height: 1.6 * rem),
+                  AnimatedSize(
+                    duration: motion(context, DharaMotion.base),
+                    curve: DharaMotion.easeOut,
+                    alignment: Alignment.topCenter,
+                    child: filtersShown
+                        ? Padding(
+                            padding: const EdgeInsets.only(bottom: 1.6 * rem),
+                            child: _Filters(
+                              browse: browse,
+                              year: widget.now().year,
+                            ),
+                          )
+                        : const SizedBox(width: double.infinity),
+                  ),
                 ],
               ),
             ),

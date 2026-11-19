@@ -43,4 +43,5 @@ abstract final class DharaIcons {
   static const review = Icons.rule_rounded;
   static const lookUp = Icons.travel_explore_rounded;
   static const testConnection = Icons.wifi_tethering_rounded;
+  static const filters = Icons.tune_rounded;
 }

@@ -890,6 +890,9 @@ Series open it with the type set.
   year, the two before, or older), and genres (all of the chosen ones).
   **Order:** relevance (with a search; otherwise newest), rating, newest,
   A–Z.
+- The "Filters" button beside the heading folds the filters away and
+  brings them back; folded, they still count, and the button says how many
+  are on ("Filters · 2"). Which way they were left is kept in the settings.
 - A query is answered with the ids of all titles that fit, so the grid
   knows its length at once; the cards are read sixty at a time as the grid
   scrolls, and only those in view are built.

@@ -88,6 +88,10 @@ class SettingsController extends ChangeNotifier {
       _reduceMotion = _loadSwitch(_store.getInt(_reduceMotionKey), false),
       _interfaceScalePercent = _loadInterfaceScale(
         _store.getInt(_interfaceScaleKey),
+      ),
+      _browseFiltersShown = _loadSwitch(
+        _store.getInt(_browseFiltersShownKey),
+        true,
       );
 
   /// One-tap choices for the skip step, in seconds.
@@ -127,6 +131,7 @@ class SettingsController extends ChangeNotifier {
   static const _rotateFeaturedKey = 'look.rotateFeatured';
   static const _reduceMotionKey = 'look.reduceMotion';
   static const _interfaceScaleKey = 'look.interfaceScalePercent';
+  static const _browseFiltersShownKey = 'look.browseFiltersShown';
 
   final KeyValueStore _store;
   int _seekBackSeconds;
@@ -142,6 +147,18 @@ class SettingsController extends ChangeNotifier {
   bool _rotateFeatured;
   bool _reduceMotion;
   int _interfaceScalePercent;
+  bool _browseFiltersShown;
+
+  /// The filters of the search and browse page are unfolded. Folded away,
+  /// they still count.
+  bool get browseFiltersShown => _browseFiltersShown;
+
+  void setBrowseFiltersShown(bool value) {
+    if (value == _browseFiltersShown) return;
+    _browseFiltersShown = value;
+    notifyListeners();
+    unawaited(_store.setInt(_browseFiltersShownKey, value ? 1 : 0));
+  }
 
   /// When a video ends, the next one of the queue (the next episode)
   /// starts by itself after a countdown.

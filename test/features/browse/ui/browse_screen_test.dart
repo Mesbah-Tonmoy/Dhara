@@ -1,10 +1,12 @@
 import 'package:dhara/core/db/library_db.dart';
+import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/features/browse/browse_controller.dart';
 import 'package:dhara/features/browse/browse_store.dart';
 import 'package:dhara/features/browse/ui/browse_screen.dart';
 import 'package:dhara/features/details/ui/details_screen.dart';
 import 'package:dhara/features/home/ui/poster_card.dart';
 import 'package:dhara/theme/tokens.dart';
+import 'package:dhara/widgets/buttons.dart';
 import 'package:dhara/widgets/chips.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -61,12 +63,17 @@ Future<BrowseController> _open(
   WidgetTester tester,
   LibraryDb db, {
   Size window = const Size(1280, 900),
+  KeyValueStore? settings,
 }) async {
   tester.view
     ..physicalSize = window
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final (:app, :sources) = testApp(db: db, sources: [testSource('a')]);
+  final (:app, :sources) = testApp(
+    db: db,
+    sources: [testSource('a')],
+    settings: settings,
+  );
   await sources.setEnabled(['a'], enabled: true);
   await tester.pumpWidget(app);
   await tester.pumpAndSettle();
@@ -227,6 +234,85 @@ void main() {
     expect(_shown(tester), hasLength(5));
     expect(browse.query.hasNoFilters, isTrue);
     expect(find.byKey(const Key('browse-reset')), findsNothing);
+  });
+
+  group('the filters can be folded away', () {
+    final toggle = find.byKey(const Key('browse-filters-toggle'));
+    final filters = find.byKey(const Key('browse-filters'));
+
+    String label(WidgetTester tester) =>
+        tester.widget<DharaButton>(toggle).label!;
+
+    testWidgets('and still count while they are', (tester) async {
+      final store = MemoryKeyValueStore();
+      final browse = await _open(tester, _library(), settings: store);
+      expect(filters, findsOneWidget);
+      expect(label(tester), 'Filters');
+      final unfolded = tester.getRect(find.byType(PosterCard).first).top;
+
+      await tester.tap(find.byKey(const Key('filter-quality-2160')));
+      await tester.tap(find.byKey(const Key('filter-genre-Mystery')));
+      await tester.pumpAndSettle();
+      expect(label(tester), 'Filters');
+
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(filters, findsNothing);
+      expect(store.getInt('look.browseFiltersShown'), 0);
+      // The grid moves up into their place, narrowed as before.
+      expect(
+        tester.getRect(find.byType(PosterCard).first).top,
+        lessThan(unfolded - 100),
+      );
+      expect(_shown(tester), ['Film 4', 'Film 2']);
+      expect(label(tester), 'Filters · 2');
+
+      await tester.tap(find.byKey(const Key('browse-reset')));
+      await tester.pumpAndSettle();
+      expect(browse.query.hasNoFilters, isTrue);
+      expect(label(tester), 'Filters');
+      expect(filters, findsNothing);
+
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(filters, findsOneWidget);
+      expect(store.getInt('look.browseFiltersShown'), 1);
+    });
+
+    testWidgets('and stay folded in the next run', (tester) async {
+      await _open(
+        tester,
+        _library(),
+        settings: MemoryKeyValueStore({'look.browseFiltersShown': 0}),
+      );
+
+      expect(filters, findsNothing);
+      expect(toggle, findsOneWidget);
+      expect(_shown(tester), hasLength(5));
+    });
+
+    testWidgets('and then the keyboard still goes from the search field to '
+        'the first result', (tester) async {
+      await _open(
+        tester,
+        _library(),
+        settings: MemoryKeyValueStore({'look.browseFiltersShown': 0}),
+      );
+      await tester.tap(_search);
+      await tester.enterText(_search, 'film');
+      await _typed(tester);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+
+      expect(
+        FocusManager.instance.primaryFocus?.context
+            ?.findAncestorWidgetOfExactType<PosterCard>()
+            ?.title
+            .name,
+        _shown(tester).first,
+      );
+    });
   });
 
   testWidgets('offers the years counting back from this one', (tester) async {
