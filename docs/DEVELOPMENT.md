@@ -16,7 +16,7 @@ The full project brief lives in [BRIEF.md](../BRIEF.md) (mirrored in
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
 | 2. Player | Done and tested on real BDIX links. Not yet tried: HEVC / 4K files and `https://` links (none found so far) |
-| 3. Sources and server discovery | Done: starter list of 38 checked servers (39 since 2026-11-20), Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet. Since 2026-11-20 the app also ships candidates from a public list (416 after sorting); a test run over all 619 that night found one new media server, which is the 39th of the starter list |
+| 3. Sources and server discovery | Done: starter list of 38 checked servers (51 since 2026-11-20), Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet. Since 2026-11-20 the app also ships candidates from a public list (416 after sorting); a test run over all 619 that night found one new media server. A look at the websites on the list the same day found file servers behind three of them that the app reads as they are (CircleFTP, AmaderFTP, Ctgstream); 18 websites are left without an adapter |
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
 | 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. Frame rate while scrolling and cold start were measured in Phase 7 (see [Keeping frames cheap](#keeping-frames-cheap)). **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests) |
@@ -685,7 +685,7 @@ flutter run -d windows --dart-define=DHARA_DATA_DIR=D:\tmp\dhara-test
 A source is one BDIX media server (`lib/features/sources/source.dart`). The
 app ships a starter list, [assets/sources](../assets/sources/README.md), which
 also documents the JSON format and what the parser checks. Beside it lies
-`candidate_sources.json`: 416 servers left of 619 taken from a public list
+`candidate_sources.json`: 415 servers left of 619 taken from a public list
 on 2026-11-20, sorted once after a test run (that README says what went
 and why). They are loaded after the starter list. A test of the whole list
 found one new media server among them; see [ROADMAP.md](ROADMAP.md) for
@@ -1028,8 +1028,8 @@ Known gaps:
   `146.196.48.9` holds the same files as the folder-listing source
   `146.196.48.10`, so with both enabled every film of theirs has two
   copies.
-- The 20 custom websites in the starter list have no adapter and are not
-  indexed. FTPmedia (`http://10.1.1.1/`) was looked at on 2026-11-16: it is
+- The 18 custom websites in the starter list have no adapter and are not
+  indexed ([ROADMAP.md](ROADMAP.md) says what each of them is). FTPmedia (`http://10.1.1.1/`) was looked at on 2026-11-16: it is
   a front page with no media, so no adapter can read it; what it links to
   can be added from Server Discovery. Its "Media Live Movies" server
   (`http://10.50.50.51/`) did not answer from the connection it was tried

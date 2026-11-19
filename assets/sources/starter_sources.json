@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkedOn": "2026-11-12",
+  "checkedOn": "2026-11-20",
   "sources": [
     {
       "id": "dhakaflix-7",
@@ -67,6 +67,138 @@
       "baseUrls": ["http://ftp15.circleftp.net/FILE/"],
       "portalUrl": "https://circleftp.net/",
       "notes": "English and foreign anime series."
+    },
+    {
+      "id": "circleftp-index1-files",
+      "name": "CircleFTP index1",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "h5ai",
+      "category": "movies",
+      "baseUrls": ["http://index1.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "Hindi movies."
+    },
+    {
+      "id": "circleftp-ftp4",
+      "name": "CircleFTP ftp4",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "h5ai",
+      "category": "series",
+      "baseUrls": ["http://ftp4.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "English and foreign TV series."
+    },
+    {
+      "id": "circleftp-ftp5",
+      "name": "CircleFTP ftp5",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "h5ai",
+      "category": "mixed",
+      "baseUrls": ["http://ftp5.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "Animation and foreign-language movies, documentaries, award shows."
+    },
+    {
+      "id": "circleftp-ftp6",
+      "name": "CircleFTP ftp6",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "directory_listing",
+      "category": "series",
+      "baseUrls": ["http://ftp6.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "English and foreign TV series. A plain Apache listing, unlike its sister servers."
+    },
+    {
+      "id": "circleftp-ftp7",
+      "name": "CircleFTP ftp7",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "h5ai",
+      "category": "series",
+      "baseUrls": ["http://ftp7.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "English and foreign TV series."
+    },
+    {
+      "id": "circleftp-ftp8",
+      "name": "CircleFTP ftp8",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "h5ai",
+      "category": "series",
+      "baseUrls": ["http://ftp8.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "Hindi TV series, Indian TV shows, Hindi award shows."
+    },
+    {
+      "id": "circleftp-ftp9",
+      "name": "CircleFTP ftp9",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "h5ai",
+      "category": "series",
+      "baseUrls": ["http://ftp9.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "English and foreign TV series."
+    },
+    {
+      "id": "circleftp-ftp10",
+      "name": "CircleFTP ftp10",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "h5ai",
+      "category": "series",
+      "baseUrls": ["http://ftp10.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "English and foreign TV series."
+    },
+    {
+      "id": "circleftp-ftp11",
+      "name": "CircleFTP ftp11",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "h5ai",
+      "category": "series",
+      "baseUrls": ["http://ftp11.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "English and foreign TV series."
+    },
+    {
+      "id": "circleftp-ftp12",
+      "name": "CircleFTP ftp12",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "h5ai",
+      "category": "series",
+      "baseUrls": ["http://ftp12.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "English and foreign TV series."
+    },
+    {
+      "id": "circleftp-ftp13",
+      "name": "CircleFTP ftp13",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "h5ai",
+      "category": "movies",
+      "baseUrls": ["http://ftp13.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "Tamil, Telugu and other South Indian movies, some dubbed in Hindi."
+    },
+    {
+      "id": "circleftp-ftp16",
+      "name": "CircleFTP ftp16",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "h5ai",
+      "category": "series",
+      "baseUrls": ["http://ftp16.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "Dubbed TV series and shows."
     },
     {
       "id": "bokasoka-nas1",
@@ -367,11 +499,11 @@
       "name": "AmaderFTP",
       "provider": "AmaderFTP",
       "isp": null,
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://amaderftp.net/"],
-      "portalUrl": null,
-      "notes": null
+      "type": "directory_listing",
+      "category": "movies",
+      "baseUrls": ["http://amaderftp.net/english/", "http://amaderftp.net/hindi/", "http://amaderftp.net/bangla/", "http://amaderftp.net/tamil/", "http://amaderftp.net/dubbed/", "http://amaderftp.net/other/"],
+      "portalUrl": "http://amaderftp.net/",
+      "notes": "IIS folder listings behind the website, one folder per film: about 8,900 on 2026-11-20. The website also links to films on other servers."
     },
     {
       "id": "ftpmedia",
@@ -422,11 +554,11 @@
       "name": "Ctgstream",
       "provider": "Ctgstream",
       "isp": null,
-      "type": "custom_site",
+      "type": "emby",
       "category": "mixed",
-      "baseUrls": ["http://ctgstream.com/"],
+      "baseUrls": ["https://ctgstream.com/"],
       "portalUrl": null,
-      "notes": "JavaScript app."
+      "notes": "Emby 4.10 with a password-less user, which the app signs in as: 13 libraries on 2026-11-20. Only over https; the http address just passes on to it."
     },
     {
       "id": "moviehaat",

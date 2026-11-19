@@ -72,7 +72,8 @@ Proposed, not yet agreed:
   answered was looked at once. One is a media server (CTGMovies' file
   server, now `ctgmovies-media` in the starter list). 203 candidates went
   (ISP company websites, domains that changed hands, empty web hosting);
-  416 are left. Also: a type a test finds is now saved by itself, so a
+  416 were left (415 since one more moved to the starter list). Also: a
+  type a test finds is now saved by itself, so a
   candidate that is dropped does not stay behind as a copy.
 - What it means: that page is a list of ISPs, not of media servers. More
   to watch will not come from a longer list but from reading the media
@@ -86,13 +87,39 @@ Proposed, not yet agreed:
 
 ### 4. Custom websites
 
-- 20 of the 38 starter servers are custom websites without an adapter.
+- 20 of the 38 starter servers were custom websites without an adapter;
+  18 of 51 are since 2026-11-20.
 - Cost per site: saved sample pages, a parser of a few hundred lines, tests.
   The installed app barely grows; the codebase and the upkeep do (a site
   that changes its pages breaks its adapter). A site that only works by
   running JavaScript or after a login stays out (no WebView).
 - Proposed: not all of them. After the longer list is tested, pick the few
   with the most content that is not already readable through a file server.
+- Looked at on 2026-11-20, one front page each and a page or two more where
+  it helped. No adapter was needed for the first three:
+  - **CircleFTP** (new site, Circle HD): the films lie on its h5ai file
+    servers. Twelve more of those are in the starter list now, so the two
+    websites need no adapter.
+  - **AmaderFTP**: an IIS server that lists its own folders. Read as that.
+  - **Ctgstream**: Emby with a password-less user. Read as that.
+  - **CTGMovies**: a Next.js app; its file server is in the starter list.
+  - **FlixHub**: the best first adapter. Pages come ready from the server
+    (`/movies`, `/tv-shows`, `/watch/movie/<name>`) and a film is one
+    address, `/stream/movie/<name>`, that answers as an mp4 with ranges
+    and without signing in. Not yet known: how its lists page on.
+  - **Khulnaplex**: plain PHP pages with `?page=N`; a second candidate.
+    Where its films lie was not looked at.
+  - **Elaach** (a candidate): films are plain mp4 files on
+    `content.elaach.com`, which did not answer from this connection.
+  - **NowHDTime** (behind Cloudflare, with accounts), **SunPlex**
+    (WordPress with a sign-in form), **MojaLoss** (membership): not looked
+    into further; likely to need an account, which the app does not do.
+  - **FastPlex**, **Halum**, CTG Hub (a candidate): front pages that only
+    link to other servers. No adapter can read them.
+  - Did not answer that night, so not looked at: DFLIX, iHub, NaturalBD,
+    MovieHaat, Funtime, FTPmedia, Radiant, Relax Time.
+- Next: after a test run at another time of day, look at DFLIX and
+  MovieHaat (among the most linked), then write the first adapter.
 
 ### 5. Renewing the libmpv pin
 

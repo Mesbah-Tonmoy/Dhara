@@ -192,17 +192,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-ftp4-circleftp-net",
-      "name": "Circle Network",
-      "provider": null,
-      "isp": "Circle Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://ftp4.circleftp.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-15-1-1-5",
       "name": "Circle Network",
       "provider": null,

@@ -62,7 +62,7 @@ id or base URL listed twice.
 
 ## Candidates
 
-`candidate_sources.json` holds servers nobody has confirmed yet: 416
+`candidate_sources.json` holds servers nobody has confirmed yet: 415
 addresses left of the 619 taken on 2026-11-20 from a public list
 (<https://sites.google.com/view/bdixftpserverlist/media-ftp-servers>, about
 400 ISPs with their links). The app loads them after the starter list, so
@@ -95,6 +95,22 @@ they show in Server Discovery, switched off like every other source.
 `mergeStarterSources` (`lib/features/sources/starter_sources.dart`) leaves
 out a candidate whose id or server the starter list has, and the tests keep
 the two files from overlapping.
+
+## Added on 2026-11-20
+
+Found by looking at the websites on the list, and each read with the app's
+own tester from one BDIX connection:
+
+- Twelve more of CircleFTP's file servers (`index1`, `ftp4` to `ftp13`,
+  `ftp16`), which one of its pages links to. Its `ftp2`, `ftp3` and
+  `ftp14` hold games and software and are left out; `index` passes on to
+  another address.
+- AmaderFTP: the website's films lie in six folders of the same server
+  that IIS lists as they are, so the entry reads those in place of the
+  website.
+- Ctgstream is an Emby server with a password-less user; the entry said
+  "website" because the `http` address only passes on to `https`.
+- CTGMovies' file server, found among the candidates below.
 
 ## How the starter list was built (2026-11-12)
 
