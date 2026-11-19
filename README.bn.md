@@ -171,28 +171,34 @@ script নেই, yt-dlp নেই, configuration file নেই, আর network
 **এক-দুই মাস পরপর, আর প্রতিটা নতুন installer বানানোর আগে, সবচেয়ে নতুন
 build-টা নিন:**
 
-1. <https://github.com/shinchiro/mpv-winbuild-cmake/releases> খুলুন। সবচেয়ে
-   নতুন release-এ `mpv-dev-x86_64-<date>-git-<hash>.7z` file-টা খুঁজুন
-   (`v3` লেখাটা নয়; ওটা শুধু নতুন processor-এ চলে) আর তার পাশে দেখানো
-   SHA-256 নিন।
-2. তার তিনটা মান `windows/libmpv.cmake`-এ বসান: file-এর নাম, ঠিকানার ভেতরের
-   তারিখ, আর SHA-256।
-3. `flutter build windows --release` চালান, তারপর `flutter test`। Test-গুলো
-   আসল `libmpv-2.dll` চালিয়ে দেখে: প্রতিটা hardening option বসিয়ে আবার পড়ে
-   মেলায়, mpv নিজে থেকে যে script চালু করে তার সবগুলো বন্ধ কি না দেখে,
-   redirect মানা হয় না তা দেখে, video-র জায়গায় পাঠানো playlist এই PC-র
-   কোনো file খুলতে পারে না তা দেখে, আর একটা local web server থেকে video
-   চালায়। এখানে কোনো test fail করা মানে কোনো option-এর নাম বা অর্থ বদলেছে,
-   অথবা mpv নিজে থেকে নতুন কিছু করতে শুরু করেছে। কারণটা না বোঝা পর্যন্ত আর
-   এগোবেন না।
-4. `pwsh tool/package.ps1` চালান। এটা থেমে যাবে, কারণ `libmpv-2.dll` আর
-   তালিকার file-টা নয়, আর নতুন SHA-256 দেখাবে। সেটা
-   `tool/bundled-libraries.sha256`-এ বসিয়ে script আবার চালান।
-5. Install করে [docs/manual-test.bn.md](docs/manual-test.bn.md) ধরে দেখে
-   নিন: একটা film, seek, subtitle, দ্বিতীয় audio track, episode-এর শেষ, আর
-   info panel-এর (I key) decoder লাইন।
-6. নতুন version-টা [docs/security-review.md](docs/security-review.md)-র
-   bundled library-র table-এ লিখুন।
+1. `pwsh tool/update-libmpv.ps1` চালান (`-Check` দিলে শুধু বলে নতুন build
+   আছে কি না)। এটা <https://github.com/shinchiro/mpv-winbuild-cmake/releases>
+   থেকে সবচেয়ে নতুন `mpv-dev-x86_64-<date>-git-<hash>.7z` খুঁজে নেয়
+   (`v3` লেখাটা নয়; ওটা শুধু নতুন processor-এ চলে), download করে, আর
+   GitHub তার পাশে যে SHA-256 দেখায় সেটার সাথে মিললে তবেই এগোয়। তারপর
+   `windows/libmpv.cmake`-এর তিনটা মান (file-এর নাম, ঠিকানার ভেতরের তারিখ,
+   SHA-256), `tool/bundled-libraries.sha256`-এ `libmpv-2.dll`-এর লাইন, আর
+   এই file ও [docs/security-review.md](docs/security-review.md)-র table-এ
+   build-এর নাম লিখে দেয়।
+2. এরপর এটা `flutter build windows --release` আর আসল `libmpv-2.dll`
+   চালানো test-গুলো চালায়: প্রতিটা hardening option বসিয়ে আবার পড়ে মেলায়,
+   mpv নিজে থেকে যে script চালু করে তার সবগুলো বন্ধ কি না দেখে, redirect
+   মানা হয় না তা দেখে, video-র জায়গায় পাঠানো playlist এই PC-র কোনো file
+   খুলতে পারে না তা দেখে, আর একটা local web server থেকে video চালায়।
+   এখানে কোনো test fail করা মানে কোনো option-এর নাম বা অর্থ বদলেছে, অথবা
+   mpv নিজে থেকে নতুন কিছু করতে শুরু করেছে। কারণটা না বোঝা পর্যন্ত আর
+   এগোবেন না; পুরনো pin-এ কীভাবে ফিরবেন script-ই বলে দেয়।
+3. পুরো `flutter test` চালান, আর `git diff` দেখে নিন।
+4. `pwsh tool/package.ps1` চালান, যা তৈরি হয় সেটা install করে
+   [docs/manual-test.bn.md](docs/manual-test.bn.md) ধরে দেখে নিন: একটা
+   film, seek, subtitle, দ্বিতীয় audio track, episode-এর শেষ, আর info
+   panel-এর (I key) decoder লাইন।
+5. Commit করুন। Script নিজে কিছু commit করে না।
+
+Script-টা ২০২৬-১১-২০ তারিখে repository-র একটা copy-তে চালিয়ে দেখা হয়েছে,
+যেখানে একটা পুরনো build pin করা ছিল: এটা ২০২৬-১১-১১-র build নিয়েছে আর
+file-গুলো ঠিক এখানকার মতোই লিখেছে। এর শেষ অংশ, build আর test, এখনো চলেনি,
+কারণ নেওয়ার মতো নতুন build ছিল না।
 
 এর চেয়ে বেশি দেরি করবেন না। ২০২৬-১১-১৮ তারিখে ওই উৎস তার শেষ ৩০টা build
 রাখছিল, যার সবচেয়ে পুরনোটা ছয় সপ্তাহেরও কম আগের। Pin করা build-টা ওখান
@@ -201,7 +207,7 @@ pin না করা পর্যন্ত app আর build হবে না।
 
 মাঝে মাঝে `flutter pub outdated`-ও চালিয়ে media_kit-এর তিনটা package দেখুন।
 কোনোটার নতুন version থাকলে তার changelog পড়ুন, `pubspec.yaml`-এ তিনটার
-version একসাথে বাড়ান, আর ধাপ ৩ থেকে ৫ করুন।
+version একসাথে বাড়ান, build করুন, আর ধাপ ৩ ও ৪ করুন।
 
 **প্রথমবার build বদলাতে যা লেগেছে (২০২৬-১১-১৮)।** mpv 0.42-এ এমন কিছু
 জিনিস আছে যা ২০২৩-এর build-এ ছিল না, আর app ছাড়ার আগে সেগুলো বন্ধ করতে

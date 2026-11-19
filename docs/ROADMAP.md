@@ -96,11 +96,14 @@ Proposed, not yet agreed:
 
 ### 5. Renewing the libmpv pin
 
-- Proposed: `tool/update-libmpv.ps1`, one command that finds the newest
-  build, downloads it, checks the published SHA-256, rewrites
-  `windows/libmpv.cmake` and `tool/bundled-libraries.sha256`, and runs the
-  real-libmpv tests. A monthly job that does the same and opens a pull
-  request is possible once there is CI.
+- Done on 2026-11-20: `tool/update-libmpv.ps1`, one command that finds the
+  newest build, downloads it, checks the published SHA-256, rewrites
+  `windows/libmpv.cmake`, `tool/bundled-libraries.sha256` and the build's
+  name in the docs, builds, and runs the real-libmpv tests. Tried in a copy
+  of the repository up to the rewriting; the build and test part has not
+  run yet (the pinned build was the newest).
+- Still open: a monthly job that does the same and opens a pull request,
+  possible once there is CI.
 
 ### 6. Phase 9: downloads for offline viewing
 

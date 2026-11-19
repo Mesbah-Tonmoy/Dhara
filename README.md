@@ -171,28 +171,35 @@ To see which libmpv a build holds, look at the version stamp of the file
 **Every month or two, and before every new installer, take the newest
 build:**
 
-1. Open <https://github.com/shinchiro/mpv-winbuild-cmake/releases>. In the
-   newest release find `mpv-dev-x86_64-<date>-git-<hash>.7z` (not the
-   `v3` file, which only runs on newer processors) and the SHA-256 shown
-   beside it.
-2. Put its three values into `windows/libmpv.cmake`: the file name, the
-   date in the address, and the SHA-256.
-3. Run `flutter build windows --release`, then `flutter test`. The tests
+1. Run `pwsh tool/update-libmpv.ps1` (`-Check` only says whether there
+   is a newer build). It finds the newest
+   `mpv-dev-x86_64-<date>-git-<hash>.7z` of
+   <https://github.com/shinchiro/mpv-winbuild-cmake/releases> (not the
+   `v3` file, which only runs on newer processors), downloads it, and
+   goes on only if its SHA-256 is the one GitHub shows beside it. Then it
+   writes the three values of `windows/libmpv.cmake` (the file name, the
+   date in the address, the SHA-256), the line for `libmpv-2.dll` in
+   `tool/bundled-libraries.sha256`, and the build's name in this file
+   and in the table of [docs/security-review.md](docs/security-review.md).
+2. It then runs `flutter build windows --release` and the tests that
    drive the real `libmpv-2.dll`: every hardening option is set and read
    back, every script mpv starts by itself must be off, a redirect must
    not be followed, a playlist sent in place of a video must not open a
    file of this PC, and a video is played from a local web server. A
    failure here means an option changed its name or its meaning, or mpv
    has begun to do something new by itself. Do not go on until it is
-   understood.
-4. Run `pwsh tool/package.ps1`. It stops, because `libmpv-2.dll` is no
-   longer the file on the list, and prints the new SHA-256. Put it into
-   `tool/bundled-libraries.sha256` and run the script again.
-5. Install it and go through [docs/manual-test.bn.md](docs/manual-test.bn.md)
-   (in Bangla): a film, a seek, subtitles, a second sound track, the end
-   of an episode, and the decoder line of the info panel (the I key).
-6. Write the new version into the table of bundled libraries in
-   [docs/security-review.md](docs/security-review.md).
+   understood; the script says how to put the old pin back.
+3. Run `flutter test`, all of it, and look at `git diff`.
+4. Run `pwsh tool/package.ps1`, install what it makes and go through
+   [docs/manual-test.bn.md](docs/manual-test.bn.md) (in Bangla): a film,
+   a seek, subtitles, a second sound track, the end of an episode, and
+   the decoder line of the info panel (the I key).
+5. Commit. The script commits nothing.
+
+The script was tried on 2026-11-20 in a copy of the repository that pinned
+an older build: it took the build of 2026-11-11 and wrote exactly the
+files as they are here. Its last part, the build and the tests, has not
+run yet, as there was no newer build to take.
 
 Do not wait much longer than that. On 2026-11-18 that source kept its
 last 30 builds, the oldest less than six weeks old. Once the pinned build
@@ -201,7 +208,7 @@ build the app until a newer build is pinned.
 
 Now and then also run `flutter pub outdated` and look at the three
 media_kit packages. If one is newer, read its changelog, raise the three
-versions together in `pubspec.yaml`, and go through steps 3 to 5.
+versions together in `pubspec.yaml`, build, and go through steps 3 and 4.
 
 **What the first change of build took (2026-11-18).** mpv 0.42 has things
 in it that the build of 2023 lacked, and the app had to switch them off

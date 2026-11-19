@@ -6,9 +6,9 @@
 # lists, checked against the SHA-256 written here. A build never uses a file
 # that does not match it.
 #
-# To take a newer build, see "Keeping the player up to date" in README.md:
-# the three values below change, and one line of
-# tool/bundled-libraries.sha256.
+# To take a newer build, run tool/update-libmpv.ps1 (see "Keeping the
+# player up to date" in README.md): it changes the three values below and
+# one line of tool/bundled-libraries.sha256.
 set(DHARA_LIBMPV_ARCHIVE "mpv-dev-x86_64-20261111-git-bcde6b93cc.7z")
 set(DHARA_LIBMPV_URL
   "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20261111/${DHARA_LIBMPV_ARCHIVE}")
