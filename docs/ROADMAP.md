@@ -117,8 +117,9 @@ Proposed, not yet agreed:
   D deeper gradient and a longer wave; E dark with a stream of three waves;
   F the play over filled water). Chosen on 2026-11-20: **F** is the logo
   and the app's icon; A, B and C stay in the code as `DharaLogoStyle`
-  (`classic`, `dark`, `rounded`) for later use. Two more were shown and
-  wait for a word: B with a rounded play triangle, and a dark F.
+  (`classic`, `dark`, `rounded`) for later use, and so do the two shown
+  after them: B with a rounded play triangle (`darkRounded`) and a dark F
+  (`darkWater`).
 
 ## Still open from before
 

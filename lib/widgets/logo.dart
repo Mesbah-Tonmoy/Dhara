@@ -16,6 +16,12 @@ enum DharaLogoStyle {
 
   /// A rounded triangle over two waves, on the accent gradient.
   rounded,
+
+  /// [dark] with the triangle's corners rounded.
+  darkRounded,
+
+  /// [water] in the accent colours on a dark square.
+  darkWater,
 }
 
 /// The app's mark. Drawn, so it is sharp at every size.
@@ -66,21 +72,34 @@ class _LogoPainter extends CustomPainter {
       ..scale(size.width / 32, size.height / 32);
     switch (style) {
       case DharaLogoStyle.water:
-        _water(canvas);
+        _water(canvas, dark: false);
+      case DharaLogoStyle.darkWater:
+        _water(canvas, dark: true);
       case DharaLogoStyle.classic:
         _square(canvas, DharaColors.accentGradient);
         _sharpPlay(canvas, Paint()..color = _white);
         _wave(canvas, _stroke(2.2)..color = _white);
       case DharaLogoStyle.dark:
-        _dark(canvas);
+        _dark(canvas, roundPlay: false);
+      case DharaLogoStyle.darkRounded:
+        _dark(canvas, roundPlay: true);
       case DharaLogoStyle.rounded:
         _rounded(canvas);
     }
     canvas.restore();
   }
 
-  void _water(Canvas canvas) {
+  void _water(Canvas canvas, {required bool dark}) {
     final square = RRect.fromRectAndRadius(_box, const Radius.circular(9));
+    // On the dark square the water and the triangle carry the colours.
+    final wet = dark
+        ? DharaColors.accentGradient.createShader(
+            const Rect.fromLTRB(0, 20, 32, 32),
+          )
+        : null;
+    final mark = dark
+        ? _markGradient.createShader(const Rect.fromLTRB(7, 8, 25, 26))
+        : null;
     final crest = Path()
       ..moveTo(0, 22.5)
       ..cubicTo(4, 19.8, 8, 25.2, 12, 22.5)
@@ -91,26 +110,58 @@ class _LogoPainter extends CustomPainter {
       ..lineTo(0, 32)
       ..close();
     canvas
-      ..drawRRect(square, Paint()..shader = _deepGradient.createShader(_box))
+      ..drawRRect(
+        square,
+        Paint()
+          ..shader = (dark ? _darkGradient : _deepGradient).createShader(_box),
+      )
       ..save()
       ..clipRRect(square)
-      ..drawPath(water, Paint()..color = const Color(0x38FFFFFF))
-      ..drawPath(crest, _stroke(1.8)..color = _white)
+      ..drawPath(
+        water,
+        Paint()
+          // With a shader, only the colour's opacity counts.
+          ..color = dark ? const Color(0x61FFFFFF) : const Color(0x38FFFFFF)
+          ..shader = wet,
+      )
+      ..drawPath(
+        crest,
+        _stroke(1.8)
+          ..color = _white
+          ..shader = wet,
+      )
       ..restore();
-    _roundPlay(canvas, 13.4, 8.6, 16, 19.7, Paint()..color = _white);
+    if (dark) _darkEdge(canvas);
+    _roundPlay(
+      canvas,
+      13.4,
+      8.6,
+      16,
+      19.7,
+      Paint()
+        ..color = _white
+        ..shader = mark,
+    );
   }
 
-  void _dark(Canvas canvas) {
+  /// The thin accent line around a dark square.
+  void _darkEdge(Canvas canvas) => canvas.drawRRect(
+    RRect.fromRectAndRadius(
+      const Rect.fromLTWH(.6, .6, 30.8, 30.8),
+      const Radius.circular(8.4),
+    ),
+    _stroke(1.2)..color = const Color(0x8C8B6CFF),
+  );
+
+  void _dark(Canvas canvas, {required bool roundPlay}) {
     _square(canvas, _darkGradient);
     final mark = _markGradient.createShader(const Rect.fromLTRB(7, 8, 25, 26));
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(.6, .6, 30.8, 30.8),
-        const Radius.circular(8.4),
-      ),
-      _stroke(1.2)..color = const Color(0x8C8B6CFF),
-    );
-    _sharpPlay(canvas, Paint()..shader = mark);
+    _darkEdge(canvas);
+    if (roundPlay) {
+      _roundPlay(canvas, 13.4, 9.8, 17.2, 19.7, Paint()..shader = mark);
+    } else {
+      _sharpPlay(canvas, Paint()..shader = mark);
+    }
     _wave(canvas, _stroke(2.2)..shader = mark);
   }
 
