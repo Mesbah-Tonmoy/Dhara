@@ -220,6 +220,17 @@
       "notes": "Emby 4.8.5 with a password-less guest user, which the app signs in as. Its library is the file server above."
     },
     {
+      "id": "ctgmovies-media",
+      "name": "CTGMovies media",
+      "provider": "CTGMovies",
+      "isp": "Digital Dot Net",
+      "type": "directory_listing",
+      "category": "mixed",
+      "baseUrls": ["https://media.ctgfun.com/"],
+      "portalUrl": "https://ctgmovies.com/",
+      "notes": "nginx folder listing over https, one folder per disk. Found among the candidates on 2026-11-20."
+    },
+    {
       "id": "funtime",
       "name": "Funtime",
       "provider": "Funtime",

@@ -62,8 +62,8 @@ id or base URL listed twice.
 
 ## Candidates
 
-`candidate_sources.json` holds servers nobody has looked at yet: 619
-addresses taken on 2026-11-20 from a public list
+`candidate_sources.json` holds servers nobody has confirmed yet: 416
+addresses left of the 619 taken on 2026-11-20 from a public list
 (<https://sites.google.com/view/bdixftpserverlist/media-ftp-servers>, about
 400 ISPs with their links). The app loads them after the starter list, so
 they show in Server Discovery, switched off like every other source.
@@ -77,12 +77,20 @@ they show in Server Discovery, switched off like every other source.
 - Left out: servers the starter list already has, social networks, site
   builders, paste and code hosts, and addresses of a home network
   (192.168.x.x).
-- Many are ISP company websites, many only answer inside one ISP's network,
-  and some domains will have changed hands. That is why they are candidates
-  and not part of the starter list: after a test run from a BDIX connection,
-  the ones that turn out to be media servers move to the starter list with
-  their type and what they hold, and the rest are taken out again. Until
-  then, look at what a candidate lists before you switch it on.
+- Sorted once, on 2026-11-20 (`sortedOn`), after a test run from one BDIX
+  connection (305 of the 619 answered) and one look at the front page of
+  each that answered. Taken out, 203 in all: 153 ISP company websites, 31
+  domains that have changed hands (casinos, parking pages, "for sale",
+  suspended accounts), 10 that only pass on to an ISP's new website, 8
+  that are web hosting showing an empty folder (the test calls such a
+  server readable, which says nothing about films), and the one media
+  server found, which is in the starter list now (`ctgmovies-media`).
+- Still in: 314 that did not answer that night, when DhakaFlix and FTPBD
+  did not answer either, so that says little; many only answer inside one
+  ISP's network. And 102 that answered with something the rules could not
+  place: media websites of their own kind, pages behind a bot check, pages
+  that load by script. Look at what a candidate lists before you switch it
+  on.
 
 `mergeStarterSources` (`lib/features/sources/starter_sources.dart`) leaves
 out a candidate whose id or server the starter list has, and the tests keep

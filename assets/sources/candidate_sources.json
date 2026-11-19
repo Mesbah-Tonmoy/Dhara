@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "takenOn": "2026-11-20",
   "takenFrom": "https://sites.google.com/view/bdixftpserverlist/media-ftp-servers",
+  "sortedOn": "2026-11-20",
   "sources": [
     {
       "id": "bdix-bnet-bd-com",
@@ -268,17 +269,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-cogentbroadband-net",
-      "name": "Cogent Broadband (KHULNAFLIX)",
-      "provider": null,
-      "isp": "Cogent Broadband (KHULNAFLIX)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.cogentbroadband.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-khulnaflix-net",
       "name": "Cogent Broadband (KHULNAFLIX)",
       "provider": null,
@@ -308,17 +298,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://file.khulnaflix.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-discoverynetbd-com",
-      "name": "Discovery Internet",
-      "provider": null,
-      "isp": "Discovery Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.discoverynetbd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -378,28 +357,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-onesky-com-bd",
-      "name": "ONE NET Communications Limited (SHOWTIME)",
-      "provider": null,
-      "isp": "ONE NET Communications Limited (SHOWTIME)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.onesky.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-1netbd-com",
-      "name": "ONE NET Communications Limited (SHOWTIME)",
-      "provider": null,
-      "isp": "ONE NET Communications Limited (SHOWTIME)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.1netbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-103-77-252-113",
       "name": "ONE NET Communications Limited (SHOWTIME)",
       "provider": null,
@@ -444,17 +401,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-ddnbd-com",
-      "name": "Digital DOT NET (CTGMOVIES)",
-      "provider": null,
-      "isp": "Digital DOT NET (CTGMOVIES)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://ddnbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-ddnbd-fun",
       "name": "Digital DOT NET (CTGMOVIES)",
       "provider": null,
@@ -473,28 +419,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://crazyctg.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-media-ctgfun-com",
-      "name": "Digital DOT NET (CTGMOVIES)",
-      "provider": null,
-      "isp": "Digital DOT NET (CTGMOVIES)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://media.ctgfun.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-exordonline-com",
-      "name": "Exord Online (E-BOX LIVE)",
-      "provider": null,
-      "isp": "Exord Online (E-BOX LIVE)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.exordonline.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -543,28 +467,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-icc-com-bd",
-      "name": "ICC Communication Limited",
-      "provider": null,
-      "isp": "ICC Communication Limited",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://icc.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-iccfios-net",
-      "name": "ICC Communication Limited",
-      "provider": null,
-      "isp": "ICC Communication Limited",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://iccfios.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-icctalk-com",
       "name": "ICC Communication Limited",
       "provider": null,
@@ -572,28 +474,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://icctalk.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-antbd-com",
-      "name": "Antaranga DOT COM Limited (DHAKAMOVIE)",
-      "provider": null,
-      "isp": "Antaranga DOT COM Limited (DHAKAMOVIE)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.antbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-antbd-net",
-      "name": "Antaranga DOT COM Limited (DHAKAMOVIE)",
-      "provider": null,
-      "isp": "Antaranga DOT COM Limited (DHAKAMOVIE)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.antbd.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -620,17 +500,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-xpress-ltd",
-      "name": "X-PRESS Technologies Limited (NATURALBD)",
-      "provider": null,
-      "isp": "X-PRESS Technologies Limited (NATURALBD)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://xpress.ltd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-103-43-148-68",
       "name": "X-PRESS Technologies Limited (NATURALBD)",
       "provider": null,
@@ -638,17 +507,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://103.43.148.68/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-skyviewonlineltd-com",
-      "name": "Skyview Online Limited (TIMEPASSBD)",
-      "provider": null,
-      "isp": "Skyview Online Limited (TIMEPASSBD)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://skyviewonlineltd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -686,17 +544,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-citycomnetwork-com-bd",
-      "name": "Citycom Network (CITYCLOUD)",
-      "provider": null,
-      "isp": "Citycom Network (CITYCLOUD)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.citycomnetwork.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-11-11-11-11",
       "name": "Citycom Network (CITYCLOUD)",
       "provider": null,
@@ -715,17 +562,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://103.204.244.70/Data/Data/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-carnival-com-bd",
-      "name": "Carnival Internet (NAGORDOLA)",
-      "provider": null,
-      "isp": "Carnival Internet (NAGORDOLA)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://carnival.com.bd/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -752,17 +588,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-triangle-com-bd",
-      "name": "Triangle Services Limited (ELAACH)",
-      "provider": null,
-      "isp": "Triangle Services Limited (ELAACH)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.triangle.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-elaach-com",
       "name": "Triangle Services Limited (ELAACH)",
       "provider": null,
@@ -770,17 +595,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://www.elaach.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-uniquenetbd-com",
-      "name": "Unique Internet",
-      "provider": null,
-      "isp": "Unique Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://uniquenetbd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -807,17 +621,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-sunonlinebd-com",
-      "name": "SUN Online (SURZOMAMA)",
-      "provider": null,
-      "isp": "SUN Online (SURZOMAMA)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://sunonlinebd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-103-85-235-254",
       "name": "SUN Online (SURZOMAMA)",
       "provider": null,
@@ -825,17 +628,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://103.85.235.254/storage/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-fnfonlinebd-com",
-      "name": "Fnfonline",
-      "provider": null,
-      "isp": "Fnfonline",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.fnfonlinebd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -862,17 +654,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-deshnetbd-com",
-      "name": "Deshnet Broadband",
-      "provider": null,
-      "isp": "Deshnet Broadband",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://deshnetbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-103-152-18-18",
       "name": "Deshnet Broadband",
       "provider": null,
@@ -880,17 +661,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://103.152.18.18/Data/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-inspirebroadband-net",
-      "name": "Inspire Broadband (IHUB)",
-      "provider": null,
-      "isp": "Inspire Broadband (IHUB)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://inspirebroadband.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -913,17 +683,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://www.colbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-fiber-colbd-com",
-      "name": "Chittagong Online Limited",
-      "provider": null,
-      "isp": "Chittagong Online Limited",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://fiber.colbd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -957,39 +716,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://metromedia.digital/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-cloudone-com-bd",
-      "name": "Cloudone Internet",
-      "provider": null,
-      "isp": "Cloudone Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://cloudone.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-bdmovies-net",
-      "name": "Cloudone Internet",
-      "provider": null,
-      "isp": "Cloudone Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://bdmovies.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-linktech-net-bd",
-      "name": "Link Technologies",
-      "provider": null,
-      "isp": "Link Technologies",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://linktech.net.bd/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -1045,17 +771,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://file.tajpata.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-ksnetworkbd-com",
-      "name": "KS Network Limited (WOW MOVIE ZONE)",
-      "provider": null,
-      "isp": "KS Network Limited (WOW MOVIE ZONE)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://ksnetworkbd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -1148,17 +863,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-mazedanetworks-net",
-      "name": "Mazeda Network",
-      "provider": null,
-      "isp": "Mazeda Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.mazedanetworks.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-172-22-22-100",
       "name": "Mazeda Network",
       "provider": null,
@@ -1203,17 +907,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-visiontechnologiesltd-com",
-      "name": "Vision Technologies Limited (SUNPLEX)",
-      "provider": null,
-      "isp": "Vision Technologies Limited (SUNPLEX)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://visiontechnologiesltd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-storage-sunplex-net",
       "name": "Vision Technologies Limited (SUNPLEX)",
       "provider": null,
@@ -1243,17 +936,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://www.moviemela.live/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-amarnetsystem-com",
-      "name": "Amarnet System (DHAKAFTP)",
-      "provider": null,
-      "isp": "Amarnet System (DHAKAFTP)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://amarnetsystem.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -1291,28 +973,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-freedownloadbd-com",
-      "name": "Freedownloadbd",
-      "provider": null,
-      "isp": "Freedownloadbd",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.freedownloadbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-dfnbd-net",
-      "name": "Dhaka Fiber NET",
-      "provider": null,
-      "isp": "Dhaka Fiber NET",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.dfnbd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-media-dfnbd-net",
       "name": "Dhaka Fiber NET",
       "provider": null,
@@ -1346,17 +1006,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-planet3communication-com",
-      "name": "Planet 3 Communication (CANDYBD)",
-      "provider": null,
-      "isp": "Planet 3 Communication (CANDYBD)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://planet3communication.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-candybd-net",
       "name": "Planet 3 Communication (CANDYBD)",
       "provider": null,
@@ -1364,17 +1013,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://www.candybd.net/upload/source/movies/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-mcnbd-com",
-      "name": "Millennium Computers & Network",
-      "provider": null,
-      "isp": "Millennium Computers & Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.mcnbd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -1456,17 +1094,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-come2speed-com",
-      "name": "Speed Tech Online (TIMENAI)",
-      "provider": null,
-      "isp": "Speed Tech Online (TIMENAI)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://come2speed.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-103-199-155-150",
       "name": "Speed Tech Online (TIMENAI)",
       "provider": null,
@@ -1485,17 +1112,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://timenai.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-dnetbd-com",
-      "name": "Dnetbd",
-      "provider": null,
-      "isp": "Dnetbd",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://dnetbd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -1555,28 +1171,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-race-net-bd",
-      "name": "Race Online Limited (MOVIEDOM & MOVIEHAAT)",
-      "provider": null,
-      "isp": "Race Online Limited (MOVIEDOM & MOVIEHAAT)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.race.net.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-moviedom-live",
-      "name": "Race Online Limited (MOVIEDOM & MOVIEHAAT)",
-      "provider": null,
-      "isp": "Race Online Limited (MOVIEDOM & MOVIEHAAT)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://moviedom.live/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-movie-moviedom-live",
       "name": "Race Online Limited (MOVIEDOM & MOVIEHAAT)",
       "provider": null,
@@ -1610,17 +1204,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-dotinternetbd-com",
-      "name": "DOT Internet",
-      "provider": null,
-      "isp": "DOT Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.dotinternetbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-dflix-live",
       "name": "DOT Internet",
       "provider": null,
@@ -1643,17 +1226,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-skyinfoonline-net",
-      "name": "Skyinfo Online (MOVIEMAJA)",
-      "provider": null,
-      "isp": "Skyinfo Online (MOVIEMAJA)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.skyinfoonline.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-103-132-187-18",
       "name": "Skyinfo Online (MOVIEMAJA)",
       "provider": null,
@@ -1665,17 +1237,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-moviemaja-net",
-      "name": "Skyinfo Online (MOVIEMAJA)",
-      "provider": null,
-      "isp": "Skyinfo Online (MOVIEMAJA)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://moviemaja.net/Data/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-103-195-1-50",
       "name": "Seba IT",
       "provider": null,
@@ -1683,17 +1244,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://103.195.1.50/Data/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-cityonlinebd-net",
-      "name": "City Online Limited (IBDPLEX)",
-      "provider": null,
-      "isp": "City Online Limited (IBDPLEX)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.cityonlinebd.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -1716,17 +1266,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://ibdplex.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-globalcommunicationbd-com",
-      "name": "Global Communication",
-      "provider": null,
-      "isp": "Global Communication",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://globalcommunicationbd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -1764,17 +1303,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-epnetbd-com",
-      "name": "Empowering NET (ABCMOVIES)",
-      "provider": null,
-      "isp": "Empowering NET (ABCMOVIES)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://epnetbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-103-103-239-66",
       "name": "Empowering NET (ABCMOVIES)",
       "provider": null,
@@ -1797,17 +1325,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-abcflixbd-com",
-      "name": "Empowering NET (ABCMOVIES)",
-      "provider": null,
-      "isp": "Empowering NET (ABCMOVIES)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://abcflixbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-zerooneonline-net",
       "name": "Zeroone Online (CTGOZ)",
       "provider": null,
@@ -1815,17 +1332,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://www.zerooneonline.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-ctgoz-com",
-      "name": "Zeroone Online (CTGOZ)",
-      "provider": null,
-      "isp": "Zeroone Online (CTGOZ)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://ctgoz.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -1885,17 +1391,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-asiancommunicationbd-com",
-      "name": "Asian Communication",
-      "provider": null,
-      "isp": "Asian Communication",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://asiancommunicationbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-asianftp-com",
       "name": "Asian Communication",
       "provider": null,
@@ -1914,17 +1409,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://www.anosbd.com/ftp/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-asiannetworkbd-net",
-      "name": "Asian Network",
-      "provider": null,
-      "isp": "Asian Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://asiannetworkbd.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -1951,17 +1435,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-applenetbd-com",
-      "name": "Applenet Broadband",
-      "provider": null,
-      "isp": "Applenet Broadband",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.applenetbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-activembd-com",
       "name": "Active Multimedia",
       "provider": null,
@@ -1969,17 +1442,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://activembd.com/internet/ftp-server/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-agcommunication-net",
-      "name": "AG Communication",
-      "provider": null,
-      "isp": "AG Communication",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.agcommunication.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -2039,17 +1501,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-arishabd-net",
-      "name": "Arisha NET",
-      "provider": null,
-      "isp": "Arisha NET",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://arishabd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-abibd-com",
       "name": "Achiever Broadband Internet",
       "provider": null,
@@ -2079,17 +1530,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://applelinkbd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-as-bd-net",
-      "name": "Automation System Internet",
-      "provider": null,
-      "isp": "Automation System Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.as-bd.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -2127,39 +1567,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-abnctg-net",
-      "name": "ABN Internet",
-      "provider": null,
-      "isp": "ABN Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.abnctg.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-asblink-net",
-      "name": "ASB Link Internet",
-      "provider": null,
-      "isp": "ASB Link Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.asblink.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-asmabroadbandnetwork-com",
-      "name": "Asma Broadband Network",
-      "provider": null,
-      "isp": "Asma Broadband Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://asmabroadbandnetwork.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-220-152-114-214",
       "name": "Asma Broadband Network",
       "provider": null,
@@ -2167,28 +1574,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://220.152.114.214/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-addanetwork-net",
-      "name": "Adda Network",
-      "provider": null,
-      "isp": "Adda Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://addanetwork.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-aknetworksbd-com",
-      "name": "Aknetworks",
-      "provider": null,
-      "isp": "Aknetworks",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://aknetworksbd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -2204,17 +1589,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-activenetworkbd-com",
-      "name": "Active Network",
-      "provider": null,
-      "isp": "Active Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.activenetworkbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-bossbd-net",
       "name": "Bossbd",
       "provider": null,
@@ -2222,17 +1596,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://www.bossbd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-bossbd-live",
-      "name": "Bossbd",
-      "provider": null,
-      "isp": "Bossbd",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://bossbd.live/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -2321,17 +1684,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://bonsaihd.live/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-basnetbd-com",
-      "name": "BAS Network",
-      "provider": null,
-      "isp": "BAS Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://basnetbd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -2435,28 +1787,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-bmitbd-com",
-      "name": "Bmit",
-      "provider": null,
-      "isp": "Bmit",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://bmitbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-bhuiyan-online-com",
-      "name": "Bhuiyan Telecom",
-      "provider": null,
-      "isp": "Bhuiyan Telecom",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.bhuiyan-online.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-bdplex-net",
       "name": "Bdplex",
       "provider": null,
@@ -2519,39 +1849,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://bhalukabroadband.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-binimoynet-com",
-      "name": "Binimoy NET",
-      "provider": null,
-      "isp": "Binimoy NET",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://binimoynet.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-beaconlink-net",
-      "name": "Beaconlink",
-      "provider": null,
-      "isp": "Beaconlink",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.beaconlink.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-bdminternet-com",
-      "name": "BDM Internet",
-      "provider": null,
-      "isp": "BDM Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.bdminternet.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -2633,39 +1930,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-cnetworkbd-net",
-      "name": "Cnetwork",
-      "provider": null,
-      "isp": "Cnetwork",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://cnetworkbd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-mycybernest-com",
-      "name": "Cybernest Network",
-      "provider": null,
-      "isp": "Cybernest Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.mycybernest.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-cueclub-com-bd",
-      "name": "Cueclub Technology",
-      "provider": null,
-      "isp": "Cueclub Technology",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://cueclub.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-crazynetbd-com",
       "name": "Crazynet",
       "provider": null,
@@ -2673,39 +1937,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://crazynetbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-citynetbd-com",
-      "name": "Citynet",
-      "provider": null,
-      "isp": "Citynet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://citynetbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-citynet-live",
-      "name": "Citynet Internet",
-      "provider": null,
-      "isp": "Citynet Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.citynet.live/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-ctgtel-net",
-      "name": "Ctgtel",
-      "provider": null,
-      "isp": "Ctgtel",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.ctgtel.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -2721,17 +1952,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-clickonlinebd-com",
-      "name": "Click Online",
-      "provider": null,
-      "isp": "Click Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://clickonlinebd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-cybernetcommunications-net",
       "name": "Cyber NET Communications",
       "provider": null,
@@ -2739,17 +1959,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://www.cybernetcommunications.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-creativait-net",
-      "name": "Creativait NET",
-      "provider": null,
-      "isp": "Creativait NET",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://creativait.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -2765,17 +1974,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-cineflixbd-xyz",
-      "name": "Chocolate Broadband",
-      "provider": null,
-      "isp": "Chocolate Broadband",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://cineflixbd.xyz/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-cygnusall-com",
       "name": "CYGNUS.NET",
       "provider": null,
@@ -2787,39 +1985,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-cns-net-bd",
-      "name": "Crescent Network Service",
-      "provider": null,
-      "isp": "Crescent Network Service",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://cns.net.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-daulatpuronline-com",
-      "name": "Daulatpur Online (KHULNAPLEX)",
-      "provider": null,
-      "isp": "Daulatpur Online (KHULNAPLEX)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.daulatpuronline.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-dreamnetbd-com",
-      "name": "Dreamnet",
-      "provider": null,
-      "isp": "Dreamnet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://dreamnetbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-deshonlinebd-com",
       "name": "Deshonlinebd",
       "provider": null,
@@ -2827,17 +1992,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://deshonlinebd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-dhakadownload-com",
-      "name": "Dhaka Download",
-      "provider": null,
-      "isp": "Dhaka Download",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.dhakadownload.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -2886,17 +2040,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-ditbd-net",
-      "name": "DIT NET",
-      "provider": null,
-      "isp": "DIT NET",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://ditbd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-172-27-100-3",
       "name": "DIT NET",
       "provider": null,
@@ -2930,28 +2073,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-durantonetworkbd-com",
-      "name": "Duranto Broadband Network",
-      "provider": null,
-      "isp": "Duranto Broadband Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.durantonetworkbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-didarit-com",
-      "name": "Didar IT",
-      "provider": null,
-      "isp": "Didar IT",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.didarit.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-dekhobd-com",
       "name": "Dekho",
       "provider": null,
@@ -2959,28 +2080,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://dekhobd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-dlnsbd-net",
-      "name": "DL Network Services",
-      "provider": null,
-      "isp": "DL Network Services",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://dlnsbd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-evolutionnet-info",
-      "name": "Evolution",
-      "provider": null,
-      "isp": "Evolution",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://evolutionnet.info/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -3029,17 +2128,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-exploreonlinebd-net",
-      "name": "Explore Online",
-      "provider": null,
-      "isp": "Explore Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://exploreonlinebd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-103-222-20-150",
       "name": "Explore Online",
       "provider": null,
@@ -3051,17 +2139,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-ectlink-com",
-      "name": "Ectlink",
-      "provider": null,
-      "isp": "Ectlink",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.ectlink.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-download-ectlink-com",
       "name": "Ectlink",
       "provider": null,
@@ -3069,17 +2146,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://download.ectlink.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-enjoy-net-bd",
-      "name": "Enjoy Network",
-      "provider": null,
-      "isp": "Enjoy Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.enjoy.net.bd/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -3139,17 +2205,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-extremenetbd-com",
-      "name": "Extreme NET",
-      "provider": null,
-      "isp": "Extreme NET",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://extremenetbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-203-96-191-70",
       "name": "Extreme NET",
       "provider": null,
@@ -3168,17 +2223,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://plexbd.net/Data/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-evillagectg-com",
-      "name": "E-VILLAGE Internet",
-      "provider": null,
-      "isp": "E-VILLAGE Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.evillagectg.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -3249,17 +2293,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-furiousnet-net",
-      "name": "Furious Internet",
-      "provider": null,
-      "isp": "Furious Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.furiousnet.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-media-furiousnet-net",
       "name": "Furious Internet",
       "provider": null,
@@ -3271,17 +2304,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-fastnetbd-com",
-      "name": "Fastnet BD",
-      "provider": null,
-      "isp": "Fastnet BD",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://fastnetbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-fnetctg-com",
       "name": "Futurenet",
       "provider": null,
@@ -3289,28 +2311,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://www.fnetctg.com/index.php/bdix-list/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-flashnetbd-com",
-      "name": "Flashnet",
-      "provider": null,
-      "isp": "Flashnet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://flashnetbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-focusonlinectg-com",
-      "name": "Focus Online",
-      "provider": null,
-      "isp": "Focus Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.focusonlinectg.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -3370,39 +2370,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-fnfbd-net",
-      "name": "FNF Online CTG",
-      "provider": null,
-      "isp": "FNF Online CTG",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.fnfbd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-friendsonlinebd-com",
-      "name": "Friends Online",
-      "provider": null,
-      "isp": "Friends Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.friendsonlinebd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-fastnetbd-org",
-      "name": "Fastnet",
-      "provider": null,
-      "isp": "Fastnet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://fastnetbd.org/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-filmguro-site",
       "name": "Filmguro",
       "provider": null,
@@ -3414,28 +2381,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-flynetbd-com",
-      "name": "Flynet Internet",
-      "provider": null,
-      "isp": "Flynet Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.flynetbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-fastcyber-net",
-      "name": "Fastcyber Network",
-      "provider": null,
-      "isp": "Fastcyber Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.fastcyber.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-flixjar-com",
       "name": "Flixjar",
       "provider": null,
@@ -3443,28 +2388,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://www.flixjar.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-bbl-net-bd",
-      "name": "Bengal Broadband Limited (FREE MEDIA)",
-      "provider": null,
-      "isp": "Bengal Broadband Limited (FREE MEDIA)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.bbl.net.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-prisma-net-bd",
-      "name": "Bengal Broadband Limited (FREE MEDIA)",
-      "provider": null,
-      "isp": "Bengal Broadband Limited (FREE MEDIA)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.prisma.net.bd/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -3502,17 +2425,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-futurenet-bd-com",
-      "name": "Future NET Solution",
-      "provider": null,
-      "isp": "Future NET Solution",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.futurenet-bd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-fcnetbd-net",
       "name": "Friends Cable NET",
       "provider": null,
@@ -3531,17 +2443,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://frcbd.xyz/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-frcbd-net",
-      "name": "FRC Broadband Internet",
-      "provider": null,
-      "isp": "FRC Broadband Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://frcbd.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -3579,28 +2480,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-fiberx-me",
-      "name": "Fiberx",
-      "provider": null,
-      "isp": "Fiberx",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://fiberx.me/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-fmnetworks-net",
-      "name": "FM Network",
-      "provider": null,
-      "isp": "FM Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://fmnetworks.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-fnet-com-bd",
       "name": "Fibernet Network",
       "provider": null,
@@ -3608,28 +2487,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://www.fnet.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-gpisp-net",
-      "name": "Gpisp",
-      "provider": null,
-      "isp": "Gpisp",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://gpisp.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-greetingsonlinebd-com",
-      "name": "Greetings Online",
-      "provider": null,
-      "isp": "Greetings Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://greetingsonlinebd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -3656,28 +2513,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-ghatailonline-net",
-      "name": "Ghatail Online",
-      "provider": null,
-      "isp": "Ghatail Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://ghatailonline.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-gnetworkbd-com",
-      "name": "Galaxy Network",
-      "provider": null,
-      "isp": "Galaxy Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.gnetworkbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-gnetinternet-com",
       "name": "Gnet Internet",
       "provider": null,
@@ -3685,17 +2520,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://www.gnetinternet.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-gk-network-net",
-      "name": "GK Network",
-      "provider": null,
-      "isp": "GK Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://gk-network.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -3718,17 +2542,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://greenbytes.net.bd/ftp-bdix/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-gungchil-net",
-      "name": "Gungchil Broadband Internet",
-      "provider": null,
-      "isp": "Gungchil Broadband Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.gungchil.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -3766,28 +2579,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-hkonline-com-bd",
-      "name": "HK Online",
-      "provider": null,
-      "isp": "HK Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.hkonline.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-bdconnectctg-net",
-      "name": "BDCONNECT.NET Limited (HASIKHUSHI)",
-      "provider": null,
-      "isp": "BDCONNECT.NET Limited (HASIKHUSHI)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.bdconnectctg.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-hasikhushi-net",
       "name": "BDCONNECT.NET Limited (HASIKHUSHI)",
       "provider": null,
@@ -3821,28 +2612,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-hostxy-com",
-      "name": "Host XY",
-      "provider": null,
-      "isp": "Host XY",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://hostxy.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-helloitbd-com",
-      "name": "Hello IT",
-      "provider": null,
-      "isp": "Hello IT",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://helloitbd.com/category/all-server-list/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-103-156-66-45",
       "name": "Halum",
       "provider": null,
@@ -3865,28 +2634,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-net2bd-com",
-      "name": "Horizon & Associates Internet",
-      "provider": null,
-      "isp": "Horizon & Associates Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.net2bd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-itbasebd-com",
-      "name": "Itbase ISP",
-      "provider": null,
-      "isp": "Itbase ISP",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.itbasebd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-imonlineisp-net",
       "name": "IM Online",
       "provider": null,
@@ -3894,17 +2641,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://imonlineisp.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-intrepidbd-com",
-      "name": "Intepid Broadband Communication Company Limited",
-      "provider": null,
-      "isp": "Intepid Broadband Communication Company Limited",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.intrepidbd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -3927,17 +2663,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://inoxbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-ismart-net-bd",
-      "name": "Ismart Broadband",
-      "provider": null,
-      "isp": "Ismart Broadband",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://ismart.net.bd/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -3975,17 +2700,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-icommunicationbd-net",
-      "name": "Icommunication Broadband (IBOX)",
-      "provider": null,
-      "isp": "Icommunication Broadband (IBOX)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.icommunicationbd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-iboxbd-club",
       "name": "Icommunication Broadband (IBOX)",
       "provider": null,
@@ -4019,17 +2733,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-ifra-network",
-      "name": "Ifra Network",
-      "provider": null,
-      "isp": "Ifra Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://ifra.network/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-103-110-126-146-8000",
       "name": "Ifra Network",
       "provider": null,
@@ -4037,28 +2740,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://103.110.126.146:8000/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-infolinkbd-com",
-      "name": "Infolink",
-      "provider": null,
-      "isp": "Infolink",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://infolinkbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-itnetzone-com",
-      "name": "Itnetzone",
-      "provider": null,
-      "isp": "Itnetzone",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://itnetzone.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -4096,17 +2777,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-bdix-itcnbd-com",
-      "name": "IT Connection",
-      "provider": null,
-      "isp": "IT Connection",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://bdix.itcnbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-ibd-net-bd",
       "name": "IBD Communication",
       "provider": null,
@@ -4114,17 +2784,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://www.ibd.net.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-inetisp-net",
-      "name": "Inet",
-      "provider": null,
-      "isp": "Inet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://inetisp.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -4184,17 +2843,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-jannatmirinternetservice-com",
-      "name": "Jmis Internet",
-      "provider": null,
-      "isp": "Jmis Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.jannatmirinternetservice.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-jonycable-com",
       "name": "Jonycable Network",
       "provider": null,
@@ -4202,17 +2850,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://jonycable.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-jananibd-com",
-      "name": "Janani Technology",
-      "provider": null,
-      "isp": "Janani Technology",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.jananibd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -4228,17 +2865,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-jhenuk-net",
-      "name": "Jhenuk DOT NET",
-      "provider": null,
-      "isp": "Jhenuk DOT NET",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://jhenuk.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-khulnanet24-com",
       "name": "Khulna NET 24",
       "provider": null,
@@ -4246,39 +2872,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://khulnanet24.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-kazinetwork-net",
-      "name": "Kazi Networks",
-      "provider": null,
-      "isp": "Kazi Networks",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.kazinetwork.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-kbnonlinebd-net",
-      "name": "KBN Online",
-      "provider": null,
-      "isp": "KBN Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://kbnonlinebd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-karsannet-com",
-      "name": "Karsan NET",
-      "provider": null,
-      "isp": "Karsan NET",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://karsannet.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -4294,17 +2887,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-kmnbd-net",
-      "name": "KM Network",
-      "provider": null,
-      "isp": "KM Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://kmnbd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-kawsarit-net",
       "name": "Kawsar IT",
       "provider": null,
@@ -4312,17 +2894,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://kawsarit.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-kloud-com-bd",
-      "name": "Kloud Technologies Limited",
-      "provider": null,
-      "isp": "Kloud Technologies Limited",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://kloud.com.bd/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -4356,17 +2927,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://www.linkinnet.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-lizaonlinebd-com",
-      "name": "Liza Online",
-      "provider": null,
-      "isp": "Liza Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.lizaonlinebd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -4459,17 +3019,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-midiplex-net",
-      "name": "Midiplex",
-      "provider": null,
-      "isp": "Midiplex",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://midiplex.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-cdn-midiplex-net",
       "name": "Midiplex",
       "provider": null,
@@ -4503,17 +3052,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-citechco-net",
-      "name": "Grameen Cybernet Limited (MOVIEHUB)",
-      "provider": null,
-      "isp": "Grameen Cybernet Limited (MOVIEHUB)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.citechco.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-203-83-177-225",
       "name": "Grameen Cybernet Limited (MOVIEHUB)",
       "provider": null,
@@ -4532,17 +3070,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://www.movieserver.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-mlwbd-mobi",
-      "name": "Mlwbd",
-      "provider": null,
-      "isp": "Mlwbd",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://mlwbd.mobi/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -4624,28 +3151,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-mariumnetwork-com",
-      "name": "Marium Network",
-      "provider": null,
-      "isp": "Marium Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.mariumnetwork.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-aniknetwork-net",
-      "name": "Anik Computer & Networking (MEDIALINK24.NET)",
-      "provider": null,
-      "isp": "Anik Computer & Networking (MEDIALINK24.NET)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://aniknetwork.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-medialink24-net",
       "name": "Anik Computer & Networking (MEDIALINK24.NET)",
       "provider": null,
@@ -4668,17 +3173,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-mixonbd-com",
-      "name": "Mixon Online",
-      "provider": null,
-      "isp": "Mixon Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.mixonbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-megaplexbd-com",
       "name": "Megaplex",
       "provider": null,
@@ -4697,17 +3191,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://micnbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-moviefreak-xyz",
-      "name": "Moviefreak",
-      "provider": null,
-      "isp": "Moviefreak",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://moviefreak.xyz/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -4745,17 +3228,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-nsolution-com-bd",
-      "name": "N-SOLUTION (MOVIE MELA)",
-      "provider": null,
-      "isp": "N-SOLUTION (MOVIE MELA)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://nsolution.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-103-144-200-9",
       "name": "N-SOLUTION (MOVIE MELA)",
       "provider": null,
@@ -4789,50 +3261,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-megaspeednet-com",
-      "name": "Mega Speed NET",
-      "provider": null,
-      "isp": "Mega Speed NET",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://megaspeednet.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-microlinkbd-net",
-      "name": "Microlink Technology",
-      "provider": null,
-      "isp": "Microlink Technology",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://microlinkbd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-manetbd-com",
-      "name": "MA Network",
-      "provider": null,
-      "isp": "MA Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://manetbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-metaphornet-net",
-      "name": "Metaphor Internet",
-      "provider": null,
-      "isp": "Metaphor Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.metaphornet.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-netathomebd-com",
       "name": "Netathomebd",
       "provider": null,
@@ -4840,28 +3268,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://www.netathomebd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-netmatrixbd-com",
-      "name": "Netmatrix",
-      "provider": null,
-      "isp": "Netmatrix",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.netmatrixbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-netcomisp-net",
-      "name": "Netcom Internet",
-      "provider": null,
-      "isp": "Netcom Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://netcomisp.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -4884,17 +3290,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://netcode.live/netcodemedia/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-novusnetworkbd-com",
-      "name": "Novus Network",
-      "provider": null,
-      "isp": "Novus Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.novusnetworkbd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -4939,50 +3334,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://neefit.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-netonlinebd-com",
-      "name": "NET Online",
-      "provider": null,
-      "isp": "NET Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.netonlinebd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-netpoint-com-bd",
-      "name": "NET-POINTBD",
-      "provider": null,
-      "isp": "NET-POINTBD",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://netpoint.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-nis-com-bd",
-      "name": "NET IT Solution",
-      "provider": null,
-      "isp": "NET IT Solution",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://nis.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-nedasabd-net",
-      "name": "Nedasa Broadband",
-      "provider": null,
-      "isp": "Nedasa Broadband",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://nedasabd.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -5042,28 +3393,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-netplusbd-com",
-      "name": "NET Plus Online",
-      "provider": null,
-      "isp": "NET Plus Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.netplusbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-netcafe-bd-com",
-      "name": "NET Cafe",
-      "provider": null,
-      "isp": "NET Cafe",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://netcafe-bd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-100-100-100-100",
       "name": "NET Cafe",
       "provider": null,
@@ -5082,17 +3411,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://www.netconnectbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-nettig-net",
-      "name": "Nettig Internet",
-      "provider": null,
-      "isp": "Nettig Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://nettig.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -5141,28 +3459,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-osthir-net",
-      "name": "Osthir NET",
-      "provider": null,
-      "isp": "Osthir NET",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://osthir.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-okay-net-bd",
-      "name": "OK Network & Communications",
-      "provider": null,
-      "isp": "OK Network & Communications",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.okay.net.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-oitbd-net",
       "name": "Octatech Online",
       "provider": null,
@@ -5170,28 +3466,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://www.oitbd.net/ftp/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-powernetbd-com",
-      "name": "Powernet",
-      "provider": null,
-      "isp": "Powernet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.powernetbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-plus-net-bd",
-      "name": "Plusnet Communication",
-      "provider": null,
-      "isp": "Plusnet Communication",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.plus.net.bd/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -5229,17 +3503,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-poshbd-net",
-      "name": "Posh Internet",
-      "provider": null,
-      "isp": "Posh Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.poshbd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-plusnetbd-com",
       "name": "Plusnetbd",
       "provider": null,
@@ -5251,28 +3514,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-progotiit-com",
-      "name": "Progoti IT",
-      "provider": null,
-      "isp": "Progoti IT",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://progotiit.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-quetelbd-net",
-      "name": "Quetelbd Internet",
-      "provider": null,
-      "isp": "Quetelbd Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://quetelbd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-quickonlineftp-com",
       "name": "Quickonline",
       "provider": null,
@@ -5280,17 +3521,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://quickonlineftp.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-rainbownetworkbd-com",
-      "name": "Rainbow Network",
-      "provider": null,
-      "isp": "Rainbow Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.rainbownetworkbd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -5357,28 +3587,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://cdn2.radiantbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-realstation-live",
-      "name": "Realstation Broadband",
-      "provider": null,
-      "isp": "Realstation Broadband",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://realstation.live/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-rlcafenet-com",
-      "name": "RL Cafe NET",
-      "provider": null,
-      "isp": "RL Cafe NET",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://rlcafenet.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -5460,17 +3668,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-rodelaonlinebd-com",
-      "name": "Rodela Online",
-      "provider": null,
-      "isp": "Rodela Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://rodelaonlinebd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-rahulenterprise-com-bd",
       "name": "Rahul Enterprise Internet",
       "provider": null,
@@ -5482,50 +3679,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-rapid-net-bd",
-      "name": "Rapidnet",
-      "provider": null,
-      "isp": "Rapidnet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.rapid.net.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-romsnetwork-com",
-      "name": "Roms Network",
-      "provider": null,
-      "isp": "Roms Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://romsnetwork.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-ranonline-com-bd",
-      "name": "RAN Online",
-      "provider": null,
-      "isp": "RAN Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://ranonline.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-rainbowd-net",
-      "name": "Rainbow D NET",
-      "provider": null,
-      "isp": "Rainbow D NET",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.rainbowd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-103-3-226-208",
       "name": "Smallscreen",
       "provider": null,
@@ -5533,17 +3686,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://103.3.226.208/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-swiftnetbd-com",
-      "name": "Swiftnet",
-      "provider": null,
-      "isp": "Swiftnet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.swiftnetbd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -5581,17 +3723,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-sbnetworkbd-com",
-      "name": "Sbnetwork",
-      "provider": null,
-      "isp": "Sbnetwork",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://sbnetworkbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-sparklinkbd-com",
       "name": "Sparklink",
       "provider": null,
@@ -5614,17 +3745,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-ssonlinebd-com",
-      "name": "SS Online",
-      "provider": null,
-      "isp": "SS Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://ssonlinebd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-serverbd247-com",
       "name": "SERVERBD247",
       "provider": null,
@@ -5632,17 +3752,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://serverbd247.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-skybizbd-net",
-      "name": "Skybiz",
-      "provider": null,
-      "isp": "Skybiz",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.skybizbd.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -5669,28 +3778,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-skynetonlinebd-net",
-      "name": "Skynet Online",
-      "provider": null,
-      "isp": "Skynet Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://skynetonlinebd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-stargatebd-net",
-      "name": "Stargate Communications Limited (STARPLEXBD)",
-      "provider": null,
-      "isp": "Stargate Communications Limited (STARPLEXBD)",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.stargatebd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-172-27-27-1",
       "name": "Stargate Communications Limited (STARPLEXBD)",
       "provider": null,
@@ -5713,17 +3800,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-speednetkhulna-com",
-      "name": "Speednet Khulna",
-      "provider": null,
-      "isp": "Speednet Khulna",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://speednetkhulna.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-speed4you-net",
       "name": "Speednet Khulna",
       "provider": null,
@@ -5735,17 +3811,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-smartnetltd-com",
-      "name": "Smartnet",
-      "provider": null,
-      "isp": "Smartnet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.smartnetltd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-movie-smartnetltd-com",
       "name": "Smartnet",
       "provider": null,
@@ -5753,17 +3818,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://movie.smartnetltd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-sisbdisp-com",
-      "name": "Star Internet",
-      "provider": null,
-      "isp": "Star Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://sisbdisp.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -5812,17 +3866,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-smiritycable-com",
-      "name": "Smirity Cable",
-      "provider": null,
-      "isp": "Smirity Cable",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.smiritycable.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-sardernet-com",
       "name": "Sarder Communications",
       "provider": null,
@@ -5830,17 +3873,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://sardernet.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-smartonlinebd-com",
-      "name": "Smartonline",
-      "provider": null,
-      "isp": "Smartonline",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://smartonlinebd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -5863,28 +3895,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://sunlit.tv/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-swapnonetwork-net",
-      "name": "Swapno Network",
-      "provider": null,
-      "isp": "Swapno Network",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://swapnonetwork.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-sync-net-bd",
-      "name": "Saltsync Limited",
-      "provider": null,
-      "isp": "Saltsync Limited",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.sync.net.bd/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -5922,17 +3932,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-salamonline-com-bd",
-      "name": "Salam Online",
-      "provider": null,
-      "isp": "Salam Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://salamonline.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-43-246-200-82-8082",
       "name": "Sherpur Network",
       "provider": null,
@@ -5940,28 +3939,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://43.246.200.82:8082/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-speed2000bd-com",
-      "name": "Speed NET Communication",
-      "provider": null,
-      "isp": "Speed NET Communication",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://speed2000bd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-skylinectg-com",
-      "name": "Skyline Broadband",
-      "provider": null,
-      "isp": "Skyline Broadband",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.skylinectg.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -5984,28 +3961,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://fs.satrong.live/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-saturninternetbd-com",
-      "name": "Saturn Internet",
-      "provider": null,
-      "isp": "Saturn Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.saturninternetbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-netcitybd-com",
-      "name": "Savar Netcity Internet",
-      "provider": null,
-      "isp": "Savar Netcity Internet",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.netcitybd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -6061,17 +4016,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://www.speedplusisp.net/mainweb/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-ssaliisp-net",
-      "name": "S.S ALI & CO. ISP",
-      "provider": null,
-      "isp": "S.S ALI & CO. ISP",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.ssaliisp.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -6153,28 +4097,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-skynet-com-bd",
-      "name": "Skynet Broadband Service",
-      "provider": null,
-      "isp": "Skynet Broadband Service",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.skynet.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-staronline-com-bd",
-      "name": "Staronline",
-      "provider": null,
-      "isp": "Staronline",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://staronline.com.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-speedlinkbd-com",
       "name": "Speed Link Broadband Internet",
       "provider": null,
@@ -6182,17 +4104,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://speedlinkbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-tetrasoftbd-com",
-      "name": "Tetrasoft",
-      "provider": null,
-      "isp": "Tetrasoft",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.tetrasoftbd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -6252,17 +4163,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-touchonline-net-bd",
-      "name": "Touch Online",
-      "provider": null,
-      "isp": "Touch Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://touchonline.net.bd/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-talukdernet-com",
       "name": "Talukder NET",
       "provider": null,
@@ -6318,28 +4218,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-takerhatwifi-com",
-      "name": "Takerhat Wifi",
-      "provider": null,
-      "isp": "Takerhat Wifi",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.takerhatwifi.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-uturnbd-com",
-      "name": "U-TURN Broadband",
-      "provider": null,
-      "isp": "U-TURN Broadband",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://uturnbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-172-16-16-3-8096",
       "name": "U-TURN Broadband",
       "provider": null,
@@ -6391,17 +4269,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["http://media.unique24.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-uniqueonlinebd-com",
-      "name": "Uniqueonline",
-      "provider": null,
-      "isp": "Uniqueonline",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.uniqueonlinebd.com/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -6527,28 +4394,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-vcbd-net",
-      "name": "Virtual Communication",
-      "provider": null,
-      "isp": "Virtual Communication",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://www.vcbd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-winneritbd-com",
-      "name": "Winnerit",
-      "provider": null,
-      "isp": "Winnerit",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.winneritbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-103-92-213-55",
       "name": "Winnerit",
       "provider": null,
@@ -6567,17 +4412,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://www.worldbd.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-webrangers-net",
-      "name": "Webrangers NET",
-      "provider": null,
-      "isp": "Webrangers NET",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://webrangers.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
@@ -6648,39 +4482,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-yesnetcommunication-com",
-      "name": "Yesnet Communication",
-      "provider": null,
-      "isp": "Yesnet Communication",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://yesnetcommunication.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-yournetcommunications-net",
-      "name": "Yournet Communication",
-      "provider": null,
-      "isp": "Yournet Communication",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.yournetcommunications.net/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-zxonlinebd-com",
-      "name": "ZX Online",
-      "provider": null,
-      "isp": "ZX Online",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.zxonlinebd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-zero4communication-com",
       "name": "Zero 4 Communication",
       "provider": null,
@@ -6725,17 +4526,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-zipcyber-com",
-      "name": "ZIP Cyber",
-      "provider": null,
-      "isp": "ZIP Cyber",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.zipcyber.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-zoomonline-com-bd",
       "name": "Zoom Online",
       "provider": null,
@@ -6758,17 +4548,6 @@
       "notes": "From a public list of BDIX servers; not checked by hand."
     },
     {
-      "id": "bdix-3rcommunications-com",
-      "name": "3RCOMMUNICATION",
-      "provider": null,
-      "isp": "3RCOMMUNICATION",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["https://3rcommunications.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
       "id": "bdix-4gnetworkbd-com",
       "name": "4G Network",
       "provider": null,
@@ -6776,17 +4555,6 @@
       "type": "custom_site",
       "category": "mixed",
       "baseUrls": ["https://www.4gnetworkbd.com/"],
-      "portalUrl": null,
-      "notes": "From a public list of BDIX servers; not checked by hand."
-    },
-    {
-      "id": "bdix-29com-net",
-      "name": "29COMMUNICATION",
-      "provider": null,
-      "isp": "29COMMUNICATION",
-      "type": "custom_site",
-      "category": "mixed",
-      "baseUrls": ["http://www.29com.net/"],
       "portalUrl": null,
       "notes": "From a public list of BDIX servers; not checked by hand."
     },

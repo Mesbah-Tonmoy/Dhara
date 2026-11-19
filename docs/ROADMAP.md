@@ -64,12 +64,25 @@ Proposed, not yet agreed:
   becomes its type, a test run asks sixteen servers at a time in place of
   six, and Server Discovery can show only the readable servers or only
   those never tested.
-- Now the user's part: "Test all" in Server Discovery, from their own
-  connection, and nothing switched on from the candidates yet.
-- Step 3, after the user's test run: the candidates that are media servers
-  move to the starter list with their type and what they hold; the rest
-  are taken out. Domains on public lists change hands, so nothing found
-  there is trusted before it has been looked at.
+- The user's test run, 2026-11-20 about 02:50 at night: of 657 servers 328
+  answered and the app called 20 readable. Of the starter list 11 were
+  readable and 15 did not answer, DhakaFlix and FTPBD among them, which
+  answered on 13 and 17 Nov: that night's "did not answer" says little.
+- Step 3, done on 2026-11-20: the front page of each candidate that
+  answered was looked at once. One is a media server (CTGMovies' file
+  server, now `ctgmovies-media` in the starter list). 203 candidates went
+  (ISP company websites, domains that changed hands, empty web hosting);
+  416 are left. Also: a type a test finds is now saved by itself, so a
+  candidate that is dropped does not stay behind as a copy.
+- What it means: that page is a list of ISPs, not of media servers. More
+  to watch will not come from a longer list but from reading the media
+  websites the ISPs' pages point to (point 4). Most linked from the pages
+  that answered: DhakaFlix (24 pages), ICC (13), CircleFTP's new site (8),
+  moviemazic.xyz (7), CTGMovies, MovieHaat, FlixHub and Discovery FTP (5
+  or 6 each), DhakaMovie, TimepassBD and eBox (4 each).
+- Open: a second test run at another time of day, to see which of the 314
+  silent candidates and the 15 silent starter servers answer then; taking
+  in the servers the ISPs' pages link to that no list has yet.
 
 ### 4. Custom websites
 

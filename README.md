@@ -13,9 +13,9 @@ ads and no telemetry.
 
 ## What it does
 
-- **One library from many servers.** The app ships a list of 38 BDIX
-  servers checked by hand, and some 600 more taken from a public list that
-  nobody has looked at yet, and tests which of them answer from your
+- **One library from many servers.** The app ships a list of 39 BDIX
+  servers checked by hand, and some 400 more taken from a public list that
+  nobody has confirmed yet, and tests which of them answer from your
   connection. It reads
   folder listings (Apache, nginx, IIS), h5ai pages and Emby/Jellyfin
   servers. A film that lies on several servers is one title with several
@@ -257,7 +257,7 @@ Windows 11), a library of 23,389 videos:
 
 ## What it cannot do yet
 
-- 20 of the 38 servers in the list are websites of their own kind. The app
+- 20 of the 39 servers in the list are websites of their own kind. The app
   can test them but cannot read them.
 - `https` servers with a self-signed certificate are refused.
 - It was built and tried on Windows only.
