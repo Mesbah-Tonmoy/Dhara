@@ -105,8 +105,10 @@ Proposed, not yet agreed:
   wave under it, and a few more. Six were shown on 2026-11-20 (A is the
   logo as it is; B dark with a coloured mark; C rounded play and two waves;
   D deeper gradient and a longer wave; E dark with a stream of three waves;
-  F the play over filled water). The user decides whether the logo stays
-  or changes.
+  F the play over filled water). Chosen on 2026-11-20: **F** is the logo
+  and the app's icon; A, B and C stay in the code as `DharaLogoStyle`
+  (`classic`, `dark`, `rounded`) for later use. Two more were shown and
+  wait for a word: B with a rounded play triangle, and a dark F.
 
 ## Still open from before
 

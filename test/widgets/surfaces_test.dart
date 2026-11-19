@@ -347,4 +347,16 @@ void main() {
     expect(tester.getSize(find.byType(DharaLogo)), const Size.square(48));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('DharaLogo is the water mark unless another is asked for, and '
+      'every mark can be drawn', (tester) async {
+    expect(const DharaLogo().style, DharaLogoStyle.water);
+
+    for (final style in DharaLogoStyle.values) {
+      await tester.pumpWidget(host(DharaLogo(size: 64, style: style)));
+
+      expect(tester.getSize(find.byType(DharaLogo)), const Size.square(64));
+      expect(tester.takeException(), isNull, reason: style.name);
+    }
+  });
 }
