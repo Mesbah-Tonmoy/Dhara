@@ -75,8 +75,9 @@ class SourceImportPreview {
 /// test of each found.
 ///
 /// Only the changes are saved (added or edited sources, removed starter
-/// ids, enabled ids), so a starter entry the user never touched keeps
-/// following the starter list when the app is updated.
+/// ids, enabled ids, and the type a test found a starter source to be), so
+/// a starter entry the user never touched keeps following the starter list
+/// when the app is updated, and goes when the list drops it.
 ///
 /// Nothing is enabled until the user, or the BDIX Tester on their behalf,
 /// enables it.
@@ -97,6 +98,11 @@ class SourceStore extends ChangeNotifier {
   // sources (same id as the starter entry they replace).
   final _custom = <String, Source>{};
   final _removed = <String>{};
+
+  // What a test found a starter source to be, where the starter list says
+  // something else. Kept apart from `_custom`: a copy of the whole source
+  // there would stop it following the starter list.
+  final _types = <String, SourceType>{};
   final _enabled = <String>{};
   final _health = <String, SourceHealth>{};
 
@@ -129,6 +135,7 @@ class SourceStore extends ChangeNotifier {
   Future<void> load() async {
     _custom.clear();
     _removed.clear();
+    _types.clear();
     _enabled.clear();
     _health.clear();
     _savedFileWasUnreadable = false;
@@ -143,6 +150,26 @@ class SourceStore extends ChangeNotifier {
         _custom.addAll({for (final source in custom) source.id: source});
         _removed.addAll(removed);
         _enabled.addAll(enabled);
+        // Like the test results below, these are only a convenience.
+        final types = root['types'];
+        if (types is Map<String, dynamic>) {
+          for (final MapEntry(:key, :value) in types.entries) {
+            for (final type in SourceType.values) {
+              if (type.jsonName == value) _types[key] = type;
+            }
+          }
+        }
+        // A version of the app kept a found type as a copy of the source.
+        // Such a copy of a candidate the list has dropped since is not a
+        // source the user added: it goes with the candidate.
+        _custom.removeWhere((id, source) {
+          final starter = _starter[id];
+          if (starter == null) return isCandidateCopy(source);
+          if (starter == source) return false;
+          if (starter.withType(source.type) != source) return false;
+          _types[id] = source.type;
+          return true;
+        });
         // Test results are only a convenience: bad entries are skipped
         // instead of rejecting the user's sources with them.
         final health = root['health'];
@@ -249,19 +276,29 @@ class SourceStore extends ChangeNotifier {
   /// Sets the type of the sources with these ids to what a test found them
   /// to be; unknown ids are ignored. Unlike [update] this keeps a source's
   /// last test result and leaves it enabled or not as it was: the type is
-  /// that test's own finding, and nothing else of the source changes.
+  /// that test's own finding, and nothing else of the source changes. For
+  /// a starter source only the type is saved, so it goes on following the
+  /// starter list.
   Future<void> correctTypes(Map<String, SourceType> types) {
     var changed = false;
     for (final MapEntry(key: id, value: type) in types.entries) {
       if (!_isKnown(id)) continue;
-      final current = _custom[id] ?? _starter[id]!;
-      if (current.type == type) continue;
-      final health = _health[id];
-      _apply(current.withType(type));
-      if (health != null) _health[id] = health;
+      final custom = _custom[id];
+      if ((custom ?? _typed(_starter[id]!)).type == type) continue;
+      if (custom == null) {
+        _types[id] = type;
+      } else {
+        _custom[id] = custom.withType(type);
+      }
       changed = true;
     }
     return changed ? _changed() : Future.value();
+  }
+
+  /// A starter source as the type a test found it to be, if one did.
+  Source _typed(Source starter) {
+    final type = _types[starter.id];
+    return type == null ? starter : starter.withType(type);
   }
 
   /// Remembers test results, keyed by source id; unknown ids are ignored.
@@ -281,8 +318,12 @@ class SourceStore extends ChangeNotifier {
   void _apply(Source source) {
     _removed.remove(source.id);
     // After a change, the last test was of the old addresses.
-    final current = _custom[source.id] ?? _starter[source.id];
+    final starter = _starter[source.id];
+    final current =
+        _custom[source.id] ?? (starter == null ? null : _typed(starter));
     if (current != source) _health.remove(source.id);
+    // What is put here says what the source is from now on.
+    _types.remove(source.id);
     // An edit back to the starter values is no longer a change.
     if (_starter[source.id] == source) {
       _custom.remove(source.id);
@@ -304,9 +345,17 @@ class SourceStore extends ChangeNotifier {
     _removed.removeWhere(
       (id) => !_starter.containsKey(id) || _custom.containsKey(id),
     );
+    _types.removeWhere(
+      (id, type) =>
+          _starter[id] == null ||
+          _starter[id]!.type == type ||
+          _custom.containsKey(id) ||
+          _removed.contains(id),
+    );
     _sources = List.unmodifiable([
       for (final source in _starter.values)
-        if (!_removed.contains(source.id)) _custom[source.id] ?? source,
+        if (!_removed.contains(source.id))
+          _custom[source.id] ?? _typed(source),
       for (final source in _custom.values)
         if (!_starter.containsKey(source.id)) source,
     ]);
@@ -326,6 +375,10 @@ class SourceStore extends ChangeNotifier {
     final text = const JsonEncoder.withIndent('  ').convert({
       ...sourcesToJson(_custom.values),
       'removedIds': _removed.toList(),
+      'types': {
+        for (final MapEntry(:key, :value) in _types.entries)
+          key: value.jsonName,
+      },
       'enabledIds': _enabled.toList(),
       'health': {
         for (final MapEntry(:key, :value) in _health.entries)
@@ -352,6 +405,15 @@ class SourceStore extends ChangeNotifier {
     }
   }
 }
+
+/// The note every entry of `assets/sources/candidate_sources.json` carries.
+const candidateSourceNote =
+    'From a public list of BDIX servers; not checked by hand.';
+
+/// Whether [source] is an entry of the candidates as that file writes them
+/// (its id and its note), whatever type it has by now.
+bool isCandidateCopy(Source source) =>
+    source.id.startsWith('bdix-') && source.notes == candidateSourceNote;
 
 List<String> _idList(Map<String, dynamic> root, String key) {
   final value = root[key];

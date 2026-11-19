@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_list.dart';
+import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/features/sources/starter_sources.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -129,7 +130,7 @@ void main() {
 
     test('are one server each, of a type the test has yet to find', () {
       for (final source in candidates) {
-        expect(source.id, startsWith('bdix-'));
+        expect(isCandidateCopy(source), isTrue, reason: source.id);
         expect(source.type, SourceType.customSite, reason: source.id);
         expect(
           {for (final url in source.baseUrls) url.authority},

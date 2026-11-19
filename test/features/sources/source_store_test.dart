@@ -50,6 +50,148 @@ void main() {
     expect(file.existsSync(), isFalse, reason: 'loading writes nothing');
   });
 
+  group('the type a test found', () {
+    Source typed(String id) =>
+        _source(id).withType(SourceType.directoryListing);
+
+    test('of a starter source is saved by itself, with its test result '
+        'kept', () async {
+      final store = await open();
+      final checked = SourceHealth(
+        checkedAt: DateTime(2026, 11, 20, 9),
+        reachable: true,
+        readable: true,
+      );
+      await store.setEnabled(['alpha'], enabled: true);
+      await store.recordHealth({'alpha': checked});
+
+      await store.correctTypes({
+        'alpha': SourceType.directoryListing,
+        // As the list says already, and one nobody knows.
+        'beta': SourceType.h5ai,
+        'nobody': SourceType.emby,
+      });
+
+      expect(store.sources.first, typed('alpha'));
+      expect(store.sources[1], _source('beta'));
+      expect(store.healthOf('alpha'), isNotNull);
+      expect(store.isEnabled('alpha'), isTrue);
+      expect(saved()['types'], {'alpha': 'directory_listing'});
+      expect(saved()['sources'], isEmpty, reason: 'no copy of the source');
+      expect((await open()).sources.first, typed('alpha'));
+    });
+
+    test('follows the starter list: a changed entry keeps the type, a '
+        'dropped one is gone', () async {
+      final store = await open();
+      await store.correctTypes({
+        'alpha': SourceType.directoryListing,
+        'gamma': SourceType.emby,
+      });
+
+      final moved = _source('alpha', name: 'Alpha, renamed');
+      final next = await open(starter: [moved, _source('beta')]);
+
+      expect(next.sources, [
+        moved.withType(SourceType.directoryListing),
+        _source('beta'),
+      ]);
+      await next.setEnabled(['beta'], enabled: true);
+      expect(saved()['types'], {'alpha': 'directory_listing'});
+    });
+
+    test('of a source the user added or edited changes that source', () async {
+      final store = await open();
+      await store.add(_source('mine'));
+      await store.update(_source('beta', name: 'Beta, mine'));
+
+      await store.correctTypes({
+        'mine': SourceType.emby,
+        'beta': SourceType.emby,
+      });
+
+      expect(saved()['types'], isEmpty);
+      final reopened = await open();
+      expect(reopened.sources.last, _source('mine').withType(SourceType.emby));
+      expect(
+        reopened.sources[1],
+        _source('beta', name: 'Beta, mine').withType(SourceType.emby),
+      );
+    });
+
+    test('gives way to an edit, and to the starter type set by hand', () async {
+      final store = await open();
+      await store.correctTypes({
+        'alpha': SourceType.directoryListing,
+        'beta': SourceType.directoryListing,
+      });
+
+      await store.update(_source('alpha'));
+      await store.update(typed('beta').withType(SourceType.emby));
+
+      expect(store.sources.first, _source('alpha'));
+      expect(store.sources[1].type, SourceType.emby);
+      expect(saved()['types'], isEmpty);
+      expect(((saved()['sources'] as List).single as Map)['id'], 'beta');
+    });
+
+    test('kept as a copy of the source by an earlier version is read as '
+        'the type alone', () async {
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(
+        jsonEncode({
+          'schemaVersion': 1,
+          'sources': [
+            typed('alpha').toJson(),
+            _source('beta', name: 'Beta, mine').toJson(),
+          ],
+          'enabledIds': ['alpha'],
+          'types': {'gamma': 'no such type', 'beta': 7},
+        }),
+      );
+
+      final store = await open(starter: [_source('alpha'), _source('beta')]);
+      expect(store.sources.first, typed('alpha'));
+      expect(store.sources[1].name, 'Beta, mine');
+      expect(store.isEnabled('alpha'), isTrue);
+
+      // Saved again, and once the starter list drops it, nothing of it is
+      // left.
+      await store.setEnabled(['beta'], enabled: true);
+      expect(saved()['types'], {'alpha': 'directory_listing'});
+      final later = await open(starter: [_source('beta')]);
+      expect(ids(later), ['beta']);
+    });
+
+    test('kept as a copy of a candidate goes with the candidate, even if '
+        'the file was never saved in between', () async {
+      Source candidate(String id) => Source(
+            id: id,
+            name: 'Some ISP',
+            type: SourceType.directoryListing,
+            category: SourceCategory.mixed,
+            baseUrls: [Uri.parse('http://10.0.0.1/$id/')],
+            notes: candidateSourceNote,
+          );
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(
+        jsonEncode({
+          'schemaVersion': 1,
+          'sources': [
+            candidate('bdix-gone-example').toJson(),
+            candidate('mine').toJson(),
+            _source('bdix-my-own').toJson(),
+          ],
+        }),
+      );
+
+      final store = await open();
+
+      // What the user added stays, whatever it is called or says.
+      expect(ids(store), ['alpha', 'beta', 'gamma', 'mine', 'bdix-my-own']);
+    });
+  });
+
   test('without a file, changes last for this run only', () async {
     final store = SourceStore(starter: _starter);
     await store.load();
@@ -219,6 +361,7 @@ void main() {
       'schemaVersion': sourceListSchemaVersion,
       'sources': [_source('mine').toJson()],
       'removedIds': ['alpha'],
+      'types': <String, Object?>{},
       'enabledIds': ['gamma'],
       'health': <String, Object?>{},
     });
