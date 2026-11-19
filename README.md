@@ -14,7 +14,9 @@ ads and no telemetry.
 ## What it does
 
 - **One library from many servers.** The app ships a list of 38 BDIX
-  servers and tests which of them answer from your connection. It reads
+  servers checked by hand, and some 600 more taken from a public list that
+  nobody has looked at yet, and tests which of them answer from your
+  connection. It reads
   folder listings (Apache, nginx, IIS), h5ai pages and Emby/Jellyfin
   servers. A film that lies on several servers is one title with several
   copies.

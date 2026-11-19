@@ -54,11 +54,21 @@ Proposed, not yet agreed:
   Read on 2026-11-20: about 800 different addresses on about 670 hosts, under
   roughly 400 names. The starter list has 38 servers on 43 hosts, 29 of which
   are on that page.
-- Proposed: take them in as candidates that are switched off, leave out
-  addresses that are plainly not media servers (router pages and the like),
-  let the user's PC test them (BDIX Tester), then name the type of each that
-  answers. Many are inside one ISP's network (10.x, 172.16.x) and will only
-  answer its customers.
+- Many are inside one ISP's network (10.x, 172.16.x) and will only answer
+  its customers.
+- Step 1, done on 2026-11-20: 619 of them are in the app as candidates
+  (`assets/sources/candidate_sources.json`, switched off, type not known
+  yet); left out are the servers the starter list has, social networks and
+  the like, and home-network addresses.
+- Step 2, next: what the test finds a server to be becomes its type (today
+  a wrong type has to be corrected by hand, source by source), a long test
+  run goes faster (six servers at a time, eight seconds each, is a quarter
+  of an hour for 650), and Server Discovery can show only the servers that
+  were never tested.
+- Step 3, after the user's test run: the candidates that are media servers
+  move to the starter list with their type and what they hold; the rest
+  are taken out. Domains on public lists change hands, so nothing found
+  there is trusted before it has been looked at.
 
 ### 4. Custom websites
 

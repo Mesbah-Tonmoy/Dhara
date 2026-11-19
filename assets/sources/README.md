@@ -56,10 +56,39 @@ list, with a message that names the field.
 - `portalUrl`: `http` or `https`, no user name or password.
 - At most 2000 sources and 2 MB per list.
 
-`test/assets/starter_sources_test.dart` additionally keeps this file tidy:
-exactly the fields above, already normalised, and no base URL listed twice.
+`test/assets/starter_sources_test.dart` additionally keeps this file and the
+candidates below tidy: exactly the fields above, already normalised, and no
+id or base URL listed twice.
 
-## How this list was built (2026-11-12)
+## Candidates
+
+`candidate_sources.json` holds servers nobody has looked at yet: 619
+addresses taken on 2026-11-20 from a public list
+(<https://sites.google.com/view/bdixftpserverlist/media-ftp-servers>, about
+400 ISPs with their links). The app loads them after the starter list, so
+they show in Server Discovery, switched off like every other source.
+
+- Same schema. In place of `checkedOn` the file says `takenOn` and
+  `takenFrom`. Every entry has the id `bdix-<host>`, the ISP's name as on
+  that page, the type `custom_site` and the category `mixed`: what a server
+  really is, is only known once the BDIX Tester has asked it.
+- One entry per server (host and port). Where the page lists a folder and
+  one below it, the deeper one is kept.
+- Left out: servers the starter list already has, social networks, site
+  builders, paste and code hosts, and addresses of a home network
+  (192.168.x.x).
+- Many are ISP company websites, many only answer inside one ISP's network,
+  and some domains will have changed hands. That is why they are candidates
+  and not part of the starter list: after a test run from a BDIX connection,
+  the ones that turn out to be media servers move to the starter list with
+  their type and what they hold, and the rest are taken out again. Until
+  then, look at what a candidate lists before you switch it on.
+
+`mergeStarterSources` (`lib/features/sources/starter_sources.dart`) leaves
+out a candidate whose id or server the starter list has, and the tests keep
+the two files from overlapping.
+
+## How the starter list was built (2026-11-12)
 
 1. Started from the servers already in use, and the servers their landing
    pages link to.

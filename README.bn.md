@@ -14,8 +14,9 @@ account, বিজ্ঞাপন বা telemetry নেই।
 
 ## কী কী করে
 
-- **অনেক server, একটা library।** App-এর সাথে ৩৮টা BDIX server-এর একটা
-  তালিকা আসে, আর app পরীক্ষা করে দেখে আপনার connection থেকে কোনগুলো সাড়া
+- **অনেক server, একটা library।** App-এর সাথে হাতে যাচাই করা ৩৮টা BDIX
+  server-এর একটা তালিকা আসে, সাথে একটা public তালিকা থেকে নেওয়া আরও
+  প্রায় ৬০০টা, যেগুলো এখনো কেউ দেখেনি; app পরীক্ষা করে দেখে আপনার connection থেকে কোনগুলো সাড়া
   দেয়। এটা folder listing (Apache, nginx, IIS), h5ai page আর Emby/Jellyfin
   server পড়তে পারে। একই film কয়েকটা server-এ থাকলে সেটা একটাই title,
   যার কয়েকটা copy।

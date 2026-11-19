@@ -31,6 +31,7 @@ flutter:
 
   assets:
     - assets/sources/starter_sources.json
+    - assets/sources/candidate_sources.json
 
   # Bundled, never fetched at runtime. Variable fonts: one file per family
   # covers every weight. Sources and checksums: assets/fonts/README.md
