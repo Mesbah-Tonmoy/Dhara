@@ -58,6 +58,19 @@ class Source {
   final Uri? portalUrl;
   final String? notes;
 
+  /// The same source, read as a server of another [type].
+  Source withType(SourceType type) => Source(
+        id: id,
+        name: name,
+        provider: provider,
+        isp: isp,
+        type: type,
+        category: category,
+        baseUrls: baseUrls,
+        portalUrl: portalUrl,
+        notes: notes,
+      );
+
   Map<String, Object?> toJson() => {
         'id': id,
         'name': name,

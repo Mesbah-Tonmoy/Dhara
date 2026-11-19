@@ -211,6 +211,18 @@ void main() {
     expect(find.text('http://10.0.0.1/down/'), findsOneWidget);
     expect(find.text('http://10.0.0.1/up/'), findsNothing);
 
+    await tester.tap(find.byKey(const Key('filter-untested')));
+    await tester.pump();
+    expect(find.text('http://10.0.0.1/new/'), findsOneWidget);
+    expect(find.text('http://10.0.0.1/up/'), findsNothing);
+    expect(find.text('http://10.0.0.1/down/'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('filter-readable')));
+    await tester.pump();
+    expect(find.text('http://10.0.0.1/up/'), findsOneWidget);
+    expect(find.text('http://10.0.0.1/new/'), findsNothing);
+    expect(find.text('http://10.0.0.1/down/'), findsNothing);
+
     await tester.tap(find.byKey(const Key('filter-enabled')));
     await tester.pump();
     expect(find.text('http://10.0.0.1/new/'), findsOneWidget);

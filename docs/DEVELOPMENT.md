@@ -769,7 +769,7 @@ is a week old, so dead servers get marked. Nothing is switched off
 automatically.
 
 `SourceTester.testAll(sources)` (`lib/features/sources/source_tester.dart`)
-fetches the first page of every base URL, a few sources at a time, and
+fetches the first page of every base URL, sixteen sources at a time, and
 reports each source as soon as it is done:
 
 - reachable or not, and the response time ("ping")
@@ -786,6 +786,13 @@ A source is *readable* when it answered, an adapter exists for what it
 turned out to be, and listing it worked. Each run uses an HTTP client that
 only knows the hosts of the sources being tested: no port scanning, no
 address sweeps, and a redirect to any other host is refused.
+
+When a run ends, a readable source whose list entry names another type
+gets the type the test found (`SourceStore.correctTypes`): the type picks
+the adapter, and the candidates come without one. Its test result and
+whether it is enabled stay as they are. A page the app could not read
+changes nothing. Server Discovery filters its list by All, Reachable,
+Readable, Unreachable, Never tested and Enabled.
 
 Emby/Jellyfin video URLs need the session token as a request header; the
 player and the live ping send it (see

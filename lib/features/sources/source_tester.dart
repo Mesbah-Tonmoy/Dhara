@@ -80,6 +80,15 @@ class SourceTestResult {
     return best;
   }
 
+  /// What the server is, from the first base URL the app could read; `null`
+  /// if it could read none. This is what the source's type should be.
+  SourceType? get readableType {
+    for (final url in urls) {
+      if (url.readable) return url.detectedType;
+    }
+    return null;
+  }
+
   /// The type found, from the first base URL that revealed one.
   SourceType? get detectedType {
     for (final url in urls) {
@@ -99,7 +108,7 @@ class SourceTestResult {
 class SourceTester {
   SourceTester({
     required this.deviceId,
-    this.concurrency = 6,
+    this.concurrency = 16,
     this.timeout = const Duration(seconds: 8),
     this.sampleSize = 5,
   }) {
@@ -113,6 +122,9 @@ class SourceTester {
 
   /// How many sources are tested at the same time. The base URLs of one
   /// source are tested one after another, as they are usually one machine.
+  /// A test is one small request to a server, and most servers of a long
+  /// list do not answer at all, so each of them holds a place for the
+  /// whole [timeout]: with few places a long list takes many minutes.
   final int concurrency;
 
   /// Time limit for each request.

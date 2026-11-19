@@ -246,6 +246,24 @@ class SourceStore extends ChangeNotifier {
     return _changed();
   }
 
+  /// Sets the type of the sources with these ids to what a test found them
+  /// to be; unknown ids are ignored. Unlike [update] this keeps a source's
+  /// last test result and leaves it enabled or not as it was: the type is
+  /// that test's own finding, and nothing else of the source changes.
+  Future<void> correctTypes(Map<String, SourceType> types) {
+    var changed = false;
+    for (final MapEntry(key: id, value: type) in types.entries) {
+      if (!_isKnown(id)) continue;
+      final current = _custom[id] ?? _starter[id]!;
+      if (current.type == type) continue;
+      final health = _health[id];
+      _apply(current.withType(type));
+      if (health != null) _health[id] = health;
+      changed = true;
+    }
+    return changed ? _changed() : Future.value();
+  }
+
   /// Remembers test results, keyed by source id; unknown ids are ignored.
   Future<void> recordHealth(Map<String, SourceHealth> results) {
     if (results.isEmpty) return Future.value();

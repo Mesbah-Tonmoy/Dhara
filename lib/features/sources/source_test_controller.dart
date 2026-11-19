@@ -26,6 +26,10 @@ enum SourceStatus {
 /// results of this session in memory, and a short record per source in the
 /// [SourceStore] so "dead" servers stay marked after a restart.
 ///
+/// A server the app could read gets the type the test found it to be, if
+/// the list said something else: a list taken from elsewhere cannot know,
+/// and the type decides which adapter reads the server.
+///
 /// Also passes on every change of the [store], so a screen only has to
 /// listen to this one object.
 class SourceTestController extends ChangeNotifier {
@@ -119,6 +123,26 @@ class SourceTestController extends ChangeNotifier {
       await store.recordHealth(health);
     } on FileSystemException {
       // Not saved: the results still show until the app closes.
+    }
+
+    final types = <String, SourceType>{};
+    for (final id in health.keys) {
+      // Gone if the source was edited or removed during the run.
+      final result = _results[id];
+      final found = result?.readableType;
+      if (result == null || found == null) continue;
+      if (found == result.source.type) continue;
+      types[id] = found;
+      // The result is of this same server: it stays with the source.
+      _results[id] = SourceTestResult(
+        source: result.source.withType(found),
+        urls: result.urls,
+      );
+    }
+    try {
+      await store.correctTypes(types);
+    } on FileSystemException {
+      // As above.
     }
   }
 

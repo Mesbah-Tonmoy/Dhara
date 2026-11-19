@@ -60,11 +60,12 @@ Proposed, not yet agreed:
   (`assets/sources/candidate_sources.json`, switched off, type not known
   yet); left out are the servers the starter list has, social networks and
   the like, and home-network addresses.
-- Step 2, next: what the test finds a server to be becomes its type (today
-  a wrong type has to be corrected by hand, source by source), a long test
-  run goes faster (six servers at a time, eight seconds each, is a quarter
-  of an hour for 650), and Server Discovery can show only the servers that
-  were never tested.
+- Step 2, done on 2026-11-20: what the test finds a readable server to be
+  becomes its type, a test run asks sixteen servers at a time in place of
+  six, and Server Discovery can show only the readable servers or only
+  those never tested.
+- Now the user's part: "Test all" in Server Discovery, from their own
+  connection, and nothing switched on from the candidates yet.
 - Step 3, after the user's test run: the candidates that are media servers
   move to the starter list with their type and what they hold; the rest
   are taken out. Domains on public lists change hands, so nothing found

@@ -23,7 +23,9 @@ import 'package:flutter/material.dart';
 enum _Filter {
   all('All'),
   reachable('Reachable'),
+  readable('Readable'),
   unreachable('Unreachable'),
+  untested('Never tested'),
   enabled('Enabled');
 
   const _Filter(this.label);
@@ -34,7 +36,9 @@ enum _Filter {
     all => true,
     reachable =>
       status == SourceStatus.readable || status == SourceStatus.unreadable,
+    readable => status == SourceStatus.readable,
     unreachable => status == SourceStatus.unreachable,
+    untested => status == SourceStatus.untested,
     _Filter.enabled => enabled,
   };
 }
@@ -1067,8 +1071,8 @@ class _TypeTag extends StatelessWidget {
     if (!differs) return tag;
     return Tooltip(
       message:
-          'The test found ${sourceTypeLabel(detected)}; the list says '
-          '${sourceTypeLabel(source.type)}. Edit the source to correct it.',
+          'The test found ${sourceTypeLabel(detected)}, which Dhara could '
+          'not read; the list says ${sourceTypeLabel(source.type)}.',
       child: tag,
     );
   }

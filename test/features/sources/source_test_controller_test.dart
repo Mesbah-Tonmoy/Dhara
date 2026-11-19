@@ -184,6 +184,65 @@ void main() {
     expect(store.isEnabled('untested'), isFalse);
   });
 
+  group('the type a test finds', () {
+    Source listedAs(String id, SourceType type) => source(id).withType(type);
+
+    test('becomes the type of a server the app could read, and stays after '
+        'a restart', () async {
+      final store = SourceStore(
+        starter: [
+          listedAs('good', SourceType.customSite),
+          listedAs('site', SourceType.h5ai),
+          listedAs('dead', SourceType.customSite),
+        ],
+        file: file,
+      );
+      await store.load();
+      await store.setEnabled(['good'], enabled: true);
+      final controller = SourceTestController(
+        store: store,
+        tester: SourceTester(deviceId: 'dhara-test'),
+        clock: () => now,
+      );
+      addTearDown(controller.dispose);
+
+      await controller.testAll();
+
+      SourceType typeOf(SourceStore store, String id) =>
+          store.sources.singleWhere((source) => source.id == id).type;
+      expect(typeOf(store, 'good'), SourceType.directoryListing);
+      // The result and what it says of the server stay with the source.
+      expect(controller.statusOf('good'), SourceStatus.readable);
+      expect(controller.resultOf('good')!.source, store.sources.first);
+      expect(store.healthOf('good')!.readable, isTrue);
+      expect(store.isEnabled('good'), isTrue);
+      // A page the app cannot read says nothing about what the server is.
+      expect(typeOf(store, 'site'), SourceType.h5ai);
+      expect(typeOf(store, 'dead'), SourceType.customSite);
+
+      final again = SourceStore(
+        starter: [listedAs('good', SourceType.customSite)],
+        file: file,
+      );
+      await again.load();
+      expect(typeOf(again, 'good'), SourceType.directoryListing);
+      expect(again.healthOf('good')!.readable, isTrue);
+      expect(again.isEnabled('good'), isTrue);
+    });
+
+    test('changes nothing where the list was right', () async {
+      final controller = await open(ids: ['good']);
+      var changes = 0;
+      controller.store.addListener(() => changes++);
+
+      await controller.testAll();
+
+      // Only the test result was recorded.
+      expect(changes, 1);
+      expect(controller.store.sources.single, source('good'));
+    });
+  });
+
   test('editing a source forgets its result; removing it too', () async {
     final controller = await open(ids: ['good', 'site']);
     await controller.testAll();
