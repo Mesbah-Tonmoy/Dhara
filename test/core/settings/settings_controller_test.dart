@@ -1,5 +1,6 @@
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
+import 'package:dhara/theme/logo_style.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -188,6 +189,29 @@ void main() {
         MemoryKeyValueStore({'look.browseFiltersShown': 9}),
       ).browseFiltersShown,
       isTrue,
+    );
+  });
+
+  test('the logo starts as the water mark, and another choice is saved', () {
+    final store = MemoryKeyValueStore();
+    final settings = SettingsController(store);
+    expect(settings.logoStyle, DharaLogoStyle.water);
+
+    var changes = 0;
+    settings
+      ..addListener(() => changes++)
+      ..setLogoStyle(DharaLogoStyle.darkWater)
+      ..setLogoStyle(DharaLogoStyle.darkWater);
+    expect(changes, 1);
+    expect(store.getString('look.logo'), 'darkWater');
+    expect(SettingsController(store).logoStyle, DharaLogoStyle.darkWater);
+
+    // A name no drawing has is the default.
+    expect(
+      SettingsController(
+        MemoryKeyValueStore({'look.logo': 'golden'}),
+      ).logoStyle,
+      DharaLogoStyle.water,
     );
   });
 

@@ -11,6 +11,7 @@ import 'package:dhara/theme/tokens.dart';
 import 'package:dhara/widgets/buttons.dart';
 import 'package:dhara/widgets/chips.dart';
 import 'package:dhara/widgets/icons.dart';
+import 'package:dhara/widgets/logo.dart';
 import 'package:dhara/widgets/pressable.dart';
 import 'package:dhara/widgets/surfaces.dart';
 import 'package:flutter/material.dart';
@@ -241,6 +242,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
             selected: settings.interfaceScalePercent,
             onSelected: settings.setInterfaceScalePercent,
+          ),
+        ),
+        _SetRow(
+          label: 'Logo',
+          hint:
+              'The mark in the title bar. The icon of the program in '
+              'Windows stays as it is.',
+          control: _LogoChoices(
+            selected: settings.logoStyle,
+            onSelected: settings.setLogoStyle,
           ),
         ),
         _SetRow(
@@ -663,6 +674,52 @@ class _SetRow extends StatelessWidget {
 }
 
 /// The keys that do something, each drawn as a key cap.
+/// The drawings of the logo to choose from, the chosen one outlined.
+class _LogoChoices extends StatelessWidget {
+  const _LogoChoices({required this.selected, required this.onSelected});
+
+  final DharaLogoStyle selected;
+  final ValueChanged<DharaLogoStyle> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    const corners = BorderRadius.all(Radius.circular(.7 * rem));
+    return Wrap(
+      spacing: .35 * rem,
+      runSpacing: .35 * rem,
+      children: [
+        for (final style in DharaLogoStyle.values)
+          Pressable(
+            key: Key('set-logo-${style.name}'),
+            onPressed: () => onSelected(style),
+            semanticLabel: '${style.label} logo',
+            tooltip: style.label,
+            selected: style == selected,
+            builder: (context, state) => FocusRing(
+              visible: state.focused,
+              radius: corners,
+              child: Container(
+                padding: const EdgeInsets.all(.2 * rem),
+                decoration: BoxDecoration(
+                  borderRadius: corners,
+                  border: Border.all(
+                    width: 2,
+                    color: style == selected
+                        ? DharaColors.accent
+                        : state.active
+                        ? DharaColors.stroke
+                        : const Color(0x00000000),
+                  ),
+                ),
+                child: DharaLogo(size: 2.1 * rem, style: style),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _Keys extends StatelessWidget {
   const _Keys(this.keys);
 

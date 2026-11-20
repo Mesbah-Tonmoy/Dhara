@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dhara/core/settings/key_value_store.dart';
+import 'package:dhara/theme/logo_style.dart';
 import 'package:flutter/widgets.dart';
 
 /// The picture quality Play goes for when a title has copies in several.
@@ -92,6 +93,11 @@ class SettingsController extends ChangeNotifier {
       _browseFiltersShown = _loadSwitch(
         _store.getInt(_browseFiltersShownKey),
         true,
+      ),
+      _logoStyle = _loadNamed(
+        DharaLogoStyle.values,
+        _store.getString(_logoStyleKey),
+        DharaLogoStyle.water,
       );
 
   /// One-tap choices for the skip step, in seconds.
@@ -132,6 +138,7 @@ class SettingsController extends ChangeNotifier {
   static const _reduceMotionKey = 'look.reduceMotion';
   static const _interfaceScaleKey = 'look.interfaceScalePercent';
   static const _browseFiltersShownKey = 'look.browseFiltersShown';
+  static const _logoStyleKey = 'look.logo';
 
   final KeyValueStore _store;
   int _seekBackSeconds;
@@ -148,6 +155,18 @@ class SettingsController extends ChangeNotifier {
   bool _reduceMotion;
   int _interfaceScalePercent;
   bool _browseFiltersShown;
+  DharaLogoStyle _logoStyle;
+
+  /// The drawing of the app's mark in the title bar and on Home. The
+  /// program's icon in Windows does not follow it.
+  DharaLogoStyle get logoStyle => _logoStyle;
+
+  void setLogoStyle(DharaLogoStyle value) {
+    if (value == _logoStyle) return;
+    _logoStyle = value;
+    notifyListeners();
+    unawaited(_store.setString(_logoStyleKey, value.name));
+  }
 
   /// The filters of the search and browse page are unfolded. Folded away,
   /// they still count.

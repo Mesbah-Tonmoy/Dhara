@@ -6,6 +6,8 @@ import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/settings/ui/settings_screen.dart';
 import 'package:dhara/theme/scale.dart';
 import 'package:dhara/widgets/chips.dart';
+import 'package:dhara/widgets/logo.dart';
+import 'package:dhara/widgets/pressable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -125,6 +127,39 @@ void main() {
     expect(store.getInt('look.rotateFeatured'), 0);
     await _tap(tester, find.byKey(const Key('set-rotate')));
     expect(store.getInt('look.rotateFeatured'), 1);
+  });
+
+  testWidgets('the logo is picked from its drawings, and the title bar '
+      'shows the one chosen', (tester) async {
+    final store = MemoryKeyValueStore();
+    await _boot(tester, store);
+    DharaLogoStyle inTitleBar() => DharaLogoStyle.values.singleWhere(
+      (style) => find
+          .descendant(
+            of: find.byKey(const Key('shell-brand')),
+            matching: find.byKey(ValueKey(style)),
+          )
+          .evaluate()
+          .isNotEmpty,
+    );
+    bool chosen(DharaLogoStyle style) => tester
+        .widget<Pressable>(find.byKey(Key('set-logo-${style.name}')))
+        .selected!;
+
+    for (final style in DharaLogoStyle.values) {
+      expect(
+        find.byKey(Key('set-logo-${style.name}'), skipOffstage: false),
+        findsOneWidget,
+      );
+    }
+    expect(inTitleBar(), DharaLogoStyle.water);
+
+    await _tap(tester, find.byKey(const Key('set-logo-darkRounded')));
+
+    expect(store.getString('look.logo'), 'darkRounded');
+    expect(chosen(DharaLogoStyle.darkRounded), isTrue);
+    expect(chosen(DharaLogoStyle.water), isFalse);
+    expect(inTitleBar(), DharaLogoStyle.darkRounded);
   });
 
   testWidgets('the preferred quality is picked from four choices', (

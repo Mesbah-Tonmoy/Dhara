@@ -348,10 +348,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('DharaLogo is the water mark unless another is asked for, and '
-      'every mark can be drawn', (tester) async {
-    expect(const DharaLogo().style, DharaLogoStyle.water);
-
+  testWidgets('every drawing of DharaLogo can be drawn', (tester) async {
     for (final style in DharaLogoStyle.values) {
       await tester.pumpWidget(host(DharaLogo(size: 64, style: style)));
 

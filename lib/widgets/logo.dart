@@ -1,44 +1,34 @@
+import 'package:dhara/core/settings/settings_controller.dart';
+import 'package:dhara/theme/logo_style.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:flutter/widgets.dart';
 
-/// The drawings of the app's mark. All are a play triangle and a wave
-/// ("dhara": a stream) in a rounded square.
-enum DharaLogoStyle {
-  /// The mark in use: a rounded play triangle over water that fills the
-  /// lower part, on a deep gradient.
-  water,
-
-  /// The first mark: a sharp triangle over one wave, on the accent gradient.
-  classic,
-
-  /// The first mark in the accent colours on a dark square.
-  dark,
-
-  /// A rounded triangle over two waves, on the accent gradient.
-  rounded,
-
-  /// [dark] with the triangle's corners rounded.
-  darkRounded,
-
-  /// [water] in the accent colours on a dark square.
-  darkWater,
-}
+export 'package:dhara/theme/logo_style.dart';
 
 /// The app's mark. Drawn, so it is sharp at every size.
 class DharaLogo extends StatelessWidget {
-  const DharaLogo({
-    super.key,
-    this.size = 1.5 * rem,
-    this.style = DharaLogoStyle.water,
-  });
+  const DharaLogo({super.key, this.size = 1.5 * rem, this.style});
 
   final double size;
-  final DharaLogoStyle style;
+
+  /// Which drawing; without one, the one chosen in Settings.
+  final DharaLogoStyle? style;
 
   @override
-  Widget build(BuildContext context) => ExcludeSemantics(
-    child: CustomPaint(size: Size.square(size), painter: _LogoPainter(style)),
-  );
+  Widget build(BuildContext context) {
+    final style =
+        this.style ??
+        SettingsScope.maybeOf(context)?.logoStyle ??
+        DharaLogoStyle.water;
+    return ExcludeSemantics(
+      child: CustomPaint(
+        // Says which drawing this is, to whoever looks for it.
+        key: ValueKey(style),
+        size: Size.square(size),
+        painter: _LogoPainter(style),
+      ),
+    );
+  }
 }
 
 class _LogoPainter extends CustomPainter {
