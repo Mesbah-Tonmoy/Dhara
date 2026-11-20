@@ -187,7 +187,14 @@ Proposed, not yet agreed:
   1.0.2 refuses a version 5 library and leaves it alone, so it can no
   longer throw away what a newer build indexed, but it also shows no
   library until it is replaced by a new installer.
-- **The logo** can be chosen in Settings, from the six drawings.
+- **The logo** can be chosen in Settings, from the six drawings. Since
+  1.0.3 the app starts with "Dark water" (F2), which is also the icon, and
+  an installer can be made to start with another (`tool/package.ps1 -Logo`
+  or `-LogoFromSettings`).
+- **Short addresses** (schema 6): 476 MB to 406 MB on a copy of the real
+  library.
+- **Version 1.0.3**, the first installer with all of the above. Like the
+  ones before it, made on the PC that is still to be reset.
 
 ## Found on 2026-11-21, after the user indexed the new servers
 
