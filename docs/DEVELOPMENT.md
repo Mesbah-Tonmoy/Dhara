@@ -16,7 +16,7 @@ The full project brief lives in [BRIEF.md](../BRIEF.md) (mirrored in
 | 0. Setup | Done: empty app window builds and opens on Windows |
 | 1. Design prototype | Done and approved ("Aurora Glass" direction): `design/prototype/index.html` |
 | 2. Player | Done and tested on real BDIX links. Not yet tried: HEVC / 4K files and `https://` links (none found so far) |
-| 3. Sources and server discovery | Done: starter list of 38 checked servers (51 since 2026-11-20), Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet. Since 2026-11-20 the app also ships candidates from a public list (416 after sorting); a test run over all 619 that night found one new media server. A look at the websites on the list the same day found file servers behind three of them that the app reads as they are (CircleFTP, AmaderFTP, Ctgstream); 18 websites are left without an adapter |
+| 3. Sources and server discovery | Done: starter list of 38 checked servers (52 since 2026-11-21), Server Discovery screen (BDIX Tester, add / edit / remove, JSON import and export), adapters for folder listings, h5ai and Emby/Jellyfin. Tried from one BDIX connection on 2026-11-13: all 38 answered, 18 are readable. The 20 custom websites have no adapter yet. Since 2026-11-20 the app also ships candidates from a public list (416 after sorting); a test run over all 619 that night found one new media server. A look at the websites on the list the same day found file servers behind three of them that the app reads as they are (CircleFTP, AmaderFTP, Ctgstream); 18 websites are left without an adapter |
 | 4. Indexer | Done: SQLite + FTS5 library database, crawler in a background isolate, Library index screen with a plain search. A full crawl of three enabled servers (2026-11-13) found 23,389 videos in 15 to 20 minutes; a second run was much faster |
 | 5. Metadata and dedupe | Done in code and in automated tests; see [Titles and metadata](#titles-and-metadata). On the real library: names read and copies merged (19,854 films, 72 shows), and a first TMDB run that matched about nine titles in ten. **Not yet tried on a real library:** the matching rules as they are now, episode data, posters from TMDB's image server, and anime on a server that has any |
 | 6. Real UI | Under way: design tokens and window scale, the shared widgets, the app shell (own title bar, navigation rail), the frameless window, My List and watch history in the database, Home (banner, Continue Watching, rows of posters), the page of a title (film, or show with its episodes), film details from TMDB (genres, length, director, cast), search and browse, and the Anime page with AniList's covers are in; see [Shell and window](#shell-and-window), [Home](#home), [Title page](#title-page), [Search and browse](#search-and-browse) and [Anime](#anime). My List and History have their page, and so has Settings; Server Discovery, Library index, "Titles and matching", Needs review and the TMDB key dialog have the new look; the keyboard reaches everything (see [Keyboard](#keyboard)); the library's reads were timed on the real library and made faster. Frame rate while scrolling and cold start were measured in Phase 7 (see [Keeping frames cheap](#keeping-frames-cheap)). **Not yet looked at in the real Windows build:** the pages restyled last (they were checked as pictures drawn by the widget tests) |
@@ -482,7 +482,9 @@ Every control does something and is saved as it is changed
   [Streaming set-up](#streaming-set-up)). The last four count from the
   next video.
 - **Appearance:** interface size (90/100/110/125%, on top of the size the
-  window gives), whether the banner on Home rotates, and Reduce motion
+  window gives), which of its six drawings the logo in the title bar is
+  (the program's icon in Windows stays the first), whether the banner on
+  Home rotates, and Reduce motion
   (hover zooms, fades and the banner change at once; the system's own
   setting does the same).
 - **Keyboard:** the keys that do something, in the app and in the player
@@ -945,8 +947,9 @@ folder (which is also the crawl queue), the video files, their subtitles, a
 full-text index (FTS5) over file names and folder paths, the playback
 positions, since schema version 2 the titles those videos are copies
 of (see [Titles and metadata](#titles-and-metadata)), and since version 3
-My List, the watch history and the indexes Home reads by, and since
-version 4 who made a title and when TMDB's page of it was read. A database of an
+My List, the watch history and the indexes Home reads by, since
+version 4 who made a title and when TMDB's page of it was read, and since
+version 5 the same in less room (below). A database of an
 older version is upgraded in place and keeps what it holds (from version 2:
 the unfinished videos start the history). **A build older than the file
 cannot open it:** it runs with an empty index for that run and leaves the
@@ -963,6 +966,38 @@ library through its build hook: at build time it downloads the prebuilt
 held in the package. Nothing else needs installing, and `sqlite3_flutter_libs`
 is not used. To update SQLite, raise the `sqlite3` version in `pubspec.yaml`;
 `test/core/db/library_db_test.dart` checks that FTS5 is still there.
+
+**Size (schema version 5, 2026-11-21).** With 577,000 videos and 86,000
+titles the file was 768 MB; a copy of it upgraded to 465 MB in 31 seconds,
+and searches and the history read as fast as before. What changed:
+
+- *Finding a video by its address* (the history does) took an index over
+  every address: 120 MB, a second copy of them all. Now `files.url_key` is
+  indexed, a 48-bit number made from the address (`urlKey`, FNV-1a; SQL
+  knows it as `dhara_url_key`): 9 MB. The column is computed, not stored.
+  Two addresses can share a number, so a query compares the address too:
+  `WHERE url_key = dhara_url_key(?1) AND url = ?1`.
+- *The search index over file names* (`files_fts`, used by the Library
+  index page) kept where in a name each word stands: 137 MB. With
+  `detail = none` it keeps only which words a name has: 36 MB. It can no
+  longer be asked for words in a row or in one column, so its queries name
+  every word by itself (`ftsWordsQueryFor`). The index over titles, which
+  the app's search uses, is small and unchanged.
+- *The providers' answers* (`metadata_cache`, 89,000 of them) are deflated
+  (`dhara_pack` and `dhara_unpack`) and lie in an ordinary table: 103 MB
+  became about 40.
+- *Free space.* What deleting leaves empty stayed in the file for good
+  (260 MB at one point). The upgrade writes the file anew once (`VACUUM`),
+  and from then on `LibraryDb.releaseFreeSpace` gives empty pages back
+  after a source is removed and at the end of every crawl
+  (`auto_vacuum = INCREMENTAL`).
+
+Two things follow. A program other than the app cannot read the `files`
+table unless it defines `dhara_url_key` (SQLite calls the schema malformed
+otherwise). And the first start after the upgrade takes about half a
+minute on a large library, during which Home shows its loading state.
+Could still be done: keeping a video's address as its folder plus the rest
+(the addresses are 90 MB of the videos' 160).
 
 `package:sqlite3` is synchronous, so the database lives in a background
 isolate that holds the only connection (`lib/core/db/library_isolate.dart`).

@@ -69,6 +69,17 @@
       "notes": "English and foreign anime series."
     },
     {
+      "id": "circleftp-index1",
+      "name": "CircleFTP index",
+      "provider": "CircleFTP",
+      "isp": "Circle Network",
+      "type": "h5ai",
+      "category": "movies",
+      "baseUrls": ["http://index.circleftp.net/FILE/"],
+      "portalUrl": "https://circleftp.net/",
+      "notes": "English movies, and English and foreign dubbed movies. Its front page passes on to an error page at times; the folder answers."
+    },
+    {
       "id": "circleftp-index1-files",
       "name": "CircleFTP index1",
       "provider": "CircleFTP",

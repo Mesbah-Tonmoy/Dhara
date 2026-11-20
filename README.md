@@ -13,7 +13,7 @@ ads and no telemetry.
 
 ## What it does
 
-- **One library from many servers.** The app ships a list of 51 BDIX
+- **One library from many servers.** The app ships a list of 52 BDIX
   servers checked by hand, and some 400 more taken from a public list that
   nobody has confirmed yet, and tests which of them answer from your
   connection. It reads
@@ -264,7 +264,7 @@ Windows 11), a library of 23,389 videos:
 
 ## What it cannot do yet
 
-- 18 of the 51 servers in the list are websites of their own kind. The app
+- 18 of the 52 servers in the list are websites of their own kind. The app
   can test them but cannot read them.
 - `https` servers with a self-signed certificate are refused.
 - It was built and tried on Windows only.

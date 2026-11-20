@@ -169,6 +169,26 @@ Proposed, not yet agreed:
   after them: B with a rounded play triangle (`darkRounded`) and a dark F
   (`darkWater`).
 
+## Later on 2026-11-21
+
+- **Corrections.** `index.circleftp.net` is not dead: its folder
+  `/FILE/` answers (9,304 videos), only its front page passed on to an
+  error page that night. It is the 52nd server of the starter list, under
+  the id the user's own entry has, so the two do not read it twice. And the
+  user's entry was never taken out of the saved list: what a session's
+  shell writes into `%APPDATA%` goes to a copy of its own, not to the
+  real file. A session cannot change the saved source list; the app can.
+- **The folders with `&` or `+` in their names** cannot be read by
+  writing the address another way: every spelling tried was refused, and
+  the website itself does not link to those films. Only whoever runs the
+  server can mend it, by renaming the folders.
+- **`library.db`**: schema version 5, 768 MB to 465 MB on a copy of the
+  real library (see "Library database" in DEVELOPMENT.md). An installed
+  1.0.2 refuses a version 5 library and leaves it alone, so it can no
+  longer throw away what a newer build indexed, but it also shows no
+  library until it is replaced by a new installer.
+- **The logo** can be chosen in Settings, from the six drawings.
+
 ## Found on 2026-11-21, after the user indexed the new servers
 
 About 300,000 videos were in the library (Ctgstream 82,000, CTGMovies media
