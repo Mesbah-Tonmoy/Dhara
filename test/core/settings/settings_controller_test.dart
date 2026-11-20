@@ -192,26 +192,28 @@ void main() {
     );
   });
 
-  test('the logo starts as the water mark, and another choice is saved', () {
+  test('the logo starts as the dark water mark, and another choice is '
+      'saved', () {
     final store = MemoryKeyValueStore();
     final settings = SettingsController(store);
-    expect(settings.logoStyle, DharaLogoStyle.water);
+    expect(defaultLogoStyle, DharaLogoStyle.darkWater);
+    expect(settings.logoStyle, DharaLogoStyle.darkWater);
 
     var changes = 0;
     settings
       ..addListener(() => changes++)
-      ..setLogoStyle(DharaLogoStyle.darkWater)
-      ..setLogoStyle(DharaLogoStyle.darkWater);
+      ..setLogoStyle(DharaLogoStyle.classic)
+      ..setLogoStyle(DharaLogoStyle.classic);
     expect(changes, 1);
-    expect(store.getString('look.logo'), 'darkWater');
-    expect(SettingsController(store).logoStyle, DharaLogoStyle.darkWater);
+    expect(store.getString('look.logo'), 'classic');
+    expect(SettingsController(store).logoStyle, DharaLogoStyle.classic);
 
     // A name no drawing has is the default.
     expect(
       SettingsController(
         MemoryKeyValueStore({'look.logo': 'golden'}),
       ).logoStyle,
-      DharaLogoStyle.water,
+      DharaLogoStyle.darkWater,
     );
   });
 

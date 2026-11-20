@@ -152,13 +152,14 @@ void main() {
         findsOneWidget,
       );
     }
-    expect(inTitleBar(), DharaLogoStyle.water);
+    expect(inTitleBar(), DharaLogoStyle.darkWater);
+    expect(chosen(DharaLogoStyle.darkWater), isTrue);
 
     await _tap(tester, find.byKey(const Key('set-logo-darkRounded')));
 
     expect(store.getString('look.logo'), 'darkRounded');
     expect(chosen(DharaLogoStyle.darkRounded), isTrue);
-    expect(chosen(DharaLogoStyle.water), isFalse);
+    expect(chosen(DharaLogoStyle.darkWater), isFalse);
     expect(inTitleBar(), DharaLogoStyle.darkRounded);
   });
 

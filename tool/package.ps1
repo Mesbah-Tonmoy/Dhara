@@ -12,10 +12,18 @@
 # -TestDataDir <folder> makes a copy for trying the installer without
 # touching the real library: that build keeps its data in <folder>, is called
 # "Dhara Test" and installs beside the real app, never over it.
+#
+# -Logo <name> makes another drawing the logo the installed app starts with
+# (water, classic, dark, rounded, darkRounded, darkWater; Settings can still
+# change it). -LogoFromSettings takes the one chosen in Settings on this PC.
+# Without either it is the app's own default. The program's icon in Windows
+# does not follow it.
 [CmdletBinding()]
 param(
   [string]$Flutter,
-  [string]$TestDataDir
+  [string]$TestDataDir,
+  [string]$Logo,
+  [switch]$LogoFromSettings
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -42,6 +50,19 @@ if (-not $Flutter) {
   $Flutter = $found.Source
 }
 
+# --- The logo it starts with --------------------------------------------------
+if ($LogoFromSettings -and -not $Logo) {
+  $settings = Join-Path $env:APPDATA 'com.dhara\dhara\shared_preferences.json'
+  if (Test-Path $settings) { $Logo = (Get-Content $settings -Raw | ConvertFrom-Json).'flutter.look.logo' }
+  if (-not $Logo) { Write-Host '  No logo is chosen in Settings on this PC; the default stays.' }
+}
+if ($Logo) {
+  # The names are those of the drawings in the code.
+  $drawings = Select-String -Path lib\theme\logo_style.dart -Pattern "^\s+(\w+)\('" |
+    ForEach-Object { $_.Matches[0].Groups[1].Value }
+  if ($drawings -cnotcontains $Logo) { Fail "there is no logo called '$Logo' (there are: $($drawings -join ', '))." }
+}
+
 # --- Build --------------------------------------------------------------------
 Step "Building $name $version (release)"
 # An incremental build can keep an old icon font, and with it blank icons.
@@ -49,6 +70,7 @@ Get-ChildItem '.dart_tool\flutter_build\*\release_bundle_windows-x64_assets.stam
   Remove-Item -Force
 $buildArgs = @('build', 'windows', '--release')
 if ($test) { $buildArgs += "--dart-define=DHARA_DATA_DIR=$TestDataDir" }
+if ($Logo) { $buildArgs += "--dart-define=DHARA_LOGO=$Logo"; Write-Host "  logo: $Logo" }
 & $Flutter @buildArgs
 if ($LASTEXITCODE -ne 0) { Fail 'the build failed.' }
 $release = Join-Path $root 'build\windows\x64\runner\Release'

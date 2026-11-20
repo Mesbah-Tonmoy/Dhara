@@ -19,7 +19,7 @@ class DharaLogo extends StatelessWidget {
     final style =
         this.style ??
         SettingsScope.maybeOf(context)?.logoStyle ??
-        DharaLogoStyle.water;
+        defaultLogoStyle;
     return ExcludeSemantics(
       child: CustomPaint(
         // Says which drawing this is, to whoever looks for it.

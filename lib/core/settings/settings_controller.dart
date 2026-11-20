@@ -97,7 +97,7 @@ class SettingsController extends ChangeNotifier {
       _logoStyle = _loadNamed(
         DharaLogoStyle.values,
         _store.getString(_logoStyleKey),
-        DharaLogoStyle.water,
+        defaultLogoStyle,
       );
 
   /// One-tap choices for the skip step, in seconds.
