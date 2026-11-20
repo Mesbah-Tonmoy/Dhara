@@ -53,7 +53,7 @@ class NavRail extends StatelessWidget {
         key: const Key('rail-settings'),
         label: place.label,
         icon: place.icon,
-        selected: shell.current == place || !shell.current.onRail,
+        selected: shell.current == place || !shell.isOnRail(shell.current),
         onPressed: () => shell.open(place),
       ),
       _ => _RailButton(
@@ -116,8 +116,10 @@ class NavRail extends StatelessWidget {
                       ],
                     ],
                   const Spacer(),
+                  // The tools, a development build's own among them.
                   for (final place in ShellDestination.values)
-                    if (place.onRail && place.low) button(place),
+                    if (shell.isOnRail(place) && (place.low || !place.onRail))
+                      button(place),
                 ],
               ),
             ),

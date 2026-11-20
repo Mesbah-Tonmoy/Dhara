@@ -14,6 +14,9 @@ that are done are in the status table of [DEVELOPMENT.md](DEVELOPMENT.md).
 
 - **Development**: for the user only. Server list, Server Discovery, Library
   index, "Titles and matching", Needs review and the TMDB key stay as they are.
+  A first piece is in since 2026-11-21: a development build (every build
+  but a release, or `--dart-define=DHARA_DEV=true`) has Library index and
+  Titles and matching on the rail.
 - **Production**: to install on another PC or to give to a friend. Ready to
   use: no three steps on Home (`_GetStarted` in
   `lib/features/home/ui/home_screen.dart`), no indexing by hand, no API key.
@@ -154,6 +157,7 @@ Proposed, not yet agreed:
 
 - Done on 2026-11-20: the filters on the search and browse page can be
   folded away (the "Filters" button).
+- Done on 2026-11-21: Server Discovery has a search field.
 - More versions of the logo to choose from (`lib/widgets/logo.dart`): a
   darker one, one with rounded corners on the play triangle and a changed
   wave under it, and a few more. Six were shown on 2026-11-20 (A is the
@@ -164,6 +168,39 @@ Proposed, not yet agreed:
   (`classic`, `dark`, `rounded`) for later use, and so do the two shown
   after them: B with a rounded play triangle (`darkRounded`) and a dark F
   (`darkWater`).
+
+## Found on 2026-11-21, after the user indexed the new servers
+
+About 300,000 videos were in the library (Ctgstream 82,000, CTGMovies media
+47,000, AmaderFTP 8,800).
+
+- **An older build throws away what a newer one indexed.** The saved
+  `sources.json` held test results for the 38 servers of 1.0.2 only and no
+  `types`, and the library no longer had CTGMovies media: the installed
+  1.0.2 had been opened after the development build. It forgets servers its
+  own list does not know, their index with them
+  (`IndexStore.removeSourcesExcept`). Until the installed app is as new as
+  the list, only one of the two should be opened; a new installer ends it.
+- **What "N folders could not be read" means.** Nothing the app can mend:
+  folders whose names hold `&` (IIS answers 400) or `+` (404) however the
+  address is written, folders behind a password (401), and the h5ai
+  software's own folders (`_h5ai`, "not a folder listing"). 68 of 8,912
+  folders on AmaderFTP, a handful elsewhere. Could be done: not following
+  `_h5ai`, and saying this in calmer words than a warning.
+- **Why `library.db` is 725 MB.** 260 MB of it is free space left by the
+  index that was thrown away; SQLite keeps it for later and nothing gives
+  it back. The rest, about 465 MB: cached TMDB answers 103 MB (88,000),
+  the videos 74 MB and a second copy of their addresses for looking up
+  what was watched 54 MB (an address is 155 characters on average), the
+  search index over names 66 MB, episodes 31 MB, titles 29 MB, folders
+  37 MB. Could be done, cheapest first: give free space back when there is
+  much of it (`VACUUM`); drop cached search answers of titles that are
+  matched; keep a video's address as its folder plus its name.
+- The user's own "CircleFTP Index1" (`index.circleftp.net`) was no copy of
+  the new `index1` entry: it passes on to CircleFTP's error page. Taken out
+  of the saved list at the user's word.
+- DFLIX, DhakaFlix and MovieHaat still did not answer from the user's
+  connection.
 
 ## Still open from before
 

@@ -40,6 +40,7 @@ class DharaApp extends StatelessWidget {
     required this.myList,
     required this.browse,
     required this.history,
+    this.devTools = false,
     this.filmDetails,
     this.images,
     this.newCopyProber,
@@ -59,6 +60,9 @@ class DharaApp extends StatelessWidget {
   final MyListController myList;
   final BrowseController browse;
   final HistoryController history;
+
+  /// A build for working on the library, with its tools on the rail.
+  final bool devTools;
 
   /// Says how far the reading of film details is; without it, nothing
   /// does.
@@ -98,7 +102,7 @@ class DharaApp extends StatelessWidget {
           ),
         );
       },
-      home: const AppShell(),
+      home: AppShell(devTools: devTools),
     );
     // What every page can reach, the innermost first.
     for (final scope in <Widget Function(Widget child)>[

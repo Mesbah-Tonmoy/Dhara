@@ -30,7 +30,10 @@ import 'package:flutter/services.dart';
 /// follow what is typed), Ctrl+O to play a URL, Alt+Left to go back, Esc
 /// to leave a text field or else go back.
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({super.key, this.devTools = false});
+
+  /// See [ShellController.devTools].
+  final bool devTools;
 
   /// How far a page starts from the left edge: clear of the rail.
   static const pageInsetLeft = PageInsets.left;
@@ -44,6 +47,7 @@ class _AppShellState extends State<AppShell> {
     pageFor: _pageFor,
     onSearch: (text) => BrowseScope.read(context).setText(text),
     onSearchStart: () => BrowseScope.read(context).resetFilters(),
+    devTools: widget.devTools,
   );
 
   @override

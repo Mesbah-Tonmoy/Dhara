@@ -40,7 +40,8 @@ enum ShellDestination {
   final bool low;
 
   /// Has an icon on the rail. The others are tools reached from Settings;
-  /// while one of them is open, the rail lights Settings.
+  /// while one of them is open, the rail lights Settings. A development
+  /// build gives them icons too ([ShellController.devTools]).
   final bool onRail;
 }
 
@@ -53,7 +54,20 @@ enum ShellDestination {
 /// title, a list of copies) go on top of that. So Back always leads toward
 /// Home, and at most one place of the rail is alive at a time.
 class ShellController extends ChangeNotifier {
-  ShellController({required this.pageFor, this.onSearch, this.onSearchStart});
+  ShellController({
+    required this.pageFor,
+    this.onSearch,
+    this.onSearchStart,
+    this.devTools = false,
+  });
+
+  /// A build for working on the library: the tools that are otherwise
+  /// opened from Settings (Titles and matching, Library index) have icons
+  /// of their own on the rail.
+  final bool devTools;
+
+  /// Whether [place] has an icon on the rail in this build.
+  bool isOnRail(ShellDestination place) => place.onRail || devTools;
 
   /// Builds the page of a place of the rail. For [ShellDestination.titles],
   /// [query] is what to search for at once.

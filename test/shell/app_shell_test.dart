@@ -166,6 +166,49 @@ void main() {
       expect(lit(), isFalse);
     });
 
+    testWidgets('a development build has the tools on the rail, each lit '
+        'while it is open, and fits a small window', (tester) async {
+      tester.view
+        ..physicalSize = const Size(940, 600)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(testApp(devTools: true).app);
+      await tester.pumpAndSettle();
+      bool lit(String place) => tester
+          .widget<Pressable>(
+            find.descendant(
+              of: find.byKey(Key('rail-$place')),
+              matching: find.byType(Pressable),
+            ),
+          )
+          .selected!;
+      expect(tester.takeException(), isNull);
+
+      await _open(tester, 'library');
+      expect(_library, findsOneWidget);
+      expect(lit('library'), isTrue);
+      expect(lit('settings'), isFalse);
+
+      await _open(tester, 'titles');
+      expect(_titles, findsOneWidget);
+      expect(_library, findsNothing);
+      expect(lit('titles'), isTrue);
+
+      // The tools stand with the other tools, at the foot of the rail.
+      final history = tester.getRect(find.byKey(const Key('rail-history')));
+      final titles = tester.getRect(find.byKey(const Key('rail-titles')));
+      final library = tester.getRect(find.byKey(const Key('rail-library')));
+      final discovery = tester.getRect(find.byKey(const Key('rail-discovery')));
+      expect(titles.top, greaterThan(history.bottom));
+      expect(library.top, greaterThanOrEqualTo(titles.bottom));
+      expect(discovery.top, greaterThanOrEqualTo(library.bottom));
+
+      await tester.tap(_back);
+      await tester.pumpAndSettle();
+      expect(_home, findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('Settings leads to Server Discovery, a place of the rail', (
       tester,
     ) async {

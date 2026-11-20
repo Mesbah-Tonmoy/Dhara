@@ -32,7 +32,7 @@ import 'package:flutter/widgets.dart';
 /// not an empty one; [images] is where pictures come from, if they are to
 /// be shown; [settings] is where the settings are kept, if a test wants to
 /// look; [newCopyProber] makes what copies are pinged with, if they are to
-/// be.
+/// be; [devTools] makes it a development build.
 ({Widget app, SourceStore sources}) testApp({
   List<Source> sources = const [],
   WindowController? window,
@@ -40,6 +40,7 @@ import 'package:flutter/widgets.dart';
   RemoteImageStore? images,
   KeyValueStore? settings,
   CopyProber Function()? newCopyProber,
+  bool devTools = false,
 }) {
   final store = SourceStore(starter: sources);
   final library = LocalLibrary(db ?? LibraryDb.inMemory());
@@ -87,6 +88,7 @@ import 'package:flutter/widgets.dart';
     myList: MyListController(library: library)..load().ignore(),
     images: images,
     newCopyProber: newCopyProber,
+    devTools: devTools,
   );
   return (
     app: window == null ? app : WindowScope(controller: window, child: app),

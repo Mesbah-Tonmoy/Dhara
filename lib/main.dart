@@ -33,6 +33,7 @@ import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
 import 'package:dhara/features/sources/source_tester.dart';
 import 'package:dhara/features/sources/starter_sources.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:media_kit/media_kit.dart';
@@ -124,6 +125,7 @@ Future<void> main() async {
     WindowScope(
       controller: window,
       child: DharaApp(
+        devTools: _devTools,
         settings: SettingsController(store),
         resumeStore: resumeStore,
         sourceTests: sourceTests,
@@ -285,6 +287,11 @@ Future<(LibraryWorker, String?, bool)> _openLibrary(String? folder) async {
 /// way to move its data. Such a build also keeps its settings in memory and
 /// neither reads nor writes the TMDB key in Windows Credential Manager.
 const _dataFolderOverride = String.fromEnvironment('DHARA_DATA_DIR');
+
+/// Whether this is a build for working on the library, which has Titles
+/// and matching and Library index on the rail: every build but a release,
+/// and a release made with `--dart-define=DHARA_DEV=true`.
+const _devTools = bool.fromEnvironment('DHARA_DEV', defaultValue: !kReleaseMode);
 
 /// The per-user application data folder (on Windows
 /// `%APPDATA%\com.dhara\dhara`), or `null` if it cannot be found.

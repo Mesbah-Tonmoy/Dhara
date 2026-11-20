@@ -490,7 +490,10 @@ Every control does something and is saved as it is changed
 - **Library and metadata / Sources:** the way to "Titles and matching"
   (TMDB key, matching, Needs review), "Library index" and Server
   Discovery. The first two have no icon on the rail any more; Back leads
-  from them to Settings.
+  from them to Settings. A development build has them on the rail again,
+  with the tools at its foot: every build but a release (so `flutter run`),
+  and a release made with `--dart-define=DHARA_DEV=true`
+  (`ShellController.devTools`).
 - **Privacy and security:** what the app never does, and "Clear history".
 
 ## Subtitles and audio tracks
@@ -795,7 +798,9 @@ whether it is enabled stay as they are. For a starter source or a
 candidate only the type is saved (`types` in `sources.json`), so the
 source goes on following the shipped list and goes when the list drops it. A page the app could not read
 changes nothing. Server Discovery filters its list by All, Reachable,
-Readable, Unreachable, Never tested and Enabled.
+Readable, Unreachable, Never tested and Enabled, and by what is typed into
+its search field: every word must be in a server's name, operator, ISP or
+one of its addresses.
 
 Emby/Jellyfin video URLs need the session token as a request header; the
 player and the live ping send it (see
