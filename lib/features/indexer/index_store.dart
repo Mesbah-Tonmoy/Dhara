@@ -359,8 +359,9 @@ class IndexStore {
   (int, int) _saveVideos(PendingFolder folder, List<IndexedVideo> videos) {
     final known = {
       for (final row in _db.select(
-        'SELECT id, name, url, size, modified, added_at FROM files '
-        'WHERE folder = ?',
+        // By its whole address, as the listing gives it.
+        'SELECT id, name, $fileUrlAloneSql AS url, size, modified, added_at '
+        'FROM files WHERE folder = ?',
         [folder.id],
       ))
         row['url'] as String: row,
@@ -503,7 +504,8 @@ class IndexStore {
     if (query == null || ids.isEmpty) return const [];
     return [
       for (final row in _db.select(
-        'SELECT f.id, f.name, f.url, f.size, f.modified, d.path, s.source_id '
+        'SELECT f.id, f.name, ${fileUrlSql('f', 'd')} AS url, f.size, '
+        'f.modified, d.path, s.source_id '
         'FROM files_fts '
         'JOIN files f ON f.id = files_fts.rowid '
         'JOIN folders d ON d.id = f.folder '

@@ -11,7 +11,7 @@ import 'package:sqlite3/sqlite3.dart';
 /// share one, so a lookup compares the address as well.
 ///
 /// SQL knows it as `dhara_url_key(url)`; the column `files.url_key` and
-/// its index are made with it, so it must never give another number for
+/// its index are filled with it, so it must never give another number for
 /// an address than it did.
 int urlKey(String url) {
   var hash = 0xcbf29ce484222325;
@@ -20,6 +20,20 @@ int urlKey(String url) {
   }
   return hash & 0xffffffffffff;
 }
+
+/// SQL for the whole address of a video. `files.url` holds only what
+/// follows the address of the video's folder where the address starts with
+/// that (most do); a whole address is told by its "://". [file] and
+/// [folder] are the names the query gives the video's row in `files` and
+/// its folder's row in `folders`.
+String fileUrlSql(String file, String folder) =>
+    "CASE WHEN instr($file.url, '://') > 0 THEN $file.url "
+    'ELSE $folder.url || $file.url END';
+
+/// The same for a query over `files` alone, by that name.
+const fileUrlAloneSql =
+    "CASE WHEN instr(files.url, '://') > 0 THEN files.url "
+    'ELSE (SELECT url FROM folders WHERE id = files.folder) || files.url END';
 
 /// How an answer of a metadata provider is kept: its text, deflated. SQL
 /// knows the two as `dhara_pack(text)` and `dhara_unpack(blob)`.
@@ -126,11 +140,13 @@ class LibraryDb {
           db.userVersion = next + 1;
         });
       }
-      if (onDisk && version > 0 && version < 5 && upTo >= 5) {
-        // Version 5 threw away two large indexes and packed the cache.
-        // Written anew, the file is as small as what it holds, and from
-        // now on it can give free space back by itself. Done once: it
-        // takes as long as copying the file.
+      if (onDisk &&
+          version > 0 &&
+          _compacting.any((made) => version < made && made <= upTo)) {
+        // Versions 5 and 6 threw away large indexes, packed the cache and
+        // cut the addresses short. Written anew, the file is as small as
+        // what it holds, and from now on it can give free space back by
+        // itself. Done once: it takes as long as copying the file.
         db
           ..execute('PRAGMA auto_vacuum = INCREMENTAL')
           ..execute('VACUUM')
@@ -151,7 +167,11 @@ class LibraryDb {
 
   /// The schema this version of the app reads and writes. Raise it together
   /// with a new entry in [_migrations].
-  static const schemaVersion = 5;
+  static const schemaVersion = 6;
+
+  /// The versions that leave much of the file empty when a library is
+  /// upgraded to them.
+  static const _compacting = [5, 6];
 
   final Database db;
 
@@ -220,7 +240,51 @@ const _damagedCodes = {11, 26};
 /// One script per schema version, in order: `_migrations[n]` takes a
 /// database from version n to n + 1. Never edit a script that has shipped;
 /// add a new one.
-const _migrations = [_schemaV1, _schemaV2, _schemaV3, _schemaV4, _schemaV5];
+const _migrations = [
+  _schemaV1,
+  _schemaV2,
+  _schemaV3,
+  _schemaV4,
+  _schemaV5,
+  _schemaV6,
+];
+
+/// Short addresses. Measured on 577,000 videos: see docs/DEVELOPMENT.md.
+const _schemaV6 = '''
+-- A video's address mostly starts with the address of its folder, which
+-- the folder's row holds already: only what follows is kept (see
+-- fileUrlSql). A whole address is told by its "://", which what follows a
+-- folder's address never has; an address that does is kept whole.
+--
+-- The short number can then no longer be computed from the row, so it is
+-- a column of its own, filled once here and by the trigger below.
+DROP INDEX files_url_key;
+ALTER TABLE files DROP COLUMN url_key;
+ALTER TABLE files ADD COLUMN url_key INTEGER;
+UPDATE files SET url_key = dhara_url_key(url);
+UPDATE files SET url = substr(files.url, length(d.url) + 1)
+FROM folders d
+WHERE d.id = files.folder
+  AND length(files.url) > length(d.url)
+  AND substr(files.url, 1, length(d.url)) = d.url
+  AND instr(substr(files.url, length(d.url) + 1), '://') = 0;
+CREATE INDEX files_url_key ON files (url_key);
+
+-- A video is put in with its whole address; this notes its number and
+-- cuts the address short.
+CREATE TRIGGER files_address AFTER INSERT ON files BEGIN
+  UPDATE files SET
+    url_key = dhara_url_key(new.url),
+    url = ifnull((
+      SELECT substr(new.url, length(d.url) + 1) FROM folders d
+      WHERE d.id = new.folder
+        AND length(new.url) > length(d.url)
+        AND substr(new.url, 1, length(d.url)) = d.url
+        AND instr(substr(new.url, length(d.url) + 1), '://') = 0
+    ), new.url)
+  WHERE id = new.id;
+END;
+''';
 
 /// The same library in less room. Measured on 577,000 videos: 768 MB before,
 /// see docs/DEVELOPMENT.md for after.

@@ -62,7 +62,7 @@ void main() {
       expect(db.select('SELECT dhara_url_key(NULL)').single.values, [null]);
     });
 
-    test('is kept for every video without being written', () {
+    test('is noted for every video as it is put in', () {
       final file = addFile(addFolder(), 'Heat.1995.mkv');
 
       expect(
@@ -75,6 +75,61 @@ void main() {
             .single
             .values,
         [file],
+      );
+    });
+  });
+
+  group('the address of a video', () {
+    List<Object?> stored(int id) => db
+        .select(
+          'SELECT url, $fileUrlAloneSql, url_key FROM files WHERE id = ?',
+          [id],
+        )
+        .single
+        .values;
+    int add(int folder, String url) {
+      db.execute(
+        "INSERT INTO files (folder, name, url, added_at) VALUES (?, 'n', ?, 0)",
+        [folder, url],
+      );
+      return db.lastInsertRowId;
+    }
+
+    test('is kept as what follows the address of its folder', () {
+      final folder = addFolder(url: 'http://a.test/Films/Heat%20(1995)/');
+      const url = 'http://a.test/Films/Heat%20(1995)/Heat.1995.1080p.mkv';
+
+      expect(stored(add(folder, url)), ['Heat.1995.1080p.mkv', url, urlKey(url)]);
+    });
+
+    test('is kept whole where it does not follow from the folder', () {
+      final folder = addFolder(url: 'http://a.test/emby/folder/12/');
+      for (final url in [
+        // Another place altogether, as on an Emby server.
+        'http://a.test/emby/Videos/77/stream.mkv?static=true',
+        // Under the folder, but what follows would pass for a whole address.
+        'http://a.test/emby/folder/12/get?from=http://b.test/x.mkv',
+        // The folder's own address.
+        'http://a.test/emby/folder/12/',
+      ]) {
+        expect(stored(add(folder, url)), [url, url, urlKey(url)], reason: url);
+      }
+    });
+
+    test('is one of many: a query puts it together with the folder', () {
+      final folder = addFolder(url: 'http://a.test/s/');
+      final file = add(folder, 'http://a.test/s/E01.mkv');
+
+      expect(
+        db
+            .select(
+              "SELECT ${fileUrlSql('f', 'd')} FROM files f "
+              'JOIN folders d ON d.id = f.folder WHERE f.id = ?',
+              [file],
+            )
+            .single
+            .values,
+        ['http://a.test/s/E01.mkv'],
       );
     });
   });
@@ -549,7 +604,7 @@ void main() {
         db
             .select(
               'SELECT id FROM files INDEXED BY files_url_key '
-              'WHERE url_key = dhara_url_key(?1) AND url = ?1',
+              'WHERE url_key = dhara_url_key(?1) AND $fileUrlAloneSql = ?1',
               ['http://a.test/Tenet.2020.mkv'],
             )
             .single
@@ -613,8 +668,9 @@ void main() {
         db
             .select(
               'SELECT f.id FROM watch_history h JOIN files f '
-              'INDEXED BY files_url_key '
-              'ON f.url_key = dhara_url_key(h.url) AND f.url = h.url',
+              'INDEXED BY files_url_key ON f.url_key = dhara_url_key(h.url) '
+              'JOIN folders d ON d.id = f.folder '
+              "WHERE ${fileUrlSql('f', 'd')} = h.url",
             )
             .single
             .values,
@@ -635,6 +691,13 @@ void main() {
           row['rowid'],
       ];
       expect(found('tenet'), [7]);
+      // Addresses are kept short, and read whole.
+      expect(
+        db.select('SELECT url, $fileUrlAloneSql FROM files WHERE id = 7')
+            .single
+            .values,
+        ['Tenet.2020.mkv', 'http://a.test/Tenet.2020.mkv'],
+      );
       expect(found('nolan number 1500'), [1500]);
       expect(found('number 1501'), isEmpty);
       // The kept answers are packed, and read as they were.
@@ -657,6 +720,72 @@ void main() {
       );
       upgraded.releaseFreeSpace();
       expect(db.select('PRAGMA freelist_count').single.values, [0]);
+    });
+
+    test('made by version 5 is upgraded: its addresses are cut short and '
+        'still found', () {
+      final old = LibraryDb.openAt(path, 5);
+      old.db
+        ..execute("INSERT INTO sources (id, source_id) VALUES (1, 'a')")
+        ..execute(
+          'INSERT INTO folders (id, source, url, path, depth) VALUES '
+          "(1, 1, 'http://a.test/Films/', 'Films', 0), "
+          "(2, 1, 'http://a.test/emby/9/', 'Emby', 0)",
+        )
+        ..execute(
+          'INSERT INTO files (id, folder, name, url, added_at) VALUES '
+          "(7, 1, 'Tenet.2020.mkv', 'http://a.test/Films/Tenet.2020.mkv', 0), "
+          "(8, 2, 'Heat', 'http://a.test/emby/Videos/8/stream.mkv', 0)",
+        );
+      // As version 5 had it: a number computed from the row.
+      expect(
+        old.db.select('SELECT url_key FROM files WHERE id = 7').single.values,
+        [urlKey('http://a.test/Films/Tenet.2020.mkv')],
+      );
+      old.close();
+
+      final upgraded = LibraryDb.open(path);
+      addTearDown(upgraded.close);
+      final db = upgraded.db;
+
+      expect(db.userVersion, LibraryDb.schemaVersion);
+      expect(
+        db.select('SELECT id, url, url_key FROM files ORDER BY id').map(
+          (row) => row.values,
+        ),
+        [
+          [7, 'Tenet.2020.mkv', urlKey('http://a.test/Films/Tenet.2020.mkv')],
+          [
+            8,
+            'http://a.test/emby/Videos/8/stream.mkv',
+            urlKey('http://a.test/emby/Videos/8/stream.mkv'),
+          ],
+        ],
+      );
+      for (final (id, url) in [
+        (7, 'http://a.test/Films/Tenet.2020.mkv'),
+        (8, 'http://a.test/emby/Videos/8/stream.mkv'),
+      ]) {
+        expect(
+          db
+              .select(
+                'SELECT id FROM files INDEXED BY files_url_key '
+                'WHERE url_key = dhara_url_key(?1) AND $fileUrlAloneSql = ?1',
+                [url],
+              )
+              .single
+              .values,
+          [id],
+        );
+      }
+      // And a video put in afterwards is treated the same.
+      db.execute(
+        'INSERT INTO files (id, folder, name, url, added_at) VALUES '
+        "(9, 1, 'Dune.mkv', 'http://a.test/Films/Dune.mkv', 0)",
+      );
+      expect(db.select('SELECT url FROM files WHERE id = 9').single.values, [
+        'Dune.mkv',
+      ]);
     });
 
     test('a new file can give free space back from the start', () {

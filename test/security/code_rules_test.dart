@@ -148,6 +148,9 @@ void main() {
         r'onSources|rated|from|order|pageCacheKb)$',
       ),
       RegExp(r"^where\.join\(' AND '\)$"),
+      // The whole address of a video, put together from its row and its
+      // folder's (lib/core/db/library_db.dart).
+      RegExp(r"^(fileUrlAloneSql|fileUrlSql\('\w+', '\w+'\))$"),
       RegExp(
         r'^(only == null|withOverview|whateverItsState|countOnly|'
         r'minHeight == null) \? ',

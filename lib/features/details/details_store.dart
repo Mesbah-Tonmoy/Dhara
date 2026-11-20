@@ -222,7 +222,8 @@ class DetailsStore {
       'ifnull(p.position_ms, h.position_ms) AS position_ms '
       'FROM file_meta m '
       'CROSS JOIN files f ON f.id = m.file '
-      'CROSS JOIN watch_history h ON h.url = f.url '
+      'CROSS JOIN folders d ON d.id = f.folder '
+      'CROSS JOIN watch_history h ON h.url = ${fileUrlSql('f', 'd')} '
       'LEFT JOIN playback p ON p.url = h.url '
       'WHERE m.title = ?',
       [title],

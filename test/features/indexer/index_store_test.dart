@@ -144,7 +144,11 @@ void main() {
 
       store.beginCrawl('a', [other]);
 
-      expect(column('SELECT url FROM files'), ['http://a.test/more/x.mkv']);
+      expect(column('SELECT $fileUrlAloneSql FROM files'), [
+        'http://a.test/more/x.mkv',
+      ]);
+      // Kept as what follows its folder's address.
+      expect(column('SELECT url FROM files'), ['x.mkv']);
     });
 
     test('with full, also reads folders that have not changed', () {

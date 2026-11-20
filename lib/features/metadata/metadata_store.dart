@@ -370,7 +370,8 @@ class MetadataStore {
     if (ids.isEmpty) return const [];
     return [
       for (final row in _db.select(
-        'SELECT f.id, f.name, f.url, f.size, d.path, s.source_id, m.season, '
+        'SELECT f.id, f.name, ${fileUrlSql('f', 'd')} AS url, f.size, d.path, '
+        's.source_id, m.season, '
         // The name TMDB gives the episode, or else the one in the file name.
         'm.episode, m.episode_end, '
         'coalesce(e.name, m.episode_name) AS episode_name, m.part, m.extra, '

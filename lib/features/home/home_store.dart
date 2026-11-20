@@ -280,7 +280,7 @@ class HomeStore {
       'LEFT JOIN playback p ON p.url = h.url '
       // By the short number of the address first: that is what is indexed.
       'LEFT JOIN files f ON f.id = (SELECT min(id) FROM files '
-      'WHERE url_key = dhara_url_key(h.url) AND url = h.url) '
+      'WHERE url_key = dhara_url_key(h.url) AND $fileUrlAloneSql = h.url) '
       'LEFT JOIN folders d ON d.id = f.folder '
       'LEFT JOIN file_meta m ON m.file = f.id '
       'LEFT JOIN episodes e ON e.title = m.title AND e.season = m.season '
