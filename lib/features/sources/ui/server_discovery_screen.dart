@@ -15,6 +15,7 @@ import 'package:dhara/theme/tokens.dart';
 import 'package:dhara/widgets/buttons.dart';
 import 'package:dhara/widgets/chips.dart';
 import 'package:dhara/widgets/icons.dart';
+import 'package:dhara/widgets/page_parts.dart';
 import 'package:dhara/widgets/pressable.dart';
 import 'package:dhara/widgets/surfaces.dart';
 import 'package:dhara/widgets/toast.dart';
@@ -66,6 +67,36 @@ class ServerDiscoveryScreen extends StatefulWidget {
 
 class _ServerDiscoveryScreenState extends State<ServerDiscoveryScreen> {
   var _filter = _Filter.all;
+
+  /// What is typed into the search field, and its words in lower case.
+  final _search = TextEditingController();
+  var _words = const <String>[];
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _onSearch(String text) => setState(() {
+    _words = [
+      for (final word in text.toLowerCase().split(RegExp(r'\s+')))
+        if (word.isNotEmpty) word,
+    ];
+  });
+
+  /// Whether every word typed is somewhere in what the list says of
+  /// [source]: its name, its operator and ISP, or one of its addresses.
+  bool _matches(Source source) {
+    if (_words.isEmpty) return true;
+    final text = [
+      source.name,
+      source.provider ?? '',
+      source.isp ?? '',
+      for (final url in source.baseUrls) url.toString(),
+    ].join('\n').toLowerCase();
+    return _words.every(text.contains);
+  }
 
   SourceTestController get _tests => SourcesScope.read(context);
   SourceStore get _store => _tests.store;
@@ -281,10 +312,11 @@ class _ServerDiscoveryScreenState extends State<ServerDiscoveryScreen> {
     final store = tests.store;
     final shown = [
       for (final source in store.sources)
-        if (_filter.shows(
-          tests.statusOf(source.id),
-          enabled: store.isEnabled(source.id),
-        ))
+        if (_matches(source) &&
+            _filter.shows(
+              tests.statusOf(source.id),
+              enabled: store.isEnabled(source.id),
+            ))
           source,
     ];
 
@@ -329,6 +361,16 @@ class _ServerDiscoveryScreenState extends State<ServerDiscoveryScreen> {
                           runSpacing: .5 * rem,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
+                            SizedBox(
+                              width: 17 * rem,
+                              child: DharaField(
+                                key: const Key('discovery-search'),
+                                controller: _search,
+                                icon: DharaIcons.search,
+                                hint: 'Name, ISP or address',
+                                onChanged: _onSearch,
+                              ),
+                            ),
                             for (final filter in _Filter.values)
                               PillChip(
                                 key: Key('filter-${filter.name}'),

@@ -234,6 +234,68 @@ void main() {
     expect(find.text('http://10.0.0.1/down/'), findsOneWidget);
   });
 
+  testWidgets('the search field narrows the list by name, ISP or address, '
+      'together with the filter', (tester) async {
+    final field = find.byKey(const Key('discovery-search'));
+    Source named(String id, String name, {String? isp}) => Source(
+      id: id,
+      name: name,
+      isp: isp,
+      type: SourceType.h5ai,
+      category: SourceCategory.mixed,
+      baseUrls: [Uri.parse('http://10.0.0.1/$id/')],
+    );
+    await show(
+      tester,
+      sources: [
+        named('one', 'CircleFTP ftp4', isp: 'Circle Network'),
+        named('two', 'CircleFTP ftp5', isp: 'Circle Network'),
+        named('three', 'ICC ftps3', isp: 'ICC Communication'),
+      ],
+      enabled: {'two'},
+    );
+    List<String> shown() => [
+      for (final id in ['one', 'two', 'three'])
+        if (find.text('http://10.0.0.1/$id/').evaluate().isNotEmpty) id,
+    ];
+    Future<void> type(String text) async {
+      await tester.enterText(
+        find.descendant(of: field, matching: find.byType(TextField)),
+        text,
+      );
+      await tester.pump();
+    }
+
+    expect(shown(), ['one', 'two', 'three']);
+
+    await type('circle');
+    expect(shown(), ['one', 'two']);
+
+    // Every word must be there, in any order and any case.
+    await type('FTP5  circle');
+    expect(shown(), ['two']);
+
+    await type('icc communication');
+    expect(shown(), ['three']);
+
+    await type('10.0.0.1/one');
+    expect(shown(), ['one']);
+
+    await type('circle');
+    await tester.tap(find.byKey(const Key('filter-enabled')));
+    await tester.pump();
+    expect(shown(), ['two']);
+
+    await type('nothing like it');
+    expect(shown(), isEmpty);
+    expect(find.text('No servers in this view'), findsOneWidget);
+
+    await type('');
+    await tester.tap(find.byKey(const Key('filter-all')));
+    await tester.pump();
+    expect(shown(), ['one', 'two', 'three']);
+  });
+
   testWidgets('an empty view says so', (tester) async {
     await show(tester, sources: [_source('new')]);
 
