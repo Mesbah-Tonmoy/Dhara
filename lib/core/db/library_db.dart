@@ -1,5 +1,32 @@
+import 'dart:convert';
+// For its compression only: the file itself is opened by SQLite.
+import 'dart:io' show zlib;
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:sqlite3/sqlite3.dart';
+
+/// A short number made from the address of a video, to look the video up
+/// by: 48 bits of FNV-1a over the address as UTF-8. Two addresses can
+/// share one, so a lookup compares the address as well.
+///
+/// SQL knows it as `dhara_url_key(url)`; the column `files.url_key` and
+/// its index are made with it, so it must never give another number for
+/// an address than it did.
+int urlKey(String url) {
+  var hash = 0xcbf29ce484222325;
+  for (final byte in utf8.encode(url)) {
+    hash = (hash ^ byte) * 0x100000001b3;
+  }
+  return hash & 0xffffffffffff;
+}
+
+/// How an answer of a metadata provider is kept: its text, deflated. SQL
+/// knows the two as `dhara_pack(text)` and `dhara_unpack(blob)`.
+Uint8List packAnswer(String text) =>
+    Uint8List.fromList(zlib.encode(utf8.encode(text)));
+
+String unpackAnswer(Uint8List packed) => utf8.decode(zlib.decode(packed));
 
 /// Why [LibraryDb.open] refused a database file.
 enum LibraryDbProblem {
@@ -73,6 +100,13 @@ class LibraryDb {
       if (version > schemaVersion) {
         throw const LibraryDbException(LibraryDbProblem.newerVersion);
       }
+      _addFunctions(db);
+      if (onDisk && version == 0) {
+        // A new file: what is deleted later can be given back to the disk
+        // a page at a time ([releaseFreeSpace]). It has to be said before
+        // the first table is made.
+        db.execute('PRAGMA auto_vacuum = INCREMENTAL');
+      }
       if (onDisk) {
         // Readers and the writer do not block each other, and a commit does
         // not wait for the disk. A crash can lose the last few commits but
@@ -92,6 +126,16 @@ class LibraryDb {
           db.userVersion = next + 1;
         });
       }
+      if (onDisk && version > 0 && version < 5 && upTo >= 5) {
+        // Version 5 threw away two large indexes and packed the cache.
+        // Written anew, the file is as small as what it holds, and from
+        // now on it can give free space back by itself. Done once: it
+        // takes as long as copying the file.
+        db
+          ..execute('PRAGMA auto_vacuum = INCREMENTAL')
+          ..execute('VACUUM')
+          ..execute('PRAGMA wal_checkpoint(TRUNCATE)');
+      }
       return library;
     } on SqliteException catch (error) {
       db.close();
@@ -107,9 +151,50 @@ class LibraryDb {
 
   /// The schema this version of the app reads and writes. Raise it together
   /// with a new entry in [_migrations].
-  static const schemaVersion = 4;
+  static const schemaVersion = 5;
 
   final Database db;
+
+  /// Gives the pages that deleting left empty back to the disk. Cheap when
+  /// there are none; worth calling after a source was removed or a crawl
+  /// dropped what a server no longer has.
+  void releaseFreeSpace() => db.execute('PRAGMA incremental_vacuum');
+
+  /// The functions the schema and the queries use; see [urlKey] and
+  /// [packAnswer]. `dhara_url_key` is part of the schema (a column is made
+  /// with it), so it may be called from there; the other two only from the
+  /// app's own statements.
+  static void _addFunctions(Database db) {
+    db
+      ..createFunction(
+        functionName: 'dhara_url_key',
+        argumentCount: const AllowedArgumentCount(1),
+        deterministic: true,
+        directOnly: false,
+        function: (arguments) => switch (arguments[0]) {
+          final String url => urlKey(url),
+          _ => null,
+        },
+      )
+      ..createFunction(
+        functionName: 'dhara_pack',
+        argumentCount: const AllowedArgumentCount(1),
+        deterministic: true,
+        function: (arguments) => switch (arguments[0]) {
+          final String text => packAnswer(text),
+          _ => null,
+        },
+      )
+      ..createFunction(
+        functionName: 'dhara_unpack',
+        argumentCount: const AllowedArgumentCount(1),
+        deterministic: true,
+        function: (arguments) => switch (arguments[0]) {
+          final Uint8List packed => unpackAnswer(packed),
+          _ => null,
+        },
+      );
+  }
 
   /// Runs [body] as one transaction: all of its changes are kept, or, if it
   /// throws, none.
@@ -135,7 +220,52 @@ const _damagedCodes = {11, 26};
 /// One script per schema version, in order: `_migrations[n]` takes a
 /// database from version n to n + 1. Never edit a script that has shipped;
 /// add a new one.
-const _migrations = [_schemaV1, _schemaV2, _schemaV3, _schemaV4];
+const _migrations = [_schemaV1, _schemaV2, _schemaV3, _schemaV4, _schemaV5];
+
+/// The same library in less room. Measured on 577,000 videos: 768 MB before,
+/// see docs/DEVELOPMENT.md for after.
+const _schemaV5 = '''
+-- Finding a video by its address took an index over every address, a
+-- second copy of them all (120 MB). A short number made from the address
+-- finds it as well; the query then compares the address itself.
+DROP INDEX files_url;
+ALTER TABLE files ADD COLUMN url_key INTEGER
+  GENERATED ALWAYS AS (dhara_url_key(url)) VIRTUAL;
+CREATE INDEX files_url_key ON files (url_key);
+
+-- The search index over file names kept where in a name each word stands
+-- (137 MB). Which words a name has is all the search asks: a quarter of
+-- the size. It cannot look for words in a row any more, so the query
+-- names every word by itself.
+DROP TABLE files_fts;
+CREATE VIRTUAL TABLE files_fts USING fts5 (
+  name,
+  path,
+  content = '',
+  contentless_delete = 1,
+  tokenize = 'unicode61 remove_diacritics 2',
+  prefix = '2 3',
+  detail = none
+);
+INSERT INTO files_fts (rowid, name, path)
+SELECT f.id, f.name, d.path FROM files f JOIN folders d ON d.id = f.folder;
+
+-- The providers' answers, deflated, and in a table of the ordinary kind:
+-- as rows of an index, answers of a kilobyte each left half of every page
+-- empty.
+CREATE TABLE metadata_answers (
+  id INTEGER PRIMARY KEY,
+  provider TEXT NOT NULL,           -- 'tmdb', 'anilist'
+  key TEXT NOT NULL,                -- what was asked
+  body BLOB NOT NULL,               -- JSON, as dhara_pack leaves it
+  fetched_at INTEGER NOT NULL,
+  UNIQUE (provider, key)
+) STRICT;
+INSERT INTO metadata_answers (provider, key, body, fetched_at)
+SELECT provider, key, dhara_pack(body), fetched_at FROM metadata_cache;
+DROP TABLE metadata_cache;
+ALTER TABLE metadata_answers RENAME TO metadata_cache;
+''';
 
 const _schemaV1 = '''
 -- Crawl state of one source. The source itself (name, URLs, type) lives in

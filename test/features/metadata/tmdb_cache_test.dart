@@ -159,21 +159,25 @@ void main() {
 
   test('asks again if what was kept cannot be read', () async {
     await tmdb.candidates(TitleKind.movie, 'The Glass Harbor');
-    library.db.execute("UPDATE metadata_cache SET body = 'not json'");
+    library.db.execute(
+      "UPDATE metadata_cache SET body = dhara_pack('not json')",
+    );
     expect(
       await tmdb.candidates(TitleKind.movie, 'The Glass Harbor'),
       hasLength(5),
     );
     expect(asked('/3/search/movie'), 2);
 
-    library.db.execute("UPDATE metadata_cache SET body = '{\"a\":1}'");
+    library.db.execute(
+      "UPDATE metadata_cache SET body = dhara_pack('{\"a\":1}')",
+    );
     await tmdb.candidates(TitleKind.movie, 'The Glass Harbor');
     expect(asked('/3/search/movie'), 3);
 
     // Entries that are not candidates are left out; the rest counts.
     library.db.execute(
-      'UPDATE metadata_cache SET body = '
-      "'[{\"id\":7,\"title\":\"Kept\"},{\"id\":0},42]'",
+      'UPDATE metadata_cache SET body = dhara_pack('
+      "'[{\"id\":7,\"title\":\"Kept\"},{\"id\":0},42]')",
     );
     final kept = await tmdb.candidates(TitleKind.movie, 'The Glass Harbor');
     expect([for (final film in kept) film.title], ['Kept']);

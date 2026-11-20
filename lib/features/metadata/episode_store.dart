@@ -48,7 +48,8 @@ class EpisodeStore {
     final oldest = _now - refreshAfter.inMilliseconds;
     final shows = <ShowToFetch>[];
     for (final row in _db.select(
-      'SELECT t.id, t.tmdb_id, t.details_at, c.body, c.fetched_at '
+      'SELECT t.id, t.tmdb_id, t.details_at, '
+      'dhara_unpack(c.body) AS body, c.fetched_at '
       'FROM titles t '
       'LEFT JOIN metadata_cache c ON c.provider = ? '
       "AND c.key = 'show|' || t.tmdb_id "
@@ -154,7 +155,7 @@ class EpisodeStore {
       ..execute('UPDATE titles SET details_at = ? WHERE id = ?', [_now, title])
       ..execute(
         'INSERT OR REPLACE INTO metadata_cache '
-        '(provider, key, body, fetched_at) VALUES (?, ?, ?, ?)',
+        '(provider, key, body, fetched_at) VALUES (?, ?, dhara_pack(?), ?)',
         [_provider, 'show|${show.tmdbId}', jsonEncode(show.seasons), _now],
       );
   });

@@ -92,7 +92,7 @@ Not findings, but worth knowing:
 | A picture must be a picture | at most 3 MB, kept only if it starts like a JPEG, PNG or WebP | `image_store_test.dart` | ok |
 | An external subtitle | picked in the system's file dialog; `.srt/.ass/.ssa/.vtt`, a regular file, at most 20 MB; only handed to the player | `subtitle_file_test.dart` | ok |
 | Nothing is executed or opened with another program | no `Process`, no shell, no link opened | *guard* | ok |
-| Which files reach the file system at all | twelve files import `dart:io` | *guard* (the list) | ok |
+| Which files reach the file system at all | thirteen files import `dart:io`, one of them (`library_db.dart`) for its compression only | *guard* (the list) | ok |
 
 ## Secrets
 

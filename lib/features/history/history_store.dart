@@ -171,8 +171,9 @@ extension HistoryPage on HistoryStore {
       'coalesce(e.name, m.episode_name) AS episode_name, e.still_path '
       'FROM (SELECT * FROM watch_history ORDER BY watched_at DESC LIMIT ?) h '
       'LEFT JOIN playback p ON p.url = h.url '
+      // By the short number of the address first: that is what is indexed.
       'LEFT JOIN files f ON f.id = (SELECT min(id) FROM files '
-      'WHERE url = h.url) '
+      'WHERE url_key = dhara_url_key(h.url) AND url = h.url) '
       'LEFT JOIN folders d ON d.id = f.folder '
       'LEFT JOIN sources s ON s.id = d.source '
       'LEFT JOIN file_meta m ON m.file = f.id '

@@ -293,6 +293,9 @@ Future<void> _crawlSources(
   } finally {
     control.close();
     client.close();
+    // What the servers no longer have went from the index; the room it
+    // took goes back to the disk.
+    db.releaseFreeSpace();
   }
 }
 

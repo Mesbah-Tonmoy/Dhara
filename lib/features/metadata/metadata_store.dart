@@ -257,7 +257,7 @@ class MetadataStore {
     required Duration maxAge,
   }) {
     final rows = _db.select(
-      'SELECT body, fetched_at FROM metadata_cache '
+      'SELECT dhara_unpack(body) AS body, fetched_at FROM metadata_cache '
       'WHERE provider = ? AND key = ?',
       [provider, key],
     );
@@ -274,7 +274,7 @@ class MetadataStore {
   /// one.
   void cacheAnswer(String provider, String key, String body) => _db.execute(
     'INSERT OR REPLACE INTO metadata_cache '
-    '(provider, key, body, fetched_at) VALUES (?, ?, ?, ?)',
+    '(provider, key, body, fetched_at) VALUES (?, ?, dhara_pack(?), ?)',
     [provider, key, body, _clock().millisecondsSinceEpoch],
   );
 

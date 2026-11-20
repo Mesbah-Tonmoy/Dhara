@@ -607,7 +607,7 @@ void main() {
     test('keeps one cached answer per provider and question', () {
       void put(String provider, String key, String body) => db.execute(
         'INSERT OR REPLACE INTO metadata_cache '
-        '(provider, key, body, fetched_at) VALUES (?, ?, ?, 0)',
+        '(provider, key, body, fetched_at) VALUES (?, ?, dhara_pack(?), 0)',
         [provider, key, body],
       );
       put('tmdb', 'movie|a|2001', '[]');
@@ -617,7 +617,10 @@ void main() {
       expect(count('metadata_cache'), 2);
       expect(
         db
-            .select("SELECT body FROM metadata_cache WHERE provider = 'tmdb'")
+            .select(
+              'SELECT dhara_unpack(body) FROM metadata_cache '
+              "WHERE provider = 'tmdb'",
+            )
             .single
             .values,
         ['[1]'],

@@ -164,7 +164,8 @@ class ReviewStore {
     final candidates = <TmdbCandidate>[];
     for (final key in keys) {
       final rows = _db.select(
-        'SELECT body FROM metadata_cache WHERE provider = ? AND key = ?',
+        'SELECT dhara_unpack(body) AS body FROM metadata_cache '
+        'WHERE provider = ? AND key = ?',
         [CachedTmdb.provider, key],
       );
       if (rows.isEmpty) continue;

@@ -459,6 +459,8 @@ class IndexStore {
       'WHERE source_id NOT IN (${_placeholders(ids.length)})',
       ids,
     );
+    // A source takes a large part of the file with it.
+    if (_db.updatedRows > 0) _library.releaseFreeSpace();
   }
 
   /// What the index holds of every source that was ever crawled.
@@ -496,7 +498,7 @@ class IndexStore {
     required Iterable<String> sourceIds,
     int limit = 50,
   }) {
-    final query = ftsQueryFor(text);
+    final query = ftsWordsQueryFor(text);
     final ids = sourceIds.toList();
     if (query == null || ids.isEmpty) return const [];
     return [
@@ -539,6 +541,21 @@ String? ftsQueryFor(String text) {
   ];
   return '${quoted.join(' ')}*';
 }
+
+/// As [ftsQueryFor], for an index that keeps no word order (the one over
+/// file names): what is typed is cut at everything that is not a letter or
+/// a digit, as the index cuts names, so "breaking.bad" asks for the two
+/// words and not for one after the other.
+String? ftsWordsQueryFor(String text) {
+  final words = [
+    for (final word in text.split(_notLetterOrDigit))
+      if (word.isNotEmpty) word,
+  ];
+  if (words.isEmpty) return null;
+  return '${[for (final word in words.take(_maxSearchWords)) '"$word"'].join(' ')}*';
+}
+
+final _notLetterOrDigit = RegExp(r'[^\p{L}\p{N}]+', unicode: true);
 
 const _maxSearchWords = 12;
 final _whitespace = RegExp(r'\s+');

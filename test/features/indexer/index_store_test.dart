@@ -657,6 +657,21 @@ void main() {
     });
   });
 
+  group('ftsWordsQueryFor', () {
+    test('names every word by itself, cut where the index cuts names', () {
+      expect(ftsWordsQueryFor('dark'), '"dark"*');
+      expect(
+        ftsWordsQueryFor('Breaking.Bad s01e02'),
+        '"Breaking" "Bad" "s01e02"*',
+      );
+      expect(ftsWordsQueryFor('say "hi" (2019)'), '"say" "hi" "2019"*');
+      // The index cuts at Bangla vowel signs too: they are no letters.
+      expect(ftsWordsQueryFor('ফিল্ম amélie'), '"ফ" "ল" "ম" "amélie"*');
+      expect(ftsWordsQueryFor(' -. '), isNull);
+      expect(ftsWordsQueryFor(''), isNull);
+    });
+  });
+
   group('ftsQueryFor', () {
     test('quotes every word and leaves the last one open', () {
       expect(ftsQueryFor('dark'), '"dark"*');

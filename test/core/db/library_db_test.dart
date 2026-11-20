@@ -47,6 +47,52 @@ void main() {
   int count(String table) =>
       db.select('SELECT count(*) AS n FROM $table').first['n'] as int;
 
+  group('the short number of an address', () {
+    test('is the same for the same address, in Dart and in SQL, and never '
+        'changes', () {
+      const url = 'http://10.0.0.1/Films/Tenet%20(2020)/Tenet.2020.mkv';
+      // Written down once: the index of every library is made with it.
+      expect(urlKey(url), 8140996203917);
+      expect(urlKey(''), 0x9ce484222325);
+      expect(db.select('SELECT dhara_url_key(?)', [url]).single.values, [
+        urlKey(url),
+      ]);
+      expect(urlKey('${url}x'), isNot(urlKey(url)));
+      expect(urlKey('http://a.test/ফিল্ম.mkv'), lessThan(1 << 48));
+      expect(db.select('SELECT dhara_url_key(NULL)').single.values, [null]);
+    });
+
+    test('is kept for every video without being written', () {
+      final file = addFile(addFolder(), 'Heat.1995.mkv');
+
+      expect(
+        db
+            .select(
+              'SELECT id FROM files INDEXED BY files_url_key '
+              'WHERE url_key = ?',
+              [urlKey('http://a.test/Heat.1995.mkv')],
+            )
+            .single
+            .values,
+        [file],
+      );
+    });
+  });
+
+  test('an answer is packed and unpacked without loss', () {
+    const text = '[{"id":1,"title":"ফিল্ম"},{"id":2,"title":"Amélie"}]';
+
+    expect(unpackAnswer(packAnswer(text)), text);
+    expect(
+      db.select('SELECT dhara_unpack(dhara_pack(?))', [text]).single.values,
+      [text],
+    );
+    expect(
+      packAnswer(List.filled(40, text).join()).length,
+      lessThan(text.length * 4),
+    );
+  });
+
   group('bundled SQLite', () {
     test('has FTS5 and is new enough for the search index', () {
       final options = [
@@ -244,7 +290,16 @@ void main() {
 
       expect(search('breaking bad'), [episode]);
       expect(search('breaking s01e02'), [episode]);
-      expect(search('name : breaking'), isEmpty);
+    });
+
+    test('keeps which words a name has, not their order', () {
+      final folder = addFolder();
+      final file = addFile(folder, 'The.Dark.Knight.2008.mkv');
+
+      expect(search('knight dark'), [file]);
+      // Words in a row, or in one column only, it cannot be asked for.
+      expect(() => search('"dark knight"'), throwsA(isA<SqliteException>()));
+      expect(() => search('name : dark'), throwsA(isA<SqliteException>()));
     });
 
     test('finds a file by the start of a word', () {
@@ -493,7 +548,8 @@ void main() {
       expect(
         db
             .select(
-              'SELECT id FROM files INDEXED BY files_url WHERE url = ?',
+              'SELECT id FROM files INDEXED BY files_url_key '
+              'WHERE url_key = dhara_url_key(?1) AND url = ?1',
               ['http://a.test/Tenet.2020.mkv'],
             )
             .single
@@ -510,6 +566,104 @@ void main() {
             .values,
         [3],
       );
+    });
+
+    test('made by version 4 is upgraded: smaller, and with what it held', () {
+      final old = LibraryDb.openAt(path, 4);
+      old.db
+        ..execute("INSERT INTO sources (id, source_id) VALUES (1, 'a')")
+        ..execute(
+          'INSERT INTO folders (id, source, url, path, depth) '
+          "VALUES (1, 1, 'http://a.test/', 'Films/Nolan', 0)",
+        )
+        ..execute(
+          'INSERT INTO metadata_cache (provider, key, body, fetched_at) '
+          "VALUES ('tmdb', 'search|movie|tenet|2020', '[{\"id\":577922}]', 7)",
+        )
+        ..execute(
+          'INSERT INTO watch_history (url, watched_at, position_ms, '
+          "duration_ms) VALUES ('http://a.test/Tenet.2020.mkv', 7, 1, 5)",
+        );
+      final insert = old.db.prepare(
+        'INSERT INTO files (id, folder, name, url, added_at) '
+        'VALUES (?1, 1, ?2, ?3, 0)',
+      );
+      for (var id = 1; id <= 3000; id++) {
+        final name = id == 7 ? 'Tenet.2020.mkv' : 'Film.Number.$id.mkv';
+        insert.execute([id, name, 'http://a.test/$name']);
+      }
+      insert.close();
+      // What a removed source leaves behind: free pages in the file.
+      old.db.execute('DELETE FROM files WHERE id > 1500');
+      expect(old.db.userVersion, 4);
+      old.close();
+      final sizeBefore = File(path).lengthSync();
+
+      final upgraded = LibraryDb.open(path);
+      addTearDown(upgraded.close);
+      final db = upgraded.db;
+
+      expect(db.userVersion, LibraryDb.schemaVersion);
+      expect(File(path).lengthSync(), lessThan(sizeBefore));
+      expect(db.select('PRAGMA freelist_count').single.values, [0]);
+      expect(db.select('PRAGMA auto_vacuum').single.values, [2]);
+      expect(db.select('SELECT count(*) FROM files').single.values, [1500]);
+      // A video is found by its address through the short number.
+      expect(
+        db
+            .select(
+              'SELECT f.id FROM watch_history h JOIN files f '
+              'INDEXED BY files_url_key '
+              'ON f.url_key = dhara_url_key(h.url) AND f.url = h.url',
+            )
+            .single
+            .values,
+        [7],
+      );
+      expect(
+        db.select(
+          "SELECT name FROM sqlite_schema WHERE name = 'files_url'",
+        ),
+        isEmpty,
+      );
+      // The search index was made anew from the names and folders.
+      List<Object?> found(String words) => [
+        for (final row in db.select(
+          'SELECT rowid FROM files_fts WHERE files_fts MATCH ?',
+          [words],
+        ))
+          row['rowid'],
+      ];
+      expect(found('tenet'), [7]);
+      expect(found('nolan number 1500'), [1500]);
+      expect(found('number 1501'), isEmpty);
+      // The kept answers are packed, and read as they were.
+      expect(
+        db
+            .select(
+              'SELECT provider, key, typeof(body), dhara_unpack(body), '
+              'fetched_at FROM metadata_cache',
+            )
+            .single
+            .values,
+        ['tmdb', 'search|movie|tenet|2020', 'blob', '[{"id":577922}]', 7],
+      );
+
+      // Later, free pages go back to the disk when asked.
+      db.execute('DELETE FROM files WHERE id > 100');
+      expect(
+        db.select('PRAGMA freelist_count').single.values.single,
+        greaterThan(0),
+      );
+      upgraded.releaseFreeSpace();
+      expect(db.select('PRAGMA freelist_count').single.values, [0]);
+    });
+
+    test('a new file can give free space back from the start', () {
+      final fresh = LibraryDb.open(path);
+      addTearDown(fresh.close);
+
+      expect(fresh.db.select('PRAGMA auto_vacuum').single.values, [2]);
     });
 
     test('made by version 3 is upgraded and keeps what it held', () {

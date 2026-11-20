@@ -234,6 +234,8 @@ void main() {
       expect(
         _hits(lib, RegExp(r'''['"]dart:io['"]''')).map((h) => h.file).toSet(),
         {
+          // For zlib alone, to pack the answers of the metadata providers.
+          'lib/core/db/library_db.dart',
           'lib/core/db/library_isolate.dart',
           'lib/core/images/image_store.dart',
           'lib/core/images/remote_image.dart',
