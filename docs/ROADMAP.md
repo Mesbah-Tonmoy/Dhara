@@ -24,21 +24,52 @@ that are done are in the status table of [DEVELOPMENT.md](DEVELOPMENT.md).
   progress display in the header, and Home is shown as soon as some films
   are there.
 
-Proposed, not yet agreed:
+Decided by the user on 2026-11-21 (the work itself is not started):
 
-- One codebase, two flavours chosen at build time (`--dart-define`), each
-  with its own AppId and data folder so that both can be installed on one PC.
-- The development build writes a **catalogue snapshot** (titles, files,
-  TMDB ids, poster paths) and the production build starts from it. Posters
-  come from `image.tmdb.org`, which needs no key.
-- On first start the production build tests the servers by itself, switches
-  on the ones that answer, and lists only titles that have a copy on one of
-  them. After that it re-reads the servers in the background, with the
-  progress in the header.
-- Open: where the snapshot comes from (inside the installer, or downloaded),
-  how titles found after the snapshot get their posters (wait for the next
-  snapshot, or a TMDB key built into the production build), and how much of
-  the title page's extra data (cast, episode names) the snapshot carries.
+- One codebase, two builds chosen at build time (`--dart-define`; the
+  switch `DHARA_DEV` is there already). On the user's own PC both use the
+  same data folder, as the installed app and `flutter run` do today.
+- The development build writes a **snapshot** of the library (videos,
+  folders, titles with their TMDB data, episodes) and the production build
+  starts from it. Measured on 577,000 videos and 90,778 titles: about 50 MB
+  packed (videos 15.5, titles 14.7, episodes 12.5, the rest 8).
+- **Where the snapshot comes from:** the user keeps it on their Google
+  Drive, shared with everyone who has the link, and a newly installed
+  production build fetches it from there. This changes two rules of the
+  brief's section 7 (the app contacts a host that is neither a source nor
+  TMDB nor AniList; what it fetches fills the library), so the brief gets a
+  line for it. To be found out first: a file of this size is not handed out
+  by Drive's plain download address without a confirmation step, and that
+  step is nothing Google documents. The address is a build-time value, so
+  another place (a release on GitHub) can stand in. A snapshot inside the
+  installer stays possible as an option of `tool/package.ps1`, for a PC
+  without a connection to Google; the installer is then about 100 MB.
+  Whatever a snapshot says, a video's address is only taken if it lies on
+  a server of the source list.
+- **A TMDB key is built into the production build**, so that titles found
+  after the snapshot get their posters and a title page its details. The
+  user's reasoning: the app goes only to people they trust. What a key that
+  is read out of the program can do: use up the request allowance, or get
+  the key suspended by TMDB; then posters stop until a build with a new key
+  is made. It gives no way into the user's TMDB account as long as it is
+  the API key or the read-only token. It is given to the build from
+  outside the repository (never committed), and it changes section 7's
+  rule on secrets for this build only; the development build keeps asking
+  for the key and keeping it in Windows' Credential Manager.
+- On first start the production build fetches the snapshot, tests the
+  servers of the starter list by itself (not the unchecked candidates),
+  switches on the ones the app can read, and lists only titles that have a
+  copy on one of them. After that it re-reads the servers in the
+  background, with the progress in the header.
+- The user ran the matching once more in the development build before the
+  first snapshot (2026-11-21).
+- Not part of it: updates of the app from inside the app (point 2).
+
+The increments, as proposed: (1) what a production build hides, and a
+development installer; (2) writing a snapshot; (3) reading one into an
+empty library, with progress; (4) fetching it, and the first start of a
+production build; (5) the key built in; (6) reading the servers again in
+the background; (7) packaging, docs, version 1.1.0.
 
 ### 2. Updates from inside the app
 
