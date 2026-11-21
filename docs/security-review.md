@@ -75,7 +75,7 @@ Not findings, but worth knowing:
 
 | Rule | Where | Checked by | |
 |---|---|---|---|
-| A real HTML parser, no regular expression over markup | `package:html` in the two listing adapters, the FlixHub adapter, `portal_links.dart` and `source_tester.dart` | adapter tests against saved pages; *guard* (who imports it) | ok |
+| A real HTML parser, no regular expression over markup | `package:html` in the two listing adapters, the FlixHub and Khulnaplex adapters, `portal_links.dart` and `source_tester.dart` | adapter tests against saved pages; *guard* (who imports it) | ok |
 | Server HTML is never rendered or run; no WebView, no JavaScript | there is nothing in the app that could | *guard* | ok |
 | Server strings are shown as plain text | Flutter's `Text` has no markup; names are shortened and stripped of control characters (`cleanServerText`, `_unsafeInName`) | widget tests; `listing_parser_test.dart` | ok (finding 6) |
 | Parameterised SQL only | every value is a `?`; what is spliced into a statement is text written in the code (column lists, `?, ?, ?`) | *guard* ("database"); the store tests search for quotes and FTS syntax | ok |

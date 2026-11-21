@@ -38,6 +38,7 @@ String describeSource(Source source) => [
     SourceType.emby => 'Emby',
     SourceType.jellyfin => 'Jellyfin',
     SourceType.flixHub => 'FlixHub',
+    SourceType.khulnaplex => 'Khulnaplex',
     SourceType.customSite => 'Website',
   },
   if (source.isp ?? source.provider case final who?) who,

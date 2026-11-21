@@ -11,6 +11,7 @@ String sourceTypeLabel(SourceType type) => switch (type) {
       SourceType.emby => 'Emby',
       SourceType.jellyfin => 'Jellyfin',
       SourceType.flixHub => 'FlixHub',
+      SourceType.khulnaplex => 'Khulnaplex',
       SourceType.customSite => 'Website',
     };
 

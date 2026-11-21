@@ -5,6 +5,7 @@ import 'package:dhara/features/sources/adapters/directory_listing_adapter.dart';
 import 'package:dhara/features/sources/adapters/emby_adapter.dart';
 import 'package:dhara/features/sources/adapters/flixhub_adapter.dart';
 import 'package:dhara/features/sources/adapters/h5ai_adapter.dart';
+import 'package:dhara/features/sources/adapters/khulnaplex_adapter.dart';
 import 'package:dhara/features/sources/adapters/source_adapter.dart';
 import 'package:dhara/features/sources/portal_links.dart';
 import 'package:dhara/features/sources/source.dart';
@@ -223,6 +224,9 @@ class SourceTester {
         entries = await FlixHubAdapter(client, baseUrl: page.url).list(
           page.url.resolve('/'),
         );
+      } else if (isKhulnaplex(document)) {
+        type = SourceType.khulnaplex;
+        entries = await KhulnaplexAdapter(client, baseUrl: url).list(url);
       } else {
         final server = await probeMediaServer(client, url);
         if (server == null) {

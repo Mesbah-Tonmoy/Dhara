@@ -115,8 +115,13 @@ Proposed, not yet agreed:
     subtitles (the site lists them per video, a request each) and the
     kids' section (it asks to sign in). Not yet tried: indexing and
     playing in the app.
-  - **Khulnaplex**: plain PHP pages with `?page=N`; a second candidate.
-    Where its films lie was not looked at.
+  - **Khulnaplex**: the second adapter, written on 2026-11-21
+    (`KhulnaplexAdapter`). Lists on numbered pages; a film or an episode
+    is a plain file of the site, but its address stands only on a page of
+    its own and the folders cannot be listed, so each costs a request
+    (about 2,500 for a first crawl; later crawls read only the lists and
+    the shows). Read from the real site: 1,252 films, 113 shows. Not yet
+    tried: indexing and playing in the app.
   - **Elaach** (a candidate): films are plain mp4 files on
     `content.elaach.com`, which did not answer from this connection.
   - **NowHDTime** (behind Cloudflare, with accounts), **SunPlex**

@@ -36,6 +36,7 @@ one from your connection and only reachable servers are enabled.
 | `emby` | Emby server | Emby / Jellyfin API |
 | `jellyfin` | Jellyfin server | Emby / Jellyfin API |
 | `flixhub` | The website flixhub.net | FlixHub |
+| `khulnaplex` | The website khulnaplex.net | Khulnaplex |
 | `custom_site` | Any other website with its own pages or API | none; one adapter per site, written when wanted |
 
 A source may have several `baseUrls` (for example one per disk on the same

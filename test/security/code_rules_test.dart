@@ -128,6 +128,7 @@ void main() {
             'lib/features/sources/adapters/directory_listing_adapter.dart',
             'lib/features/sources/adapters/flixhub_adapter.dart',
             'lib/features/sources/adapters/h5ai_adapter.dart',
+            'lib/features/sources/adapters/khulnaplex_adapter.dart',
             'lib/features/sources/adapters/listing_parser.dart',
             'lib/features/sources/portal_links.dart',
             'lib/features/sources/source_tester.dart',

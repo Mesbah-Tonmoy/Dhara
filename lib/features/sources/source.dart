@@ -10,6 +10,9 @@ enum SourceType {
   /// The website flixhub.net, read by an adapter of its own.
   flixHub('flixhub'),
 
+  /// The website khulnaplex.net, read by an adapter of its own.
+  khulnaplex('khulnaplex'),
+
   /// Any other website: there is no adapter for it.
   customSite('custom_site');
 

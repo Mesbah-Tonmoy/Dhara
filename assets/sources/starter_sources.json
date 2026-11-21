@@ -488,11 +488,11 @@
       "name": "Khulnaplex",
       "provider": "Khulnaplex",
       "isp": null,
-      "type": "custom_site",
+      "type": "khulnaplex",
       "category": "mixed",
       "baseUrls": ["http://khulnaplex.net/"],
       "portalUrl": null,
-      "notes": null
+      "notes": "A website read by its own adapter: about 1,250 films and 113 shows on 2026-11-21. Every film and every episode is a page of its own to read, so the first crawl takes a few minutes."
     },
     {
       "id": "fastplex",

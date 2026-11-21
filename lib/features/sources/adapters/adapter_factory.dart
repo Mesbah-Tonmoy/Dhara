@@ -3,6 +3,7 @@ import 'package:dhara/features/sources/adapters/directory_listing_adapter.dart';
 import 'package:dhara/features/sources/adapters/emby_adapter.dart';
 import 'package:dhara/features/sources/adapters/flixhub_adapter.dart';
 import 'package:dhara/features/sources/adapters/h5ai_adapter.dart';
+import 'package:dhara/features/sources/adapters/khulnaplex_adapter.dart';
 import 'package:dhara/features/sources/adapters/source_adapter.dart';
 import 'package:dhara/features/sources/source.dart';
 
@@ -26,5 +27,6 @@ SourceAdapter? adapterFor(
     deviceId: deviceId,
   ),
   SourceType.flixHub => FlixHubAdapter(client, baseUrl: baseUrl),
+  SourceType.khulnaplex => KhulnaplexAdapter(client, baseUrl: baseUrl),
   SourceType.customSite => null,
 };
