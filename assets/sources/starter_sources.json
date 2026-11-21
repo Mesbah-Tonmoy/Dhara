@@ -455,11 +455,11 @@
       "name": "FlixHub",
       "provider": "FlixHub",
       "isp": null,
-      "type": "custom_site",
+      "type": "flixhub",
       "category": "mixed",
-      "baseUrls": ["http://flixhub.net/"],
+      "baseUrls": ["https://flixhub.net/"],
       "portalUrl": null,
-      "notes": null
+      "notes": "A website read by its own adapter: about 1,900 films and 115 shows on 2026-11-21. Every video is one address of the site, fetched without signing in."
     },
     {
       "id": "nowhdtime",

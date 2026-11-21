@@ -10,6 +10,7 @@ String sourceTypeLabel(SourceType type) => switch (type) {
       SourceType.h5ai => 'h5ai',
       SourceType.emby => 'Emby',
       SourceType.jellyfin => 'Jellyfin',
+      SourceType.flixHub => 'FlixHub',
       SourceType.customSite => 'Website',
     };
 

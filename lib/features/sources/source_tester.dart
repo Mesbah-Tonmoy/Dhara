@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dhara/core/net/safe_http_client.dart';
 import 'package:dhara/features/sources/adapters/directory_listing_adapter.dart';
 import 'package:dhara/features/sources/adapters/emby_adapter.dart';
+import 'package:dhara/features/sources/adapters/flixhub_adapter.dart';
 import 'package:dhara/features/sources/adapters/h5ai_adapter.dart';
 import 'package:dhara/features/sources/adapters/source_adapter.dart';
 import 'package:dhara/features/sources/portal_links.dart';
@@ -217,6 +218,11 @@ class SourceTester {
       } else if (isDirectoryListing(document)) {
         type = SourceType.directoryListing;
         entries = parseDirectoryListing(page.body, page.url);
+      } else if (isFlixHub(document)) {
+        type = SourceType.flixHub;
+        entries = await FlixHubAdapter(client, baseUrl: page.url).list(
+          page.url.resolve('/'),
+        );
       } else {
         final server = await probeMediaServer(client, url);
         if (server == null) {

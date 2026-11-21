@@ -1,12 +1,13 @@
 import 'package:dhara/core/net/safe_http_client.dart';
 import 'package:dhara/features/sources/adapters/directory_listing_adapter.dart';
 import 'package:dhara/features/sources/adapters/emby_adapter.dart';
+import 'package:dhara/features/sources/adapters/flixhub_adapter.dart';
 import 'package:dhara/features/sources/adapters/h5ai_adapter.dart';
 import 'package:dhara/features/sources/adapters/source_adapter.dart';
 import 'package:dhara/features/sources/source.dart';
 
 /// The adapter that reads the base URL [baseUrl] of a source of [type], or
-/// `null` if no adapter exists for that type (a custom website).
+/// `null` if no adapter exists for that type (a website of another kind).
 ///
 /// An Emby/Jellyfin adapter signs in to one server and keeps that session,
 /// so make one per base URL and keep using it. [deviceId] is what it tells
@@ -24,5 +25,6 @@ SourceAdapter? adapterFor(
     baseUrl: baseUrl,
     deviceId: deviceId,
   ),
+  SourceType.flixHub => FlixHubAdapter(client, baseUrl: baseUrl),
   SourceType.customSite => null,
 };

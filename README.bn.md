@@ -17,8 +17,8 @@ account, বিজ্ঞাপন বা telemetry নেই।
 - **অনেক server, একটা library।** App-এর সাথে হাতে যাচাই করা ৫২টা BDIX
   server-এর একটা তালিকা আসে, সাথে একটা public তালিকা থেকে নেওয়া আরও
   প্রায় ৪০০টা, যেগুলো এখনো কেউ নিশ্চিত করেনি; app পরীক্ষা করে দেখে আপনার connection থেকে কোনগুলো সাড়া
-  দেয়। এটা folder listing (Apache, nginx, IIS), h5ai page আর Emby/Jellyfin
-  server পড়তে পারে। একই film কয়েকটা server-এ থাকলে সেটা একটাই title,
+  দেয়। এটা folder listing (Apache, nginx, IIS), h5ai page, Emby/Jellyfin
+  server আর নিজস্ব ধরনের একটা website (FlixHub) পড়তে পারে। একই film কয়েকটা server-এ থাকলে সেটা একটাই title,
   যার কয়েকটা copy।
 - **লিখতে লিখতেই search**, সাথে type, quality, rating, বছর আর genre-এর
   filter। Library আপনার PC-তেই রাখা থাকে, তাই search-এর সময় কোনো server-কে
@@ -262,7 +262,7 @@ Script-টা release build করে, সাথে দেওয়া প্র
 
 ## যা এখনো পারে না
 
-- তালিকার ৫২টা server-এর ১৮টা নিজস্ব ধরনের website। App এগুলো পরীক্ষা
+- তালিকার ৫২টা server-এর ১৭টা নিজস্ব ধরনের website। App এগুলো পরীক্ষা
   করতে পারে, কিন্তু পড়তে পারে না।
 - Self-signed certificate-এর `https` server-এ app যুক্ত হয় না।
 - App শুধু Windows-এ build আর পরীক্ষা করা হয়েছে।

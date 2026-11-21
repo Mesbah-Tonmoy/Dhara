@@ -1,6 +1,7 @@
 import 'package:dhara/features/sources/adapters/adapter_factory.dart';
 import 'package:dhara/features/sources/adapters/directory_listing_adapter.dart';
 import 'package:dhara/features/sources/adapters/emby_adapter.dart';
+import 'package:dhara/features/sources/adapters/flixhub_adapter.dart';
 import 'package:dhara/features/sources/adapters/h5ai_adapter.dart';
 import 'package:dhara/features/sources/adapters/source_adapter.dart';
 import 'package:dhara/features/sources/source.dart';
@@ -27,6 +28,7 @@ void main() {
     expect(make(SourceType.h5ai), isA<H5aiAdapter>());
     expect(make(SourceType.emby), isA<EmbyAdapter>());
     expect(make(SourceType.jellyfin), isA<EmbyAdapter>());
+    expect(make(SourceType.flixHub), isA<FlixHubAdapter>());
   });
 
   test('a custom website has no adapter', () {

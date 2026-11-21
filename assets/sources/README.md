@@ -35,7 +35,8 @@ one from your connection and only reachable servers are enabled.
 | `h5ai` | h5ai file index | h5ai |
 | `emby` | Emby server | Emby / Jellyfin API |
 | `jellyfin` | Jellyfin server | Emby / Jellyfin API |
-| `custom_site` | A website with its own pages or API | one adapter per site, written when wanted |
+| `flixhub` | The website flixhub.net | FlixHub |
+| `custom_site` | Any other website with its own pages or API | none; one adapter per site, written when wanted |
 
 A source may have several `baseUrls` (for example one per disk on the same
 host). Each is crawled as its own root.

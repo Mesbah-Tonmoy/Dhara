@@ -17,8 +17,8 @@ ads and no telemetry.
   servers checked by hand, and some 400 more taken from a public list that
   nobody has confirmed yet, and tests which of them answer from your
   connection. It reads
-  folder listings (Apache, nginx, IIS), h5ai pages and Emby/Jellyfin
-  servers. A film that lies on several servers is one title with several
+  folder listings (Apache, nginx, IIS), h5ai pages, Emby/Jellyfin
+  servers, and one website of its own kind (FlixHub). A film that lies on several servers is one title with several
   copies.
 - **Search while you type**, with filters for type, quality, rating, year
   and genre. The library is kept on your PC, so no server is asked.
@@ -264,7 +264,7 @@ Windows 11), a library of 23,389 videos:
 
 ## What it cannot do yet
 
-- 18 of the 52 servers in the list are websites of their own kind. The app
+- 17 of the 52 servers in the list are websites of their own kind. The app
   can test them but cannot read them.
 - `https` servers with a self-signed certificate are refused.
 - It was built and tried on Windows only.

@@ -106,10 +106,15 @@ Proposed, not yet agreed:
   - **AmaderFTP**: an IIS server that lists its own folders. Read as that.
   - **Ctgstream**: Emby with a password-less user. Read as that.
   - **CTGMovies**: a Next.js app; its file server is in the starter list.
-  - **FlixHub**: the best first adapter. Pages come ready from the server
-    (`/movies`, `/tv-shows`, `/watch/movie/<name>`) and a film is one
-    address, `/stream/movie/<name>`, that answers as an mp4 with ranges
-    and without signing in. Not yet known: how its lists page on.
+  - **FlixHub**: the first adapter, written on 2026-11-21
+    (`FlixHubAdapter`). The film list comes a page at a time as JSON
+    (`/movies?page=N`, 68 pages), every show's episodes are on its one
+    page, and a video is one address (`/stream/movie/<name>`,
+    `/stream/episode/<name>`) that answers with ranges and without
+    signing in. Read from the real site: 1,897 films, 115 shows. Left out:
+    subtitles (the site lists them per video, a request each) and the
+    kids' section (it asks to sign in). Not yet tried: indexing and
+    playing in the app.
   - **Khulnaplex**: plain PHP pages with `?page=N`; a second candidate.
     Where its films lie was not looked at.
   - **Elaach** (a candidate): films are plain mp4 files on

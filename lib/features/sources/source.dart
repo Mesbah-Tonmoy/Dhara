@@ -6,6 +6,11 @@ enum SourceType {
   h5ai('h5ai'),
   emby('emby'),
   jellyfin('jellyfin'),
+
+  /// The website flixhub.net, read by an adapter of its own.
+  flixHub('flixhub'),
+
+  /// Any other website: there is no adapter for it.
   customSite('custom_site');
 
   const SourceType(this.jsonName);
