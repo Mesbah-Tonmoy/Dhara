@@ -147,7 +147,35 @@ Done:
   it had fetched the user's snapshot: the reading began by itself, and
   the library grew by 5,818 videos in three minutes.
 
-Still to do: (7) packaging, README, manual test list, version 1.1.0.
+- **(7), 2026-11-24.** Version 1.1.0. `tool/package.ps1 -SnapshotFile`
+  puts a snapshot into the installer, which the app reads before it
+  fetches one. The README (English and Bangla) says what the installed
+  app does by itself and how to make such an installer, and the manual
+  test list has the first start of a production build. Two test
+  installers were made with the script and their programs run: one that
+  fetched the user's snapshot from Google Drive (48.3 MB), one with the
+  snapshot inside and a made-up key (120.9 MB).
+
+All seven increments are done. What is left for the user: make the real
+installer after the PC is set up anew, with a TMDB key made after that
+(`tool/package.ps1 -SnapshotUrl "<the Drive link>" -TmdbKeyFile <file>`),
+and try it on a second PC with the list in `docs/manual-test.bn.md`.
+
+Seen while this was built, and left as it is:
+
+- Reading a snapshot takes a minute and a half, three quarters of it for
+  the search index of the videos. A snapshot that carried the index
+  ready-made would be faster and larger.
+- After a reading that was cut off, the window opens only once the half
+  that was read is taken out (more than nine seconds for 320,000 videos),
+  with nothing on the screen meanwhile.
+- A fetch that is cut off starts from the beginning the next time; the
+  part that was saved is not used.
+- The pill in the title bar cannot be clicked, and a production build
+  has no way to stop a reading of the servers but to close the app.
+- The count in the title bar ("29 / 467 servers online") takes the
+  unchecked candidates into its total, which a production build never
+  asks.
 
 ### 2. Updates from inside the app
 

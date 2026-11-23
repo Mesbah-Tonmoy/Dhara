@@ -4,6 +4,12 @@ A walk through section 7 of the brief (`BRIEF.md`), point by point: where the
 code does it, how that is checked, and what was found. Done on 2026-11-17, with
 1,438 automated tests passing, and brought up to date on 2026-11-18, when the
 libmpv of 2023 was replaced by a current build (findings 2, 3 and 11 to 14).
+On 2026-11-24 the production build was added (version 1.1.0, 1,631 tests):
+it changes three rules of section 7, and the brief has a line for each.
+They are the rows marked "since 2026-11-24" below: the app fetches a library
+snapshot from one address built into it and tests servers nobody switched
+on, a snapshot is read as untrusted input, and a production build may carry
+a TMDB key.
 
 Verdicts: **ok** (done and checked), **gap** (known and accepted, with the
 reason), **fixed** (found in this review and put right), **later** (belongs

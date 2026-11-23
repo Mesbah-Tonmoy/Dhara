@@ -21,7 +21,14 @@
 # development build makes). An https address, or the link Google Drive
 # gives for a file shared with "anyone with the link": that is turned into
 # the address Drive hands the file itself out at. Without it the build
-# fetches nothing and has to read the servers itself.
+# fetches nothing and, unless -SnapshotFile gives it one, has to read the
+# servers itself.
+#
+# -SnapshotFile <file> puts a snapshot into the installer itself, for a PC
+# that cannot reach the place -SnapshotUrl names (or instead of it). The
+# installed app reads it on its first start, before it fetches anything.
+# The installer grows by the size of the file (about 77 MB for 577,000
+# videos), and a snapshot in an installer is as old as the installer.
 #
 # -TmdbKeyFile <file> builds a TMDB key into the production build, so that it
 # shows posters and looks up new titles without asking anyone for a key. The
@@ -47,6 +54,7 @@ param(
   [string]$Flutter,
   [switch]$Dev,
   [string]$SnapshotUrl,
+  [string]$SnapshotFile,
   [string]$TmdbKeyFile,
   [string]$TestDataDir,
   [string]$Logo,
@@ -109,6 +117,15 @@ if ($SnapshotUrl) {
   if (-not $snapshotAddress) { Fail '-SnapshotUrl must be an https address or a Google Drive share link.' }
 }
 
+if ($SnapshotFile) {
+  if ($Dev) { Fail '-SnapshotFile is for the production build; a development build reads no snapshot by itself.' }
+  if (-not (Test-Path $SnapshotFile -PathType Leaf)) { Fail '-SnapshotFile names no file.' }
+  # What "Write snapshot" makes is a gzip file.
+  $stream = [IO.File]::OpenRead((Resolve-Path $SnapshotFile))
+  try { $first = $stream.ReadByte(); $second = $stream.ReadByte() } finally { $stream.Dispose() }
+  if ($first -ne 0x1f -or $second -ne 0x8b) { Fail '-SnapshotFile is not a snapshot (it is not a gzip file).' }
+}
+
 # The TMDB key of a production build: read from a file outside the
 # repository, checked for its shape, and never shown.
 function TmdbKeyKind([string]$key) {
@@ -169,8 +186,8 @@ $given = @{}
 if ($snapshotAddress) {
   $given.DHARA_SNAPSHOT_URL = $snapshotAddress
   Write-Host "  library from: $snapshotAddress"
-} elseif (-not $Dev) {
-  Write-Host '  No -SnapshotUrl: this build fetches no library and has to read the servers itself.' -ForegroundColor Yellow
+} elseif (-not $Dev -and -not $SnapshotFile) {
+  Write-Host '  No -SnapshotUrl and no -SnapshotFile: this build has no library to start from and has to read the servers itself.' -ForegroundColor Yellow
 }
 if ($tmdbKey) {
   $given.DHARA_TMDB_KEY = $tmdbKey
@@ -226,6 +243,13 @@ foreach ($file in $runtime) {
     Fail "$file is not signed by Microsoft."
   }
   Copy-Item $from $stage
+}
+
+# The snapshot that goes along lies where the app looks for one beside the
+# program on its first start.
+if ($SnapshotFile) {
+  Copy-Item (Resolve-Path $SnapshotFile) (Join-Path $stage 'data\library.snapshot.gz')
+  Write-Host ("  snapshot in the installer: {0} MB" -f [math]::Round((Get-Item $SnapshotFile).Length / 1MB, 1))
 }
 
 # The staged folder has what it needs; nothing of the key stays in the

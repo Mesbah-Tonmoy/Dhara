@@ -152,7 +152,10 @@ void main() {
 
   /// A production build's first start, fetching from [path] of the server
   /// (from nowhere without one).
-  FirstStartController firstStart({String? path = '/library.gz'}) {
+  FirstStartController firstStart({
+    String? path = '/library.gz',
+    File? bundled,
+  }) {
     final library = LocalLibrary(db);
     final tests = SourceTestController(
       store: store,
@@ -187,6 +190,7 @@ void main() {
           ? null
           : SnapshotFetcher(server.url(path), client: server.client()),
       folder: folder,
+      bundled: bundled,
       clock: () => DateTime.utc(2026, 11, 24),
     );
     addTearDown(controller.dispose);
@@ -353,6 +357,82 @@ void main() {
     expect(asked('/library.gz'), 0);
     expect(videos(), ['Vivarium.2019.mkv']);
     expect(folder.listSync(), isEmpty);
+  });
+
+  group('a snapshot that came with the installer', () {
+    late Directory program;
+    late File bundled;
+
+    setUp(() {
+      program = Directory.systemTemp.createTempSync('dhara-program-');
+      bundled = File(
+        '${program.path}${Platform.pathSeparator}library.snapshot.gz',
+      );
+    });
+
+    tearDown(() => program.deleteSync(recursive: true));
+
+    test('is read without fetching, and left where it lies', () async {
+      bundled.writeAsBytesSync(await snapshot());
+      serveSnapshot(await snapshot());
+      final start = firstStart(bundled: bundled);
+
+      await start.start();
+
+      expect(start.problem, isNull);
+      expect(asked('/library.gz'), 0);
+      expect(videos(), ['Vivarium.2019.mkv']);
+      expect(bundled.existsSync(), isTrue);
+      expect(settings.getInt(FirstStartController.readAtKey), isNotNull);
+    });
+
+    test('fills the library of a build that has no address', () async {
+      bundled.writeAsBytesSync(await snapshot());
+      final start = firstStart(path: null, bundled: bundled);
+
+      await start.start();
+
+      expect(start.problem, isNull);
+      expect(videos(), ['Vivarium.2019.mkv']);
+      expect(store.isEnabled('alpha'), isTrue);
+    });
+
+    test('that is no snapshot is passed over for one that is fetched, and '
+        'said if there is none to fetch', () async {
+      bundled.writeAsStringSync('something else');
+      serveSnapshot(await snapshot());
+      final start = firstStart(bundled: bundled);
+
+      await start.start();
+
+      expect(start.problem, isNull);
+      expect(asked('/library.gz'), 1);
+      expect(videos(), ['Vivarium.2019.mkv']);
+      expect(bundled.existsSync(), isTrue);
+
+      db.db
+        ..execute('DELETE FROM sources')
+        ..execute('DELETE FROM titles');
+      settings.values.clear();
+      final alone = firstStart(path: null, bundled: bundled);
+
+      await alone.start();
+
+      expect(alone.problem, FirstStartProblem.notRead);
+      expect(alone.readProblem, SnapshotProblem.notASnapshot);
+    });
+
+    test('waits behind one that was fetched and lies in the data '
+        'folder', () async {
+      bundled.writeAsStringSync('something else');
+      File(at('library.snapshot.gz')).writeAsBytesSync(await snapshot());
+      final start = firstStart(path: null, bundled: bundled);
+
+      await start.start();
+
+      expect(start.problem, isNull);
+      expect(videos(), ['Vivarium.2019.mkv']);
+    });
   });
 
   test('a file left there that is no snapshot is fetched anew', () async {

@@ -22,8 +22,11 @@ ads and no telemetry.
   copies.
 - **Search while you type**, with filters for type, quality, rating, year
   and genre. The library is kept on your PC, so no server is asked.
-- **Posters, descriptions, cast and episode names** from TMDB, with your
-  own key. The Anime page adds AniList's seasonal and trending lists.
+- **Posters, descriptions, cast and episode names** from TMDB. The Anime
+  page adds AniList's seasonal and trending lists.
+- **Ready when it is installed.** The installed app fetches a library that
+  was made beforehand, finds the servers that answer from your connection
+  and keeps the library up to date by itself.
 - **The player is inside the app** (libmpv): no VLC or codec pack is
   needed. It plays MKV, MP4 and the other usual files, with styled and
   picture subtitles, several sound tracks and hardware decoding.
@@ -57,7 +60,26 @@ one by running its installer.
 
 ## First steps
 
-Home shows these three steps, and where each stands, until the library has
+**With the installer there are none.** The first time the installed app
+starts it gets itself ready, and Home says how far that is ("Getting your
+library ready"):
+
+- it fetches the library (about 77 MB) from the address it was built
+  with, and puts it in place, which takes a few minutes;
+- meanwhile it tests the servers of its list and switches on the ones
+  your connection reaches. Many BDIX servers only answer on certain ISPs.
+
+After that Home shows the films and shows. From then on the app reads the
+servers again by itself, once a day at most, and looks new titles up; a
+small pill in the title bar says so while it does. If the library cannot
+be fetched, Home says why and offers **Try again**, or **Read the
+servers**, which builds the library from the servers themselves and takes
+much longer.
+
+The installed app is the **production build**: it has no pages for
+building a library by hand. Those are in the **development build**, which
+is what `flutter run` starts (see [Building it](#building-it)). There Home
+shows these three steps, and where each stands, until the library has
 something in it.
 
 1. **Servers.** Open Server Discovery on the rail, press **Test all**, then
@@ -112,12 +134,15 @@ Everything the app keeps is on this PC:
 | Library, My List, history and playback positions | `%APPDATA%\com.dhara\dhara\library.db` |
 | Settings and your changes to the server list | `shared_preferences.json` and `sources.json` in the same folder |
 | Downloaded posters (at most 300 MB) | `images` in the same folder |
-| TMDB key | Windows Credential Manager, entry `Dhara/tmdb` |
+| TMDB key | development build: Windows Credential Manager, entry `Dhara/tmdb`. The installed app carries a key of its own if it was built with one, and keeps none |
 
 The app contacts the servers you enabled, an address you paste into
 "Play a URL", TMDB (only with a key; titles and years are sent) and
 AniList (when the Anime page is opened; nothing about your library is
-sent). It contacts nothing else and writes no log.
+sent). The installed app also asks, on its first start, the servers of its
+list whether they answer, and fetches its library from the one address it
+was built with: a plain download that sends nothing about you or your PC.
+It contacts nothing else and writes no log.
 
 ## Removing it
 
@@ -249,6 +274,36 @@ SHA-256 list in `tool/bundled-libraries.sha256`, and writes the installer
 and its checksum to `dist\`. An installer is only as trustworthy as the PC
 it was built on.
 
+There are two builds of the one code. `flutter run` and
+`tool/package.ps1 -Dev` give the **development build**, with the pages
+that build a library (Server Discovery, Library index, Titles and
+matching, the TMDB key). `tool/package.ps1` without `-Dev` gives the
+**production build**, which is ready to use and has none of them. To make
+one that fills itself:
+
+1. In the development build, open **Library index** and press **Write
+   snapshot**. It writes the library to one file (77 MB for 577,000
+   videos), without what you watched, your list or your key.
+2. Put the file where the installed app can fetch it. On Google Drive:
+   upload it, share it with "anyone with the link" and copy the link. A
+   newer snapshot goes under the same link with "Manage versions".
+3. Make the installer with that link, and with a TMDB key if the app is to
+   show posters for what it finds later:
+
+   ```powershell
+   pwsh tool/package.ps1 -SnapshotUrl "<the link>" -TmdbKeyFile D:\keys\dhara-tmdb.txt
+   ```
+
+   The key file holds the key and nothing else and must lie outside this
+   repository. The key becomes part of the program, so everyone who gets
+   the installer can read it out: give the installer only to people you
+   would give the key. `-SnapshotFile <file>` puts the snapshot into the
+   installer itself (it then is about 77 MB larger), for a PC that cannot
+   reach the link.
+
+A snapshot is read as untrusted input: only videos on a server of the
+app's own list are taken from it.
+
 ## Measured
 
 On the PC the app is made for (Ryzen 5 5500U, integrated graphics,
@@ -259,7 +314,8 @@ Windows 11), a library of 23,389 videos:
 | Cold start | under 2 s | 0.85 to 0.9 s |
 | Search | under 100 ms | 2 to 7 ms by title |
 | Playback start | under 2 s | 0.7 to 1.8 s on real BDIX servers |
-| Installer | about 80 MB at most | 48.2 MB (the app's files: 167 MB) |
+| Installer | about 80 MB at most | 48.3 MB (the app's files: 168 MB); with a snapshot inside, 120.9 MB |
+| First start of the installed app | | Home filled 100 seconds after the start: 577,000 videos fetched (77 MB) and put in place |
 | Idle memory | | 196 to 210 MB working set on Home |
 
 ## What it cannot do yet

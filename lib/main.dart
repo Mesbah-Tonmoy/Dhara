@@ -144,6 +144,10 @@ Future<void> main() async {
             null => null,
           },
           folder: folder == null ? null : Directory(folder),
+          // The installer may have brought a snapshot along.
+          bundled: Platform.isWindows
+              ? File(_besideProgram('data', 'library.snapshot.gz'))
+              : null,
         );
   final myList = MyListController(library: library);
   unawaited(myList.load());
@@ -232,6 +236,15 @@ String? _bundledLibmpv() {
   if (!Platform.isWindows) return null;
   final folder = File(Platform.resolvedExecutable).parent.path;
   return '$folder${Platform.pathSeparator}libmpv-2.dll';
+}
+
+/// The full path of what lies in the folder [folder] beside the program
+/// under the name [name]: what the installer put there, and nothing a
+/// server or a setting can name.
+String _besideProgram(String folder, String name) {
+  final separator = Platform.pathSeparator;
+  final program = File(Platform.resolvedExecutable).parent.path;
+  return '$program$separator$folder$separator$name';
 }
 
 /// Reads the size of the index, then, once the app has settled, brings an

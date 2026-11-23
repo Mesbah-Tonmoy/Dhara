@@ -63,6 +63,7 @@ class FirstStartController extends ChangeNotifier {
     required HomeController home,
     required SnapshotFetcher? fetcher,
     required Directory? folder,
+    File? bundled,
     DateTime Function() clock = DateTime.now,
   }) : _library = library,
        _settings = settings,
@@ -72,6 +73,7 @@ class FirstStartController extends ChangeNotifier {
        _home = home,
        _fetcher = fetcher,
        _folder = folder,
+       _bundled = bundled,
        _clock = clock;
 
   /// Where the time a snapshot was read is kept (milliseconds): with it
@@ -86,6 +88,10 @@ class FirstStartController extends ChangeNotifier {
   final HomeController _home;
   final SnapshotFetcher? _fetcher;
   final Directory? _folder;
+
+  /// Where a snapshot lies that came with the installer, if one did: it
+  /// is read before any is fetched, and left where it is.
+  final File? _bundled;
   final DateTime Function() _clock;
 
   Future<void>? _run;
@@ -224,24 +230,32 @@ class FirstStartController extends ChangeNotifier {
     }
   }
 
-  /// Fetches the snapshot, unless one lies here from a start that was cut
-  /// off, and reads it into the library.
+  /// Reads a snapshot into the library: one that lies in the data folder
+  /// from a start that was cut off, else the one that came with the
+  /// installer, else one it fetches.
   Future<void> _fillLibrary() async {
     final fetcher = _fetcher;
     final folder = _folder;
-    if (folder == null) {
-      _problem = FirstStartProblem.nothingToFetch;
-      return;
-    }
-    final file = File(
-      '${folder.path}${Platform.pathSeparator}library.snapshot.gz',
-    );
+    final bundled = _bundled;
+    final file = folder == null
+        ? null
+        : File('${folder.path}${Platform.pathSeparator}library.snapshot.gz');
     try {
       // One that was fetched whole before the app was closed is read
       // without asking for it again; if it is not good, it is fetched.
-      if (await file.exists() && await _read(file)) return;
-      if (fetcher == null) {
-        _problem = FirstStartProblem.nothingToFetch;
+      var refused = false;
+      if (file != null && await file.exists()) {
+        if (await _read(file)) return;
+        refused = true;
+      }
+      if (bundled != null && await bundled.exists()) {
+        if (await _read(bundled, keep: true)) return;
+        refused = true;
+      }
+      if (fetcher == null || file == null) {
+        _problem = refused
+            ? FirstStartProblem.notRead
+            : FirstStartProblem.nothingToFetch;
         return;
       }
       _step = FirstStartStep.fetching;
@@ -273,9 +287,9 @@ class FirstStartController extends ChangeNotifier {
     }
   }
 
-  /// Reads the snapshot in [file] into the library and removes the file;
-  /// returns whether the library took it.
-  Future<bool> _read(File file) async {
+  /// Reads the snapshot in [file] into the library and removes the file,
+  /// unless it is to [keep]; returns whether the library took it.
+  Future<bool> _read(File file, {bool keep = false}) async {
     // No crawl starts while the library is being filled.
     final release = _index.hold();
     _step = FirstStartStep.reading;
@@ -305,7 +319,7 @@ class FirstStartController extends ChangeNotifier {
     }
     // Read or refused, the file has done its part. A library that could
     // not be written may do better next time, with the same file.
-    if (read.problem != SnapshotProblem.libraryFailed) {
+    if (!keep && read.problem != SnapshotProblem.libraryFailed) {
       try {
         await file.delete();
       } on FileSystemException {

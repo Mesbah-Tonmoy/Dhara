@@ -23,8 +23,11 @@ account, বিজ্ঞাপন বা telemetry নেই।
 - **লিখতে লিখতেই search**, সাথে type, quality, rating, বছর আর genre-এর
   filter। Library আপনার PC-তেই রাখা থাকে, তাই search-এর সময় কোনো server-কে
   জিজ্ঞেস করতে হয় না।
-- **Poster, বিবরণ, cast আর episode-এর নাম** আসে TMDB থেকে, আপনার নিজের
-  key দিয়ে। Anime page-এ AniList-এর seasonal আর trending তালিকাও থাকে।
+- **Poster, বিবরণ, cast আর episode-এর নাম** আসে TMDB থেকে। Anime page-এ
+  AniList-এর seasonal আর trending তালিকাও থাকে।
+- **Install করলেই তৈরি।** Install করা app আগে থেকে বানানো একটা library
+  নামিয়ে নেয়, আপনার connection থেকে যে server-গুলো সাড়া দেয় সেগুলো খুঁজে
+  নেয়, আর library নিজেই হালনাগাদ রাখে।
 - **Player app-এর ভেতরেই আছে** (libmpv): VLC বা codec pack লাগে না। MKV,
   MP4 আর অন্য প্রচলিত file চলে; styled আর ছবি-ভিত্তিক subtitle, একাধিক
   audio track আর hardware decoding আছে।
@@ -58,8 +61,26 @@ install করে, admin rights চায় না। কোনো service, sta
 
 ## প্রথমবার যা করতে হবে
 
-Library-তে কিছু না আসা পর্যন্ত Home এই তিনটা ধাপ দেখায়, আর কোনটা কতদূর
-হয়েছে তাও বলে।
+**Installer দিয়ে বসালে কিছুই করতে হয় না।** Install করা app প্রথমবার চালু
+হলে নিজেই তৈরি হয়ে নেয়, আর Home বলে কতদূর হলো ("Getting your library
+ready"):
+
+- যে ঠিকানা দিয়ে তাকে বানানো হয়েছে সেখান থেকে library নামায় (প্রায় ৭৭
+  MB), তারপর সেটা জায়গামতো বসায়; এতে কয়েক মিনিট লাগে;
+- একই সময়ে তালিকার server-গুলো পরীক্ষা করে, আর আপনার connection যেগুলো
+  পায় সেগুলো চালু করে। অনেক BDIX server শুধু নির্দিষ্ট ISP থেকেই সাড়া
+  দেয়।
+
+এরপর Home-এ film আর show দেখা যায়। তারপর থেকে app নিজেই server-গুলো আবার
+পড়ে, দিনে বড়জোর একবার, আর নতুন title খুঁজে নেয়; তখন title bar-এ একটা ছোট
+চিহ্ন তা জানায়। Library নামানো না গেলে Home কারণ বলে আর **Try again**
+দেয়, অথবা **Read the servers**, যা server থেকেই library বানায় আর অনেক
+বেশি সময় নেয়।
+
+Install করা app হলো **production build**: এতে হাতে library বানানোর page
+নেই। সেগুলো আছে **development build**-এ, যা `flutter run` চালায়
+([নিজে build করা](#নিজে-build-করা) দেখুন)। সেখানে library-তে কিছু না আসা
+পর্যন্ত Home এই তিনটা ধাপ দেখায়, আর কোনটা কতদূর হয়েছে তাও বলে।
 
 1. **Server।** Rail থেকে Server Discovery খুলুন, **Test all** চাপুন,
    তারপর **Enable all reachable**। অনেক BDIX server শুধু নির্দিষ্ট ISP
@@ -113,12 +134,15 @@ App যা কিছু রাখে, সব এই PC-তেই থাকে:
 | Library, My List, history আর কোন video কোথায় থেমেছিল | `%APPDATA%\com.dhara\dhara\library.db` |
 | Settings আর server তালিকায় আপনার পরিবর্তন | একই folder-এর `shared_preferences.json` আর `sources.json` |
 | Download করা poster (সর্বোচ্চ ৩০০ MB) | একই folder-এর `images` |
-| TMDB key | Windows Credential Manager, `Dhara/tmdb` নামে |
+| TMDB key | development build: Windows Credential Manager, `Dhara/tmdb` নামে। Install করা app-এ key দিয়ে বানানো হলে key তার ভেতরেই থাকে; সে আলাদা করে কিছু রাখে না |
 
 App যোগাযোগ করে আপনার চালু করা server-গুলোর সাথে, "Play a URL"-এ আপনি
 যে ঠিকানা paste করেন তার সাথে, TMDB-র সাথে (শুধু key থাকলে; title আর বছর
 পাঠানো হয়) আর AniList-এর সাথে (Anime page খুললে; আপনার library-র কিছুই
-পাঠানো হয় না)। এর বাইরে কারো সাথে যোগাযোগ করে না, আর কোনো log লেখে না।
+পাঠানো হয় না)। Install করা app প্রথমবার চালু হলে তালিকার server-গুলো সাড়া
+দেয় কি না জিজ্ঞেস করে, আর যে একটা ঠিকানা দিয়ে তাকে বানানো হয়েছে সেখান
+থেকে library নামায়: এটা সাধারণ একটা download, আপনার বা আপনার PC-র কিছুই
+পাঠানো হয় না। এর বাইরে কারো সাথে যোগাযোগ করে না, আর কোনো log লেখে না।
 
 ## সরিয়ে ফেলা
 
@@ -247,6 +271,35 @@ Script-টা release build করে, সাথে দেওয়া প্র
 ও তার checksum `dist\`-এ লেখে। যে PC-তে installer বানানো হয়, installer-কে
 ততটুকুই বিশ্বাস করা যায় যতটুকু সেই PC-কে।
 
+একই code থেকে দুটো build হয়। `flutter run` আর `tool/package.ps1 -Dev`
+দেয় **development build**, যাতে library বানানোর page-গুলো আছে (Server
+Discovery, Library index, Titles and matching, TMDB key)। `-Dev` ছাড়া
+`tool/package.ps1` দেয় **production build**, যা ব্যবহারের জন্য তৈরি আর
+যাতে ওই page-গুলো নেই। নিজে থেকে ভরে যায় এমন একটা বানাতে:
+
+1. Development build-এ **Library index** খুলে **Write snapshot** চাপুন।
+   এটা library-কে একটা file-এ লেখে (৫,৭৭,০০০ video-র জন্য ৭৭ MB); আপনি কী
+   দেখেছেন, আপনার list বা আপনার key তাতে যায় না।
+2. File-টা এমন জায়গায় রাখুন যেখান থেকে install করা app নামাতে পারে।
+   Google Drive-এ: upload করে "anyone with the link" share করুন আর link
+   copy করুন। নতুন snapshot একই link-এর নিচে যায় "Manage versions" দিয়ে।
+3. সেই link দিয়ে installer বানান; app পরে যা খুঁজে পায় তার poster
+   দেখাতে চাইলে সাথে একটা TMDB key দিন:
+
+   ```powershell
+   pwsh tool/package.ps1 -SnapshotUrl "<link>" -TmdbKeyFile D:\keys\dhara-tmdb.txt
+   ```
+
+   Key-র file-এ শুধু key-টাই থাকবে, আর file-টা এই repository-র বাইরে
+   থাকতে হবে। Key program-এর অংশ হয়ে যায়, তাই installer যার কাছে যায়
+   সে-ই key বের করে নিতে পারে: installer শুধু তাদেরই দিন যাদের key দিতে
+   রাজি। `-SnapshotFile <file>` snapshot-টা installer-এর ভেতরেই রাখে
+   (installer তখন প্রায় ৭৭ MB বড় হয়), যে PC link-এ পৌঁছাতে পারে না তার
+   জন্য।
+
+Snapshot-কে অবিশ্বাস করে পড়া হয়: app-এর নিজের তালিকার server-এ থাকা video
+ছাড়া তা থেকে কিছু নেওয়া হয় না।
+
 ## মাপা সংখ্যা
 
 যে PC-র জন্য app বানানো (Ryzen 5 5500U, integrated graphics, Windows 11),
@@ -257,7 +310,8 @@ Script-টা release build করে, সাথে দেওয়া প্র
 | Cold start | ২ s-এর কম | 0.85 থেকে 0.9 s |
 | Search | ১০০ ms-এর কম | title দিয়ে 2 থেকে 7 ms |
 | Playback শুরু | ২ s-এর কম | আসল BDIX server-এ 0.7 থেকে 1.8 s |
-| Installer | বড়জোর ~80 MB | 48.2 MB (app-এর file-গুলো: 167 MB) |
+| Installer | বড়জোর ~80 MB | 48.3 MB (app-এর file-গুলো: 168 MB); snapshot ভেতরে থাকলে 120.9 MB |
+| Install করা app-এর প্রথম start | | চালুর ১০০ সেকেন্ড পরে Home ভরা: ৫,৭৭,০০০ video নামানো (৭৭ MB) আর জায়গামতো বসানো |
 | Idle memory | | Home-এ 196 থেকে 210 MB working set |
 
 ## যা এখনো পারে না

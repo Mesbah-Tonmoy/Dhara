@@ -23,6 +23,7 @@ The full project brief lives in [BRIEF.md](../BRIEF.md) (mirrored in
 | 7. Smart playback | Done in code and in automated tests, and tried in the running app against a web server on this PC that can be slow, stall, drop the connection or send no video: the player is set up for streaming (buffer size and hardware decoding in Settings), seeks to keyframes where that is quicker, has an info panel, a title's copies are pinged live, Settings has a preferred quality and the languages a video starts in, Play starts on the fastest copy, a video that stalls goes on from another copy by itself, the next episode's copy is chosen before this one ends, and files of Emby and Jellyfin servers are fetched with a session; see [Smart playback](#smart-playback) and what was [measured](#measured-in-phase-7). Tried on real BDIX servers on 2026-11-17 (two folder-listing servers and an Emby server answering, one h5ai server down): see [Tried on real servers](#tried-on-real-servers). **Not yet tried there:** a server that stalls in the middle of a video (it cannot be made to), and a real Dolby TrueHD file |
 | 8. Packaging, security review and docs | Done: the app was gone through against section 7 of the brief ([security-review.md](security-review.md)), there is a per-user installer with a checksum (see [Installer](#installer)), and the README is there in English and Bangla, with how to keep the player up to date and a list of what to try by hand ([manual-test.bn.md](manual-test.bn.md)). On 2026-11-18 the libmpv of 2023 was replaced by a current build (see [Player hardening](#player-hardening)). **Not yet tried:** the installer on a PC without the Visual C++ runtime, an update over an older version, and the newer libmpv on real BDIX servers. The installer is to be made again after the PC it was built on is reset |
 | 9 | Not started |
+| Production build (version 1.1.0, 2026-11-24) | Done: one code, two builds. The installer holds the production build, which fills its library by itself on its first start (a snapshot fetched from the address it was built with, or one that came in the installer), finds the servers that answer, carries a TMDB key if it was built with one, looks titles up and reads the servers again by itself. Tried with real builds, with test installers the script made and with the user's snapshot on Google Drive; see [The first start of a production build](#the-first-start-of-a-production-build). **Not yet tried:** an installer run on a second PC, a build with a real TMDB key (none was used: the PC is to be set up anew first), and matching in a production build against TMDB itself |
 
 ## Prerequisites (Windows)
 
@@ -128,10 +129,15 @@ out of the built program, so everyone who has the installer can fetch the
 snapshot. Without `-SnapshotUrl` the build fetches nothing, and the script
 says so. To put a newer snapshot under the same link: in Drive,
 right-click the file, "File information", "Manage versions", "Upload new
-version". **Not yet tried:** an installer made with `-SnapshotUrl` (the
-script was parsed and its turning of links tried by hand; a release built
-with the address the script would give it fetched the user's snapshot
-from Drive, see below).
+version".
+
+`-SnapshotFile <file>` puts a snapshot into the installer itself
+(`data\library.snapshot.gz` beside the program). The installed app reads
+it on its first start before it fetches anything and leaves it where it
+is; a snapshot that was fetched and lies in the data folder goes first.
+It is for a PC that cannot reach the address, or instead of an address.
+The installer is then as much larger as the file is, and the snapshot is
+as old as the installer.
 
 `-TmdbKeyFile <file>` builds a TMDB key into the production build:
 
@@ -147,11 +153,31 @@ command line. A build writes the values it is given into its own files
 (`build\windows`, `.dart_tool\flutter_build`,
 `windows\flutter\ephemeral\generated_config.cmake`): after a build with
 a key the script removes those, also when it fails, so the next build
-starts from nothing and takes a few minutes longer. The key stays where it
+starts from nothing and takes a few minutes longer. Until that next
+build the tests against the real libmpv have no player library to load
+(they take it from `build\windows`) and nine of them fail: run
+`flutter build windows` once before `flutter test`. The key stays where it
 is meant to be: in `dist\`, in the staged folder and the installer.
 Without `-TmdbKeyFile` the build has no key of its own, and the script
-says so. **Not yet tried:** a build with `-TmdbKeyFile` (the script was
-parsed and its checks tried with made-up keys; no real key was used, see
+says so.
+
+Tried on 2026-11-24, each time as a test copy (`-TestDataDir`), whose
+staged program was then started off-screen on its empty data folder:
+
+- `-SnapshotUrl` with the user's Google Drive share link: the script
+  turned the link into the download address, the installer came to 48.3
+  MB, and the program fetched the 76.65 MB, read them and showed Home
+  (577,306 videos) 102 seconds after it was started;
+- `-SnapshotFile` and `-TmdbKeyFile` with a made-up key: the installer
+  came to 120.9 MB, the program filled its library from the file beside
+  it without fetching anything and left the file there, and the script
+  took the key out of the build's own files (`build\windows`,
+  `.dart_tool\flutter_build` and `generated_config.cmake` were gone; a
+  search of the repository's folder found the made-up key in the staged
+  `app.so` only). A key file inside the repository was refused.
+
+**Not yet tried:** running one of these installers (the staged program
+was started, not the installer), a second PC, and a real TMDB key (see
 [TMDB key](#tmdb-key)).
 
 `-Logo <name>` makes another drawing the logo the installed app starts
@@ -1277,9 +1303,11 @@ nothing for the user to do (`FirstStartController`,
 the same time, and Home says how far they are ("Getting your library
 ready"):
 
-- **The library is fetched and read.** The snapshot comes from the one
-  address the build was given (`DHARA_SNAPSHOT_URL`, see
-  [Installer](#installer)), is saved as `library.snapshot.gz` in the data
+- **The library is fetched and read.** A snapshot that came in the
+  installer (`-SnapshotFile`, see [Installer](#installer)) is read where
+  it lies. Otherwise the snapshot comes from the one
+  address the build was given (`DHARA_SNAPSHOT_URL`), is saved as
+  `library.snapshot.gz` in the data
   folder (under `.part` until it is whole), read into the library as
   above and removed. `SnapshotFetcher` asks that address and no other: a
   redirect to another host is refused, the request carries no cookie and
@@ -1343,9 +1371,11 @@ leave it:
   titles, 29 servers switched on, in about a minute and a half from the
   start, with nobody touching it.
 
-**Not tried:** an installer made by `tool/package.ps1 -SnapshotUrl` (the
-build above was given the address by hand, in the way the script does
-it); a second PC.
+- made by `tool/package.ps1` itself, with `-SnapshotUrl` and with
+  `-SnapshotFile`: see [Installer](#installer).
+
+**Not tried:** a second PC, and so an installer that is run on a PC where
+Dhara never was.
 
 ## Titles and metadata
 
