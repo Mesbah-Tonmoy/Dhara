@@ -131,39 +131,63 @@ void main() {
       expect(tester.state(_history), same(before));
     });
 
-    testWidgets('Settings opens its tools on top of itself: Back leads to '
-        'Settings, and the rail keeps Settings lit', (tester) async {
+    testWidgets('Settings opens the tools on top of itself: Back leads to '
+        'Settings', (tester) async {
       await _boot(tester);
-      bool lit() => tester
-          .widget<Pressable>(
-            find.descendant(
-              of: find.byKey(const Key('rail-settings')),
-              matching: find.byType(Pressable),
-            ),
-          )
-          .selected!;
-      // The tools have no icon of their own on the rail.
-      expect(find.byKey(const Key('rail-library')), findsNothing);
-      expect(find.byKey(const Key('rail-titles')), findsNothing);
 
       await _openTool(tester, 'library');
       expect(_library, findsOneWidget);
       expect(_current(tester), ShellDestination.library);
-      expect(lit(), isTrue);
 
       await tester.tap(_back);
       await tester.pumpAndSettle();
       expect(_settings, findsOneWidget);
       expect(_library, findsNothing);
       expect(_current(tester), ShellDestination.settings);
-      expect(lit(), isTrue);
 
       await _openTool(tester, 'titles');
       expect(_titles, findsOneWidget);
 
       await _open(tester, 'home');
       expect(_home, findsOneWidget);
-      expect(lit(), isFalse);
+    });
+
+    testWidgets('a production build has neither the tools nor a way to '
+        'them', (tester) async {
+      await _boot(tester, app: testApp(devTools: false));
+
+      expect(find.byKey(const Key('rail-library')), findsNothing);
+      expect(find.byKey(const Key('rail-titles')), findsNothing);
+      // What everyone uses is there.
+      for (final place in ['home', 'search', 'history', 'discovery']) {
+        expect(find.byKey(Key('rail-$place')), findsOneWidget, reason: place);
+      }
+
+      await _open(tester, 'settings');
+      expect(
+        find.byKey(const Key('set-open-library'), skipOffstage: false),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const Key('set-open-titles'), skipOffstage: false),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const Key('set-open-discovery'), skipOffstage: false),
+        findsOneWidget,
+      );
+
+      // Asked for from code, a tool still does not open.
+      final shell = ShellScope.read(tester.element(find.byType(NavRail)));
+      expect(shell.has(ShellDestination.library), isFalse);
+      expect(shell.has(ShellDestination.titles), isFalse);
+      shell
+        ..open(ShellDestination.library)
+        ..openOver(ShellDestination.titles);
+      await tester.pumpAndSettle();
+      expect(_library, findsNothing);
+      expect(_titles, findsNothing);
+      expect(_settings, findsOneWidget);
     });
 
     testWidgets('a development build has the tools on the rail, each lit '

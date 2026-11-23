@@ -54,10 +54,34 @@ reports `No available native assets`, a package was missing when the build
 first ran and the build cache remembers that. Run `flutter pub get`, delete
 `.dart_tool\flutter_build` (or run `flutter clean`) and start again.
 
+## Development and production builds
+
+One codebase, two builds, chosen when building (`_devTools` in
+`lib/main.dart`, passed down as `ShellController.devTools`):
+
+| | Development | Production |
+|---|---|---|
+| Is | every build but a release (so `flutter run`), and a release made with `--dart-define=DHARA_DEV=true` | a release without that |
+| For | working on the library | using it: another PC, a friend |
+| Titles and matching, Needs review, the TMDB key, Library index | on the rail and in Settings | not there, and `ShellController.open` refuses them |
+| Home with an empty library | the three steps that fill it | "Nothing to watch yet", with the way to Server Discovery |
+| Home's notice that posters need a TMDB key | shown | not shown |
+| Server Discovery, Settings, everything to watch | there | there |
+
+Both keep their data in the same folder (`%APPDATA%\com.dhara\dhara`), so
+on a PC that has both only one should be open at a time.
+
+A production build is to fill its library by itself (a snapshot of the
+library, a TMDB key that is built in, reading the servers in the
+background): see section 1 of [ROADMAP.md](ROADMAP.md). **That is not built
+yet.** Until it is, a production build has no way to fill an empty library,
+and no production installer newer than 1.0.3 should be made.
+
 ## Installer
 
 ```powershell
-pwsh tool/package.ps1
+pwsh tool/package.ps1        # the production build
+pwsh tool/package.ps1 -Dev   # the development build
 ```
 
 needs Flutter, the Visual Studio Build Tools and
@@ -75,6 +99,14 @@ needs Flutter, the Visual Studio Build Tools and
 - `Dhara-Setup-<version>.exe.sha256`: its SHA-256. To check a copy of the
   installer: `(Get-FileHash Dhara-Setup-<version>.exe -Algorithm SHA256).Hash`
   must be the value in that file.
+
+`-Dev` makes `Dhara-Dev-<version>/` and `Dhara-Dev-Setup-<version>.exe`:
+the development build, called "Dhara Dev", with an id of its own, so it
+installs beside the production app (`%LOCALAPPDATA%\Programs\Dhara Dev`)
+and never over it. It cannot be combined with `-TestDataDir`. **Not yet
+tried:** making and installing a development installer (the script and the
+Inno Setup file were changed, and the Inno Setup file was compiled once
+with `/DDevCopy`).
 
 `-Logo <name>` makes another drawing the logo the installed app starts
 with, and `-LogoFromSettings` takes the one chosen in Settings on the PC
@@ -495,13 +527,11 @@ Every control does something and is saved as it is changed
   setting does the same).
 - **Keyboard:** the keys that do something, in the app and in the player
   (see [Keyboard](#keyboard)).
-- **Library and metadata / Sources:** the way to "Titles and matching"
-  (TMDB key, matching, Needs review), "Library index" and Server
-  Discovery. The first two have no icon on the rail any more; Back leads
-  from them to Settings. A development build has them on the rail again,
-  with the tools at its foot: every build but a release (so `flutter run`),
-  and a release made with `--dart-define=DHARA_DEV=true`
-  (`ShellController.devTools`).
+- **Library and metadata** (a development build only): the way to "Titles
+  and matching" (TMDB key, matching, Needs review) and "Library index";
+  Back leads from them to Settings. They also stand at the foot of the
+  rail. See [Development and production builds](#development-and-production-builds).
+- **Sources:** the way to Server Discovery.
 - **Privacy and security:** what the app never does, and "Clear history".
 
 ## Subtitles and audio tracks
@@ -849,8 +879,10 @@ is the banner when no title has a backdrop (no TMDB key yet).
 - A card shows the best quality any of its videos has and the rating; under
   the pointer (or the keyboard) it also shows year, genres and how many
   copies or episodes there are. A click opens the [title page](#title-page).
-- With nothing to show, Home lists the three steps that fill the library
-  (servers, index, TMDB key) and where each stands.
+- With nothing to show, a development build's Home lists the three steps
+  that fill the library (servers, index, TMDB key) and where each stands.
+  A production build's says that there is nothing to watch yet and leads
+  to Server Discovery.
 - `HomeController` reads all of it in the library isolate, keeps it in
   memory so that Home opens at once, and reads again when sources are
   switched, names were read or titles were matched (at most every 12 s
@@ -1054,7 +1086,8 @@ enabled sources through their adapters and keeps the index in step
 
 ### Library index screen
 
-Open it from Settings. It lists the enabled servers with what the
+A development build's page: open it from the rail or from Settings. It
+lists the enabled servers with what the
 index holds of each, shows the progress of a crawl, and offers **Update
 index**, **Stop** and **Full re-check** (reads every folder again, also
 those that look unchanged). An enabled source without an adapter (a custom
@@ -1118,8 +1151,8 @@ paths and names with the expected result.
 
 ### TMDB key
 
-Posters and descriptions come from The Movie Database, with your own key:
-Settings, "Titles and matching", "Add TMDB key". Paste the *API Read Access Token* (or the
+Posters and descriptions come from The Movie Database, with your own key,
+in a development build: "Titles and matching", "Add TMDB key". Paste the *API Read Access Token* (or the
 v3 API key) from your TMDB account settings. The key is kept in **Windows
 Credential Manager** (entry `Dhara/tmdb`), through `win32` and `ffi`
 directly; it is never written to the settings file, the database or a log,
@@ -1130,7 +1163,7 @@ This product uses the TMDB API but is not endorsed or certified by TMDB.
 
 ### Matching
 
-"Match now" on the "Titles and matching" page (opened from Settings; it
+"Match now" on the "Titles and matching" page (a development build's; it
 also counts the films, shows and other videos) looks every title up
 (`MatchController`, `title_matcher.dart`): by name and year, then without
 the year, then by the name the file gives it. Candidates get up to 70

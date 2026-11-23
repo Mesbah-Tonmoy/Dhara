@@ -18,11 +18,8 @@ enum ShellDestination {
   history('History', DharaIcons.history),
 
   /// How many titles there are, the TMDB key, matching and Needs review.
-  /// Opened from Settings (and from Home's notices).
-  titles('Titles and matching', DharaIcons.matching, onRail: false),
-
-  /// Opened from Settings (and from Home's notices).
-  library('Library index', DharaIcons.library, onRail: false),
+  titles('Titles and matching', DharaIcons.matching, devOnly: true),
+  library('Library index', DharaIcons.library, devOnly: true),
   discovery('Server Discovery', DharaIcons.servers, low: true),
   settings('Settings', DharaIcons.settings, low: true);
 
@@ -30,7 +27,7 @@ enum ShellDestination {
     this.label,
     this.icon, {
     this.low = false,
-    this.onRail = true,
+    this.devOnly = false,
   });
 
   final String label;
@@ -39,10 +36,11 @@ enum ShellDestination {
   /// Kept at the foot of the rail, with the tools rather than the content.
   final bool low;
 
-  /// Has an icon on the rail. The others are tools reached from Settings;
-  /// while one of them is open, the rail lights Settings. A development
-  /// build gives them icons too ([ShellController.devTools]).
-  final bool onRail;
+  /// A tool for working on the library, which only a development build
+  /// has ([ShellController.devTools]): there it stands at the foot of the
+  /// rail and is also opened from Settings and from Home's notices. A
+  /// production build fills its library by itself and has no such page.
+  final bool devOnly;
 }
 
 /// Where the app is, and how it moves: the pages inside the shell (title
@@ -61,13 +59,14 @@ class ShellController extends ChangeNotifier {
     this.devTools = false,
   });
 
-  /// A build for working on the library: the tools that are otherwise
-  /// opened from Settings (Titles and matching, Library index) have icons
-  /// of their own on the rail.
+  /// A development build, for working on the library: it has the tools
+  /// (Titles and matching, Library index), the TMDB key and Home's steps
+  /// that say how to fill an empty library. A production build, which is
+  /// what this is without it, has none of them.
   final bool devTools;
 
-  /// Whether [place] has an icon on the rail in this build.
-  bool isOnRail(ShellDestination place) => place.onRail || devTools;
+  /// Whether this build has [place] at all.
+  bool has(ShellDestination place) => !place.devOnly || devTools;
 
   /// Builds the page of a place of the rail. For [ShellDestination.titles],
   /// [query] is what to search for at once.
@@ -161,10 +160,11 @@ class ShellController extends ChangeNotifier {
     if (changed) _changed();
   }
 
-  /// Opens [destination], unless it is what is on screen already.
+  /// Opens [destination], unless it is what is on screen already or this
+  /// build does not have it.
   void open(ShellDestination destination, {String? query}) {
     final navigator = navigatorKey.currentState;
-    if (navigator == null) return;
+    if (navigator == null || !has(destination)) return;
     if (destination == ShellDestination.home) {
       navigator.popUntil((route) => route.isFirst);
       return;
@@ -183,7 +183,7 @@ class ShellController extends ChangeNotifier {
   /// to that page again (Settings opens its tools like this).
   void openOver(ShellDestination destination) {
     final navigator = navigatorKey.currentState;
-    if (navigator == null) return;
+    if (navigator == null || !has(destination)) return;
     if (_stack.isNotEmpty && _placeOf(_stack.last) == destination) return;
     unawaited(navigator.push(routeFor(destination)));
   }

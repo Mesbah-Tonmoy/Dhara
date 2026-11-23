@@ -35,7 +35,8 @@ typedef OpenTitle = void Function(BuildContext context, TitleCard title);
 /// Rated), all read by the `HomeController` above it.
 ///
 /// While the library is read for the first time the rows are grey
-/// placeholders; with nothing to show yet, Home says what to do first.
+/// placeholders; with nothing to show yet, a development build's Home says
+/// what to do first, and a production build's that there is nothing yet.
 /// Titles and file names come from the servers and are only ever drawn as
 /// plain text.
 class HomeScreen extends StatelessWidget {
@@ -73,7 +74,10 @@ class HomeScreen extends StatelessWidget {
       body = _Centered(
         key: const Key('home-start'),
         left: contentLeft,
-        child: const _GetStarted(),
+        // The steps lead to tools only a development build has.
+        child: ShellScope.read(context).devTools
+            ? const _GetStarted()
+            : const _Empty(),
       );
     } else {
       body = _Rows(
@@ -255,7 +259,11 @@ class _RowsState extends State<_Rows> {
             onPlay: _play,
             onMore: (title) => widget.onOpenTitle(context, title),
           ),
-        if (tmdbKey.isLoaded && !tmdbKey.hasKey && !tmdbKey.unreadable)
+        // Only where a key can be added: a development build.
+        if (shell.devTools &&
+            tmdbKey.isLoaded &&
+            !tmdbKey.hasKey &&
+            !tmdbKey.unreadable)
           Padding(
             padding: EdgeInsets.only(
               left: left,
@@ -448,8 +456,43 @@ class _Centered extends StatelessWidget {
   );
 }
 
-/// What Home shows while the library holds nothing to list: the three
-/// steps that fill it, each with where it stands.
+/// What Home shows in a production build while the library holds nothing
+/// to list. There are no steps to take: that build has no tools, and the
+/// one thing a user can do about an empty library is to see which servers
+/// answer from their connection.
+class _Empty extends StatelessWidget {
+  const _Empty();
+
+  @override
+  Widget build(BuildContext context) => EmptyState(
+    key: const Key('home-empty'),
+    icon: DharaIcons.library,
+    title: 'Nothing to watch yet',
+    message:
+        'The library holds no film or show of a server that is switched '
+        'on. Server Discovery tests the servers from this connection.',
+    action: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DharaButton(
+          key: const Key('home-empty-servers'),
+          label: 'Server Discovery',
+          icon: DharaIcons.servers,
+          small: true,
+          style: DharaButtonStyle.primary,
+          autofocus: true,
+          onPressed: () =>
+              ShellScope.read(context).open(ShellDestination.discovery),
+        ),
+        const SizedBox(width: DharaSpace.s3),
+        const _PlayUrlButton(),
+      ],
+    ),
+  );
+}
+
+/// What Home shows in a development build while the library holds nothing
+/// to list: the three steps that fill it, each with where it stands.
 class _GetStarted extends StatelessWidget {
   const _GetStarted();
 

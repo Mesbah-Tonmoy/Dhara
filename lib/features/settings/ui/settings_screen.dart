@@ -21,18 +21,25 @@ enum SettingsGroup {
   playback('Playback'),
   appearance('Appearance'),
   keyboard('Keyboard'),
-  library('Library and metadata'),
+
+  /// The way to the tools for working on the library, which only a
+  /// development build has.
+  library('Library and metadata', devOnly: true),
   sources('Sources'),
   privacy('Privacy and security'),
   about('About');
 
-  const SettingsGroup(this.label);
+  const SettingsGroup(this.label, {this.devOnly = false});
 
   final String label;
+
+  /// Left out of a production build.
+  final bool devOnly;
 }
 
 /// Settings: what can be changed about playback and the look, and the way
-/// to the tools (matching, the library index, Server Discovery).
+/// to Server Discovery and, in a development build, to the tools (matching,
+/// the library index).
 ///
 /// Every control here does something now and is saved as it is changed;
 /// there is none whose feature is not built.
@@ -319,38 +326,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
           control: _Keys(['Space', '← →', '↑ ↓', 'F', 'M', 'S', 'N', 'I']),
         ),
       ]),
-      group(SettingsGroup.library, [
-        _SetRow(
-          label: 'Titles and matching',
-          hint: !tmdbKey.isLoaded
-              ? 'The TMDB key, matching and Needs review.'
-              : tmdbKey.hasKey
-              ? 'A TMDB key is saved. Matching and Needs review are here '
-                    'too.'
-              : 'No TMDB key yet: posters and details need one. Matching '
-                    'and Needs review are here too.',
-          control: DharaButton(
-            key: const Key('set-open-titles'),
-            label: 'Open',
-            icon: DharaIcons.matching,
-            small: true,
-            onPressed: () => shell.openOver(ShellDestination.titles),
+      if (shell.devTools)
+        group(SettingsGroup.library, [
+          _SetRow(
+            label: 'Titles and matching',
+            hint: !tmdbKey.isLoaded
+                ? 'The TMDB key, matching and Needs review.'
+                : tmdbKey.hasKey
+                ? 'A TMDB key is saved. Matching and Needs review are here '
+                      'too.'
+                : 'No TMDB key yet: posters and details need one. Matching '
+                      'and Needs review are here too.',
+            control: DharaButton(
+              key: const Key('set-open-titles'),
+              label: 'Open',
+              icon: DharaIcons.matching,
+              small: true,
+              onPressed: () => shell.openOver(ShellDestination.titles),
+            ),
           ),
-        ),
-        _SetRow(
-          label: 'Library index',
-          hint:
-              'Reads the folders of the enabled servers, and shows how far '
-              'that is.',
-          control: DharaButton(
-            key: const Key('set-open-library'),
-            label: 'Open',
-            icon: DharaIcons.library,
-            small: true,
-            onPressed: () => shell.openOver(ShellDestination.library),
+          _SetRow(
+            label: 'Library index',
+            hint:
+                'Reads the folders of the enabled servers, and shows how far '
+                'that is.',
+            control: DharaButton(
+              key: const Key('set-open-library'),
+              label: 'Open',
+              icon: DharaIcons.library,
+              small: true,
+              onPressed: () => shell.openOver(ShellDestination.library),
+            ),
           ),
-        ),
-      ]),
+        ]),
       group(SettingsGroup.sources, [
         _SetRow(
           label: 'Server Discovery',
@@ -469,7 +477,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         SizedBox(
                           width: 13 * rem,
                           child: FocusTraversalGroup(
-                            child: _Nav(onShow: _show),
+                            child: _Nav(
+                              groups: [
+                                for (final group in SettingsGroup.values)
+                                  if (shell.devTools || !group.devOnly) group,
+                              ],
+                              onShow: _show,
+                            ),
                           ),
                         ),
                       Expanded(
@@ -509,8 +523,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 /// The list of the page's parts on its left: a click brings one into view.
 class _Nav extends StatelessWidget {
-  const _Nav({required this.onShow});
+  const _Nav({required this.groups, required this.onShow});
 
+  /// The parts this build's page has.
+  final List<SettingsGroup> groups;
   final ValueChanged<SettingsGroup> onShow;
 
   @override
@@ -521,7 +537,7 @@ class _Nav extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final group in SettingsGroup.values)
+          for (final group in groups)
             Pressable(
               key: Key('settings-nav-${group.name}'),
               onPressed: () => onShow(group),

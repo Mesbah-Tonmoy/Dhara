@@ -97,6 +97,7 @@ Future<SourceStore> _boot(
   bool enabled = true,
   bool withSource = true,
   bool settle = true,
+  bool devTools = true,
 }) async {
   tester.view
     ..physicalSize = const Size(1280, 720)
@@ -105,6 +106,7 @@ Future<SourceStore> _boot(
   final (:app, :sources) = testApp(
     db: db,
     sources: [if (withSource) testSource('a')],
+    devTools: devTools,
   );
   if (enabled && withSource) {
     await sources.setEnabled(['a'], enabled: true);
@@ -520,6 +522,45 @@ void main() {
       await _boot(tester, db: _library());
 
       expect(find.byKey(const Key('home-key-notice')), findsNothing);
+    });
+
+    testWidgets('a production build does not ask for a key', (tester) async {
+      await _boot(tester, db: _library(rated: false), devTools: false);
+      final tmdbKey = TmdbKeyScope.read(
+        tester.element(find.byType(HomeScreen)),
+      );
+      await tester.runAsync(tmdbKey.load);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('home-key-notice')), findsNothing);
+      expect(_cards(tester, 'movies'), ['Film 3', 'Film 2', 'Film 1']);
+    });
+  });
+
+  group('with nothing to show, a production build', () {
+    testWidgets('lists no steps: it says so, and leads to the servers', (
+      tester,
+    ) async {
+      await _boot(tester, enabled: false, devTools: false);
+
+      expect(find.byKey(const Key('home-empty')), findsOneWidget);
+      expect(find.text('Nothing to watch yet'), findsOneWidget);
+      expect(find.text('Welcome to Dhara'), findsNothing);
+      for (final step in ['servers', 'index', 'key']) {
+        expect(find.byKey(Key('home-step-$step')), findsNothing, reason: step);
+      }
+
+      await tester.tap(find.byKey(const Key('home-empty-servers')));
+      await tester.pumpAndSettle();
+      expect(find.byType(ServerDiscoveryScreen), findsOneWidget);
+    });
+
+    testWidgets('playing a URL is still at hand', (tester) async {
+      await _boot(tester, withSource: false, devTools: false);
+
+      await tester.tap(find.byKey(const Key('home-open-url')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('url-field')), findsOneWidget);
     });
   });
 

@@ -31,6 +31,12 @@
   #define AppName "Dhara Test"
   #define AppId "{{B39A315B-ED1C-4708-A50E-E4AF6AE1DC9E}"
   #define SetupName "Dhara-Test-Setup-" + AppVersion
+; /DDevCopy makes the installer of the development build (the tools for
+; working on the library): it too installs beside the production app.
+#elif defined(DevCopy)
+  #define AppName "Dhara Dev"
+  #define AppId "{{B2E93289-2118-4B00-86D0-A5A2F20F643A}"
+  #define SetupName "Dhara-Dev-Setup-" + AppVersion
 #else
   #define AppName "Dhara"
   #define AppId "{{C20665BD-4919-47A4-9DE8-CA94A6D0CF47}"

@@ -32,7 +32,8 @@ import 'package:flutter/widgets.dart';
 /// not an empty one; [images] is where pictures come from, if they are to
 /// be shown; [settings] is where the settings are kept, if a test wants to
 /// look; [newCopyProber] makes what copies are pinged with, if they are to
-/// be; [devTools] makes it a development build.
+/// be. It is a development build, which has every page; without [devTools]
+/// it is a production build.
 ({Widget app, SourceStore sources}) testApp({
   List<Source> sources = const [],
   WindowController? window,
@@ -40,7 +41,7 @@ import 'package:flutter/widgets.dart';
   RemoteImageStore? images,
   KeyValueStore? settings,
   CopyProber Function()? newCopyProber,
-  bool devTools = false,
+  bool devTools = true,
 }) {
   final store = SourceStore(starter: sources);
   final library = LocalLibrary(db ?? LibraryDb.inMemory());

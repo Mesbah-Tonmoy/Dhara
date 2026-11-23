@@ -61,7 +61,8 @@ class DharaApp extends StatelessWidget {
   final BrowseController browse;
   final HistoryController history;
 
-  /// A build for working on the library, with its tools on the rail.
+  /// A development build, which has the tools for working on the library;
+  /// without it this is a production build (see `ShellController.devTools`).
   final bool devTools;
 
   /// Says how far the reading of film details is; without it, nothing

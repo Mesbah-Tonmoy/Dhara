@@ -288,10 +288,15 @@ Future<(LibraryWorker, String?, bool)> _openLibrary(String? folder) async {
 /// neither reads nor writes the TMDB key in Windows Credential Manager.
 const _dataFolderOverride = String.fromEnvironment('DHARA_DATA_DIR');
 
-/// Whether this is a build for working on the library, which has Titles
-/// and matching and Library index on the rail: every build but a release,
-/// and a release made with `--dart-define=DHARA_DEV=true`.
-const _devTools = bool.fromEnvironment('DHARA_DEV', defaultValue: !kReleaseMode);
+/// Whether this is a development build, which has the tools for working on
+/// the library (Titles and matching, Library index, the TMDB key): every
+/// build but a release, and a release made with
+/// `--dart-define=DHARA_DEV=true` (`tool/package.ps1 -Dev`). A release
+/// without it is a production build, which has none of them.
+const _devTools = bool.fromEnvironment(
+  'DHARA_DEV',
+  defaultValue: !kReleaseMode,
+);
 
 /// The per-user application data folder (on Windows
 /// `%APPDATA%\com.dhara\dhara`), or `null` if it cannot be found.

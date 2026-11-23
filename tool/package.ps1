@@ -9,6 +9,13 @@
 # installed, nothing outside the repository's build/ and dist/ is written,
 # and no admin rights are needed.
 #
+# Without -Dev it makes the production build, which is ready to use and has
+# no tools for working on the library. -Dev makes the development build
+# (Titles and matching, Library index, the TMDB key): it is called
+# "Dhara Dev" and installs beside the production app, never over it. The two
+# keep their data in the same folder, so only one of them should be open at
+# a time.
+#
 # -TestDataDir <folder> makes a copy for trying the installer without
 # touching the real library: that build keeps its data in <folder>, is called
 # "Dhara Test" and installs beside the real app, never over it.
@@ -21,6 +28,7 @@
 [CmdletBinding()]
 param(
   [string]$Flutter,
+  [switch]$Dev,
   [string]$TestDataDir,
   [string]$Logo,
   [switch]$LogoFromSettings
@@ -41,7 +49,10 @@ $versionLine = Select-String -Path pubspec.yaml -Pattern '^version:\s*(\d+\.\d+\
 if (-not $versionLine) { Fail 'pubspec.yaml has no version like 1.2.3.' }
 $version = $versionLine.Matches[0].Groups[1].Value
 $test = [bool]$TestDataDir
-$name = if ($test) { 'Dhara-Test' } else { 'Dhara' }
+# A test copy is made to try the installer, whichever build is inside: one
+# name for it is enough.
+if ($test -and $Dev) { Fail '-Dev and -TestDataDir cannot be used together.' }
+$name = if ($test) { 'Dhara-Test' } elseif ($Dev) { 'Dhara-Dev' } else { 'Dhara' }
 $stage = Join-Path $root "dist\$name-$version"
 
 if (-not $Flutter) {
@@ -69,6 +80,7 @@ Step "Building $name $version (release)"
 Get-ChildItem '.dart_tool\flutter_build\*\release_bundle_windows-x64_assets.stamp' -ErrorAction SilentlyContinue |
   Remove-Item -Force
 $buildArgs = @('build', 'windows', '--release')
+if ($Dev) { $buildArgs += '--dart-define=DHARA_DEV=true' }
 if ($test) { $buildArgs += "--dart-define=DHARA_DATA_DIR=$TestDataDir" }
 if ($Logo) { $buildArgs += "--dart-define=DHARA_LOGO=$Logo"; Write-Host "  logo: $Logo" }
 & $Flutter @buildArgs
@@ -151,6 +163,7 @@ $setup = Join-Path $root "dist\$name-Setup-$version.exe"
 Remove-Item $setup -ErrorAction SilentlyContinue
 $isccArgs = @("/DAppVersion=$version", "/DSourceDir=$stage", "/DOutputDir=$root\dist", '/Qp')
 if ($test) { $isccArgs += '/DTestCopy' }
+if ($Dev) { $isccArgs += '/DDevCopy' }
 & $iscc @isccArgs (Join-Path $root 'installer\dhara.iss')
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path $setup)) { Fail 'Inno Setup did not make the installer.' }
 

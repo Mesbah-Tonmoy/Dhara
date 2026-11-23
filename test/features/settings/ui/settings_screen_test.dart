@@ -16,12 +16,16 @@ import '../../../support/test_app.dart';
 
 final _page = find.byKey(const Key('settings'));
 
-Future<void> _boot(WidgetTester tester, KeyValueStore store) async {
+Future<void> _boot(
+  WidgetTester tester,
+  KeyValueStore store, {
+  bool devTools = true,
+}) async {
   tester.view
     ..physicalSize = const Size(1280, 720)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(testApp(settings: store).app);
+  await tester.pumpWidget(testApp(settings: store, devTools: devTools).app);
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('rail-settings')));
   await tester.pumpAndSettle();
@@ -60,6 +64,30 @@ void main() {
     ]) {
       expect(find.text(row, skipOffstage: false), findsOneWidget);
     }
+  });
+
+  testWidgets('a production build leaves out the part that leads to the '
+      'tools, in the page and in the list beside it', (tester) async {
+    await _boot(tester, MemoryKeyValueStore(), devTools: false);
+
+    for (final group in SettingsGroup.values) {
+      final there = group.devOnly ? findsNothing : findsOneWidget;
+      expect(
+        find.byKey(Key('settings-group-${group.name}'), skipOffstage: false),
+        there,
+        reason: group.name,
+      );
+      expect(
+        find.byKey(Key('settings-nav-${group.name}')),
+        there,
+        reason: group.name,
+      );
+    }
+    expect(SettingsGroup.library.devOnly, isTrue);
+
+    // A part that is left out is not looked for when another is shown.
+    await _tap(tester, find.byKey(const Key('settings-nav-about')));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('shows what was saved before', (tester) async {

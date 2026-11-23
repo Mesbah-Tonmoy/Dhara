@@ -71,6 +71,38 @@ empty library, with progress; (4) fetching it, and the first start of a
 production build; (5) the key built in; (6) reading the servers again in
 the background; (7) packaging, docs, version 1.1.0.
 
+Found out on 2026-11-21, before the work began: **Google Drive does hand
+a large file to a program.** The address
+`https://drive.usercontent.google.com/download?id=<id>&export=download&confirm=t`
+answered with the file itself for a public file of 476 MB and for one of
+5 bytes: no cookie, no sign-in, no redirect, one host, with its length
+and with ranges; 50 MB came in 106 seconds on the user's connection. The
+plain download address gives the large file only as a page that asks to
+confirm. None of this is documented by Google, so it can stop working;
+the address is a build-time value, and a production build that cannot
+fetch its snapshot is to read the servers by itself. The user's
+repository on GitHub is public and has no release yet, so a release asset
+can stand in later (it needs a second host: GitHub redirects). To put a
+newer snapshot under the same link: Drive, "Manage versions", "Upload new
+version".
+
+Agreed with the user on 2026-11-23: the seven increments as above, and
+three lines for section 7 of the brief, each written into it with the
+increment that needs it (a production build fetches its snapshot from the
+one address built into it and tests the starter servers by itself; a
+snapshot is untrusted input; a production build carries a TMDB key given
+at build time).
+
+Done:
+
+- **(1), 2026-11-23.** A release is a production build unless it is made
+  with `DHARA_DEV`: no Titles and matching, Library index, Needs review or
+  TMDB key, no three steps and no key notice on Home.
+  `tool/package.ps1 -Dev` makes the development installer ("Dhara Dev",
+  beside the production app). See "Development and production builds" in
+  DEVELOPMENT.md. Until (4) to (6) are in, a production build cannot fill
+  an empty library.
+
 ### 2. Updates from inside the app
 
 - Wanted if it is not hard. Proposed: releases on GitHub; the app asks once a

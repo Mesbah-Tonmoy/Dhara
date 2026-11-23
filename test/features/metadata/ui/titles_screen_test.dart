@@ -252,6 +252,7 @@ void main() {
     addTearDown(tests.dispose);
     await tester.pumpWidget(
       DharaApp(
+        devTools: true,
         settings: SettingsController(MemoryKeyValueStore()),
         resumeStore: ResumeStore(),
         sourceTests: tests,

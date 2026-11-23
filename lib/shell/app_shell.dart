@@ -56,6 +56,7 @@ class _AppShellState extends State<AppShell> {
     super.dispose();
   }
 
+  // The controller never asks for a page this build does not have.
   static Widget _pageFor(ShellDestination place, String? query) =>
       switch (place) {
         ShellDestination.home => const HomeScreen(),
