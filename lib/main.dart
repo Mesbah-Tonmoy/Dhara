@@ -26,7 +26,10 @@ import 'package:dhara/features/my_list/my_list_controller.dart';
 import 'package:dhara/features/playback/copy_probe.dart';
 import 'package:dhara/features/playback/media_sessions.dart';
 import 'package:dhara/features/player/resume_store.dart';
+import 'package:dhara/features/snapshot/first_start_controller.dart';
 import 'package:dhara/features/snapshot/snapshot_controller.dart';
+import 'package:dhara/features/snapshot/snapshot_fetcher.dart';
+import 'package:dhara/features/snapshot/snapshot_reader.dart';
 import 'package:dhara/features/sources/device_id.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_list.dart';
@@ -55,6 +58,13 @@ Future<void> main() async {
     _openSourceStore(folder),
     _openLibrary(folder),
   ).wait;
+  // A snapshot whose reading was cut off is taken out before anything
+  // else looks at the library.
+  try {
+    await library.run(removeCutOffSnapshot, null);
+  } on LibraryWorkException {
+    // No library in this run.
+  }
   final deviceId = loadOrCreateDeviceId(store);
   final sourceTests = SourceTestController(
     store: sources,
@@ -109,6 +119,23 @@ Future<void> main() async {
       unawaited(home.refresh());
     }
   });
+  // A production build makes itself ready the first time it starts: it
+  // fetches the library and finds the servers that answer.
+  final firstStart = _devTools
+      ? null
+      : FirstStartController(
+          library: library,
+          settings: store,
+          sources: sourceTests,
+          index: index,
+          titles: titles,
+          home: home,
+          fetcher: switch (snapshotUrlFrom(_snapshotUrl)) {
+            final url? => SnapshotFetcher(url),
+            null => null,
+          },
+          folder: folder == null ? null : Directory(folder),
+        );
   final myList = MyListController(library: library);
   unawaited(myList.load());
   // Posters are kept next to the settings; without a data folder they are
@@ -148,6 +175,7 @@ Future<void> main() async {
           home: home,
         ),
         filmDetails: filmDetails,
+        firstStart: firstStart,
         // The page that writes the library out, and reads one in for a
         // try, is a development build's.
         snapshots: _devTools
@@ -173,6 +201,7 @@ Future<void> main() async {
       ),
     ),
   );
+  unawaited(firstStart?.start());
   // Notice enabled servers that died since they were last tested.
   unawaited(sourceTests.retestEnabledIfStale());
   unawaited(_keepIndexFresh(index));
@@ -298,6 +327,12 @@ Future<(LibraryWorker, String?, bool)> _openLibrary(String? folder) async {
 /// way to move its data. Such a build also keeps its settings in memory and
 /// neither reads nor writes the TMDB key in Windows Credential Manager.
 const _dataFolderOverride = String.fromEnvironment('DHARA_DATA_DIR');
+
+/// Where a production build fetches its library snapshot from the first
+/// time it starts: an https address, given when building with
+/// `--dart-define=DHARA_SNAPSHOT_URL=<address>` (`tool/package.ps1
+/// -SnapshotUrl`). A build made without it fetches nothing.
+const _snapshotUrl = String.fromEnvironment('DHARA_SNAPSHOT_URL');
 
 /// Whether this is a development build, which has the tools for working on
 /// the library (Titles and matching, Library index, the TMDB key): every

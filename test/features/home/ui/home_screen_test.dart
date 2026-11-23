@@ -18,6 +18,7 @@ import 'package:dhara/features/metadata/match_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/metadata/ui/titles_screen.dart';
+import 'package:dhara/features/snapshot/first_start_controller.dart';
 import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/features/sources/ui/server_discovery_screen.dart';
 import 'package:dhara/shell/shell_controller.dart';
@@ -28,6 +29,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../../support/fake_first_start.dart';
 import '../../../support/test_app.dart';
 import '../../../widgets/support.dart';
 
@@ -98,6 +100,7 @@ Future<SourceStore> _boot(
   bool withSource = true,
   bool settle = true,
   bool devTools = true,
+  FirstStartController? firstStart,
 }) async {
   tester.view
     ..physicalSize = const Size(1280, 720)
@@ -107,6 +110,7 @@ Future<SourceStore> _boot(
     db: db,
     sources: [if (withSource) testSource('a')],
     devTools: devTools,
+    firstStart: firstStart,
   );
   if (enabled && withSource) {
     await sources.setEnabled(['a'], enabled: true);
@@ -561,6 +565,38 @@ void main() {
       await tester.tap(find.byKey(const Key('home-open-url')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('url-field')), findsOneWidget);
+    });
+
+    testWidgets('shows how far its first start is, then what that left', (
+      tester,
+    ) async {
+      final start = FakeFirstStart()
+        ..isWorking = true
+        ..step = FirstStartStep.fetching
+        ..bytesFetched = 3 * 1024 * 1024;
+      await _boot(
+        tester,
+        enabled: false,
+        devTools: false,
+        firstStart: start,
+        settle: false,
+      );
+
+      expect(find.byKey(const Key('home-first-start')), findsOneWidget);
+      expect(find.text('Fetching the library … 3 MB'), findsOneWidget);
+      expect(find.byKey(const Key('home-empty')), findsNothing);
+
+      start
+        ..isWorking = false
+        ..step = null
+        ..problem = FirstStartProblem.notFetched
+        ..change();
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('home-first-start')), findsNothing);
+      expect(find.text('The library could not be fetched'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('home-first-start-retry')));
+      expect(start.retries, 1);
     });
   });
 

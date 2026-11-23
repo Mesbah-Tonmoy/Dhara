@@ -16,6 +16,13 @@
 # keep their data in the same folder, so only one of them should be open at
 # a time.
 #
+# -SnapshotUrl <address> is where the production build fetches its library
+# from the first time it starts on a PC (the file "Write snapshot" of a
+# development build makes). An https address, or the link Google Drive
+# gives for a file shared with "anyone with the link": that is turned into
+# the address Drive hands the file itself out at. Without it the build
+# fetches nothing and has to read the servers itself.
+#
 # -TestDataDir <folder> makes a copy for trying the installer without
 # touching the real library: that build keeps its data in <folder>, is called
 # "Dhara Test" and installs beside the real app, never over it.
@@ -29,6 +36,7 @@
 param(
   [string]$Flutter,
   [switch]$Dev,
+  [string]$SnapshotUrl,
   [string]$TestDataDir,
   [string]$Logo,
   [switch]$LogoFromSettings
@@ -44,6 +52,24 @@ function SizeMb([string]$path) {
   [math]::Round($bytes / 1MB, 1)
 }
 
+# The address a build fetches its snapshot from, out of what was given: a
+# Google Drive link of any of its shapes becomes the address that answers
+# with the file (a plain download link of Drive answers a large file with a
+# page that asks to confirm); anything else has to be an https address.
+function SnapshotAddress([string]$link) {
+  $link = $link.Trim()
+  $id = $null
+  if ($link -match '^https://(?:drive|docs)\.google\.com/.*?(?:/d/|[?&]id=)([A-Za-z0-9_-]{10,})') { $id = $Matches[1] }
+  elseif ($link -match '^https://drive\.usercontent\.google\.com/.*?[?&]id=([A-Za-z0-9_-]{10,})') { $id = $Matches[1] }
+  if ($id) { return "https://drive.usercontent.google.com/download?id=$id&export=download&confirm=t" }
+  # A link of Drive that names no file (a folder, the start page).
+  if ($link -match '^https://(?:drive|docs)\.google\.com/') { return $null }
+  $parsed = $null
+  if (-not [uri]::TryCreate($link, [urikind]::Absolute, [ref]$parsed)) { return $null }
+  if ($parsed.Scheme -ne 'https' -or -not $parsed.Host -or $parsed.UserInfo) { return $null }
+  return $link
+}
+
 # --- What is being packaged ---------------------------------------------------
 $versionLine = Select-String -Path pubspec.yaml -Pattern '^version:\s*(\d+\.\d+\.\d+)' | Select-Object -First 1
 if (-not $versionLine) { Fail 'pubspec.yaml has no version like 1.2.3.' }
@@ -53,6 +79,12 @@ $test = [bool]$TestDataDir
 # name for it is enough.
 if ($test -and $Dev) { Fail '-Dev and -TestDataDir cannot be used together.' }
 $name = if ($test) { 'Dhara-Test' } elseif ($Dev) { 'Dhara-Dev' } else { 'Dhara' }
+$snapshotAddress = $null
+if ($SnapshotUrl) {
+  if ($Dev) { Fail '-SnapshotUrl is for the production build; a development build fetches no library.' }
+  $snapshotAddress = SnapshotAddress $SnapshotUrl
+  if (-not $snapshotAddress) { Fail '-SnapshotUrl must be an https address or a Google Drive share link.' }
+}
 $stage = Join-Path $root "dist\$name-$version"
 
 if (-not $Flutter) {
@@ -83,7 +115,22 @@ $buildArgs = @('build', 'windows', '--release')
 if ($Dev) { $buildArgs += '--dart-define=DHARA_DEV=true' }
 if ($test) { $buildArgs += "--dart-define=DHARA_DATA_DIR=$TestDataDir" }
 if ($Logo) { $buildArgs += "--dart-define=DHARA_LOGO=$Logo"; Write-Host "  logo: $Logo" }
-& $Flutter @buildArgs
+# The address goes to the build in a file: it holds "&", which a command
+# line would cut it at. The file lies outside the repository and is removed.
+$defines = $null
+if ($snapshotAddress) {
+  $defines = Join-Path ([IO.Path]::GetTempPath()) "dhara-defines-$([guid]::NewGuid().ToString('N')).json"
+  [IO.File]::WriteAllText($defines, (@{ DHARA_SNAPSHOT_URL = $snapshotAddress } | ConvertTo-Json))
+  $buildArgs += "--dart-define-from-file=$defines"
+  Write-Host "  library from: $snapshotAddress"
+} elseif (-not $Dev) {
+  Write-Host '  No -SnapshotUrl: this build fetches no library and has to read the servers itself.' -ForegroundColor Yellow
+}
+try {
+  & $Flutter @buildArgs
+} finally {
+  if ($defines) { Remove-Item $defines -Force -ErrorAction SilentlyContinue }
+}
 if ($LASTEXITCODE -ne 0) { Fail 'the build failed.' }
 $release = Join-Path $root 'build\windows\x64\runner\Release'
 if (-not (Test-Path "$release\dhara.exe")) { Fail "no dhara.exe in $release." }

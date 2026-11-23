@@ -443,4 +443,150 @@ void main() {
       'echo': {'Username': 'guest', 'Pw': ''},
     });
   });
+
+  group('download', () {
+    late Directory folder;
+
+    setUp(() => folder = Directory.systemTemp.createTempSync('dhara-http-'));
+    tearDown(() => folder.deleteSync(recursive: true));
+
+    File target([String name = 'file.bin']) =>
+        File('${folder.path}${Platform.pathSeparator}$name');
+
+    test('saves a large body to a file as it arrives', () async {
+      final body = List.generate(300000, (i) => i % 251);
+      routes['/file'] = (request) async {
+        request.response
+          ..contentLength = body.length
+          ..headers.contentType = ContentType.binary;
+        for (var from = 0; from < body.length; from += 50000) {
+          request.response.add(body.sublist(from, from + 50000));
+          await request.response.flush();
+        }
+        await request.response.close();
+      };
+      target().writeAsStringSync('what was there before');
+      final progress = <(int, int?)>[];
+
+      final response = await client.download(
+        at('/file'),
+        target(),
+        maxBytes: 1000000,
+        onProgress: (received, total) => progress.add((received, total)),
+      );
+
+      expect(response.statusCode, 200);
+      expect(response.bodyBytes, isEmpty);
+      expect(response.header('content-type'), 'application/octet-stream');
+      expect(target().readAsBytesSync(), body);
+      expect(progress.last, (300000, 300000));
+      expect(progress.length, greaterThan(1));
+      // Like every request: no cookie, nothing about the user.
+      expect(seen.single.cookies, isEmpty);
+      expect(seen.single.headers.value('user-agent'), 'Dhara');
+    });
+
+    test('saves nothing unless the answer is a plain 200', () async {
+      routes['/gone'] = (request) => request.response
+        ..statusCode = HttpStatus.notFound
+        ..write('no such file')
+        ..close();
+
+      final response = await client.download(
+        at('/gone'),
+        target(),
+        maxBytes: 1000,
+      );
+
+      expect(response.statusCode, 404);
+      expect(target().existsSync(), isFalse);
+    });
+
+    test('follows the same redirect rules as get', () async {
+      routes['/moved'] = (request) => redirect(request, '/hello');
+      routes['/away'] =
+          (request) => redirect(request, 'http://example.invalid/file');
+
+      final response =
+          await client.download(at('/moved'), target(), maxBytes: 1000);
+      expect(response.url, at('/hello'));
+      expect(target().readAsStringSync(), 'hello');
+
+      await expectLater(
+        client.download(at('/away'), target('other.bin'), maxBytes: 1000),
+        failsWith(SafeHttpFailure.blockedRedirect),
+      );
+      await expectLater(
+        client.download(
+          Uri.parse('http://example.invalid/file'),
+          target('other.bin'),
+          maxBytes: 1000,
+        ),
+        failsWith(SafeHttpFailure.blockedUrl),
+      );
+      expect(target('other.bin').existsSync(), isFalse);
+    });
+
+    test('stops a body that is too large, said or not', () async {
+      routes['/big'] = (request) => request.response
+        ..contentLength = 2000
+        ..add(List.filled(2000, 0x61))
+        ..close();
+      routes['/stream'] = (request) async {
+        try {
+          for (var i = 0; i < 64; i++) {
+            request.response.add(List.filled(4096, 0x61));
+            await request.response.flush();
+            await Future<void>.delayed(const Duration(milliseconds: 1));
+          }
+          await request.response.close();
+        } on Object {
+          // The client hung up, as it should.
+        }
+      };
+
+      await expectLater(
+        client.download(at('/big'), target(), maxBytes: 1000),
+        failsWith(SafeHttpFailure.tooLarge),
+      );
+      // Refused before a byte was written.
+      expect(target().existsSync(), isFalse);
+
+      await expectLater(
+        client.download(at('/stream'), target(), maxBytes: 10000),
+        failsWith(SafeHttpFailure.tooLarge),
+      );
+      expect(target().lengthSync(), lessThanOrEqualTo(10000));
+    });
+
+    test('gives up on a body that stops arriving', () async {
+      routes['/stall'] = (request) async {
+        request.response.add(List.filled(1000, 0x61));
+        await request.response.flush();
+        // Never finishes.
+      };
+
+      await expectLater(
+        client.download(
+          at('/stall'),
+          target(),
+          maxBytes: 100000,
+          stallTimeout: const Duration(milliseconds: 300),
+        ),
+        failsWith(SafeHttpFailure.timeout),
+      );
+    });
+
+    test('says so when the file cannot be written', () async {
+      final nowhere = File(
+        '${folder.path}${Platform.pathSeparator}missing'
+        '${Platform.pathSeparator}file.bin',
+      );
+
+      await expectLater(
+        client.download(at('/hello'), nowhere, maxBytes: 1000),
+        throwsA(isA<FileSystemException>()),
+      );
+    });
+  });
 }

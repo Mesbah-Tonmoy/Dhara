@@ -58,6 +58,7 @@ class IndexController extends ChangeNotifier {
   var _stopping = false;
   var _failed = false;
   var _disposed = false;
+  var _holds = 0;
 
   /// A crawl is under way.
   bool get isRunning => _run != null;
@@ -67,6 +68,25 @@ class IndexController extends ChangeNotifier {
 
   /// The last crawl ended because of an error in the app itself.
   bool get failedUnexpectedly => _failed;
+
+  /// Something else is filling the library (a snapshot is being read):
+  /// no crawl starts meanwhile, and the names of videos are not read.
+  bool get isHeld => _holds > 0;
+
+  /// Keeps crawls from starting until the function this returns is
+  /// called. Whoever fills the library in one piece holds it for that
+  /// time: a crawl in between would write into the same tables.
+  VoidCallback hold() {
+    _holds++;
+    _notify();
+    var released = false;
+    return () {
+      if (released) return;
+      released = true;
+      _holds--;
+      _notify();
+    };
+  }
 
   /// How far the crawl of this source is, in the current or last run of
   /// this session.
@@ -95,10 +115,12 @@ class IndexController extends ChangeNotifier {
 
   /// Crawls every enabled source and completes when the crawl has ended.
   /// With [full], folders that look unchanged are read again too. While a
-  /// crawl is under way this only waits for it.
+  /// crawl is under way this only waits for it, and while the library
+  /// [isHeld] it does nothing.
   Future<void> start({bool full = false}) {
     final running = _run;
     if (running != null) return running;
+    if (isHeld) return Future.value();
     final sources = crawlableSources;
     if (sources.isEmpty) return Future.value();
     return _run = _crawl(sources, full);

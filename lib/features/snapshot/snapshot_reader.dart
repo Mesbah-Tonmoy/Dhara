@@ -108,6 +108,9 @@ Future<SnapshotRead> readSnapshot(
     return const SnapshotRead(problem: SnapshotProblem.unreadable);
   }
 
+  // From here until the snapshot is in whole, the library says of itself
+  // that it holds half of one (see [removeCutOffSnapshot]).
+  db.db.execute('PRAGMA application_id = 1146310224');
   final reader = _Reader(db, sources);
   final lines = _Lines();
   final unpacked = gzip.decoder.startChunkedConversion(lines);
@@ -153,8 +156,10 @@ Future<SnapshotRead> readSnapshot(
 
   if (problem != null) {
     _empty(db);
+    db.db.execute('PRAGMA application_id = 0');
     return SnapshotRead(problem: problem);
   }
+  db.db.execute('PRAGMA application_id = 0');
   int count(String sql) => db.db.select(sql).single.values.single! as int;
   events?.send((reader.rowsSeen, reader.rowsSeen));
   return SnapshotRead(
@@ -166,17 +171,30 @@ Future<SnapshotRead> readSnapshot(
   );
 }
 
-/// Takes out of the library what a snapshot put there and returns whether
-/// there was anything. Runs in the library isolate.
+/// Whether the library holds neither a server nor a title: what a
+/// snapshot fills. Runs in the library isolate.
+bool isLibraryEmpty(LibraryDb db, Object? _) => _isEmpty(db);
+
+/// If the reading of a snapshot was cut off (the app was closed, the PC
+/// went off), takes out what had been read, and returns whether that was
+/// so. Runs in the library isolate, as the app starts, before anything
+/// else uses the library.
 ///
-/// For a reading that was cut off with the app (the caller knows that one
-/// was under way): the library was empty before, so everything in these
-/// tables came from the snapshot.
-bool removeSnapshotRows(LibraryDb db, Object? _) {
-  final empty = _isEmpty(db);
-  if (!empty) _empty(db);
-  return !empty;
+/// While a snapshot is read the library carries a mark (the number in its
+/// file that SQLite keeps for the application, 0 at all other times). It
+/// was empty when the reading began, so with the mark everything in the
+/// tables a snapshot fills is half of one. Every build looks for the mark
+/// as it starts: nothing else can be added to a library that carries it.
+bool removeCutOffSnapshot(LibraryDb db, Object? _) {
+  final mark = db.db.select('PRAGMA application_id').single.values.single;
+  if (mark != _readingMark) return false;
+  _empty(db);
+  db.db.execute('PRAGMA application_id = 0');
+  return true;
 }
+
+/// "DSNP", as the number the statements above write out.
+const _readingMark = 1146310224;
 
 bool _isEmpty(LibraryDb db) =>
     db.db.select('SELECT 1 FROM sources LIMIT 1').isEmpty &&

@@ -109,6 +109,8 @@ class LibrarySnapshotController extends ChangeNotifier {
       _read = null;
       _written = null;
       _failed = false;
+      // No crawl starts while the library is being filled.
+      final release = _index.hold();
       try {
         read = await _library.run(readSnapshot, (
           path,
@@ -117,6 +119,8 @@ class LibrarySnapshotController extends ChangeNotifier {
         ));
       } on LibraryWorkException {
         read = const SnapshotRead(problem: SnapshotProblem.libraryFailed);
+      } finally {
+        release();
       }
       _read = read;
     }));

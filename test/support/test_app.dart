@@ -18,6 +18,7 @@ import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/my_list/my_list_controller.dart';
 import 'package:dhara/features/playback/copy_probe.dart';
 import 'package:dhara/features/player/resume_store.dart';
+import 'package:dhara/features/snapshot/first_start_controller.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
@@ -33,7 +34,8 @@ import 'package:flutter/widgets.dart';
 /// be shown; [settings] is where the settings are kept, if a test wants to
 /// look; [newCopyProber] makes what copies are pinged with, if they are to
 /// be. It is a development build, which has every page; without [devTools]
-/// it is a production build.
+/// it is a production build, whose first start is [firstStart] if it is to
+/// have one.
 ({Widget app, SourceStore sources}) testApp({
   List<Source> sources = const [],
   WindowController? window,
@@ -42,6 +44,7 @@ import 'package:flutter/widgets.dart';
   KeyValueStore? settings,
   CopyProber Function()? newCopyProber,
   bool devTools = true,
+  FirstStartController? firstStart,
 }) {
   final store = SourceStore(starter: sources);
   final library = LocalLibrary(db ?? LibraryDb.inMemory());
@@ -90,6 +93,7 @@ import 'package:flutter/widgets.dart';
     images: images,
     newCopyProber: newCopyProber,
     devTools: devTools,
+    firstStart: firstStart,
   );
   return (
     app: window == null ? app : WindowScope(controller: window, child: app),

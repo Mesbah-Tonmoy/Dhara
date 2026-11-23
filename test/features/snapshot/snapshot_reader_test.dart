@@ -700,20 +700,54 @@ void main() {
     expect(column('SELECT count(*) FROM titles'), [2]);
   });
 
-  test('what a snapshot put in can be taken out again', () async {
-    expect(removeSnapshotRows(library, null), isFalse);
-    await read(
-      _snapshot([
-        ..._table('files', [_file(1, 'a.mkv')]),
-        ..._table('titles', [
-          {'id': 1, 'kind': 0, 'name': 'Film', 'added_at': 1},
-        ]),
-      ]),
-    );
-    expect(column('SELECT count(*) FROM files'), [1]);
+  group('a reading that was cut off', () {
+    Object? mark() =>
+        library.db.select('PRAGMA application_id').single.values.single;
 
-    expect(removeSnapshotRows(library, null), isTrue);
+    test('leaves a mark on the library only while it is under way', () async {
+      expect(mark(), 0);
 
-    expectEmptyLibrary();
+      await read(_snapshot(_table('files', [_file(1, 'a.mkv')])));
+      expect(mark(), 0);
+      expect(removeCutOffSnapshot(library, null), isFalse);
+      expect(column('SELECT count(*) FROM files'), [1]);
+
+      // Refused: emptied again, and no mark either.
+      final other = LibraryDb.inMemory();
+      addTearDown(other.close);
+      writeSnapshotLines(at('cut.gz'), _snapshot(const []).take(3));
+      final result = await readSnapshot(other, (
+        at('cut.gz'),
+        snapshotSources,
+        null,
+      ));
+      expect(result.problem, SnapshotProblem.cutShort);
+      expect(other.db.select('PRAGMA application_id').single.values, [0]);
+    });
+
+    test('is taken out when the app next starts', () {
+      // As a reading leaves the library when the app is closed under it.
+      fillSnapshotLibrary(library);
+      library.db.execute('PRAGMA application_id = 1146310224');
+      expect(isLibraryEmpty(library, null), isFalse);
+
+      expect(removeCutOffSnapshot(library, null), isTrue);
+
+      expectEmptyLibrary();
+      expect(isLibraryEmpty(library, null), isTrue);
+      expect(mark(), 0);
+      // What was watched is no part of a snapshot, and stays.
+      expect(column('SELECT count(*) FROM watch_history'), [1]);
+      expect(removeCutOffSnapshot(library, null), isFalse);
+    });
+
+    test('a library without the mark is never touched', () {
+      fillSnapshotLibrary(library);
+
+      expect(removeCutOffSnapshot(library, null), isFalse);
+
+      expect(column('SELECT count(*) FROM files'), [4]);
+      expect(column('SELECT count(*) FROM titles'), [2]);
+    });
   });
 }

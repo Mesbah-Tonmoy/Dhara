@@ -64,18 +64,20 @@ One codebase, two builds, chosen when building (`_devTools` in
 | Is | every build but a release (so `flutter run`), and a release made with `--dart-define=DHARA_DEV=true` | a release without that |
 | For | working on the library | using it: another PC, a friend |
 | Titles and matching, Needs review, the TMDB key, Library index | on the rail and in Settings | not there, and `ShellController.open` refuses them |
-| Home with an empty library | the three steps that fill it | "Nothing to watch yet", with the way to Server Discovery |
+| Home with an empty library | the three steps that fill it | how far the first start is with fetching the library; after that "Nothing to watch yet", with the way to Server Discovery |
 | Home's notice that posters need a TMDB key | shown | not shown |
 | Server Discovery, Settings, everything to watch | there | there |
 
 Both keep their data in the same folder (`%APPDATA%\com.dhara\dhara`), so
 on a PC that has both only one should be open at a time.
 
-A production build is to fill its library by itself (a snapshot of the
-library, a TMDB key that is built in, reading the servers in the
-background): see section 1 of [ROADMAP.md](ROADMAP.md). **That is not built
-yet.** Until it is, a production build has no way to fill an empty library,
-and no production installer newer than 1.0.3 should be made.
+A production build fills its library by itself the first time it starts
+(see [The first start of a production build](#the-first-start-of-a-production-build)).
+Still to come, in section 1 of [ROADMAP.md](ROADMAP.md): a TMDB key that is
+built in, and reading the servers again in the background. **Until those
+are built, no production installer newer than 1.0.3 should be handed
+out:** what a crawl finds after the snapshot would have no posters, and
+nothing would start that crawl.
 
 ## Installer
 
@@ -107,6 +109,29 @@ and never over it. It cannot be combined with `-TestDataDir`. **Not yet
 tried:** making and installing a development installer (the script and the
 Inno Setup file were changed, and the Inno Setup file was compiled once
 with `/DDevCopy`).
+
+`-SnapshotUrl <address>` gives the production build the address it fetches
+its library from on its first start
+(see [The first start of a production build](#the-first-start-of-a-production-build)):
+
+```powershell
+pwsh tool/package.ps1 -SnapshotUrl "https://drive.google.com/file/d/<id>/view?usp=sharing"
+```
+
+It takes an https address, or the link Google Drive gives for a file that
+is shared with "anyone with the link", which it turns into
+`https://drive.usercontent.google.com/download?id=<id>&export=download&confirm=t`:
+the address Drive answers with the file itself (its plain download link
+answers a large file with a page that asks to confirm). The address is
+handed to the build in a file in the temp folder (it holds "&"), which is
+removed after the build; it is not in the repository, but it can be read
+out of the built program, so everyone who has the installer can fetch the
+snapshot. Without `-SnapshotUrl` the build fetches nothing, and the script
+says so. To put a newer snapshot under the same link: in Drive,
+right-click the file, "File information", "Manage versions", "Upload new
+version". **Not yet tried:** an installer made with `-SnapshotUrl` (the
+script was parsed and its turning of links tried by hand; the build
+option `--dart-define-from-file` is one this Flutter has).
 
 `-Logo <name>` makes another drawing the logo the installed app starts
 with, and `-LogoFromSettings` takes the one chosen in Settings on the PC
@@ -881,8 +906,11 @@ is the banner when no title has a backdrop (no TMDB key yet).
   copies or episodes there are. A click opens the [title page](#title-page).
 - With nothing to show, a development build's Home lists the three steps
   that fill the library (servers, index, TMDB key) and where each stands.
-  A production build's says that there is nothing to watch yet and leads
-  to Server Discovery.
+  A production build's says how far its first start is with making the
+  library ready, or what went wrong with that
+  (see [The first start of a production build](#the-first-start-of-a-production-build));
+  with neither to say, that there is nothing to watch yet, and leads to
+  Server Discovery.
 - `HomeController` reads all of it in the library isolate, keeps it in
   memory so that Home opens at once, and reads again when sources are
   switched, names were read or titles were matched (at most every 12 s
@@ -1163,8 +1191,8 @@ the usual one is used.
 build has **Read snapshot** on the Library index page for trying it: start
 a copy with its own data folder (see
 [Trying a build without touching the real data](#trying-a-build-without-touching-the-real-data)),
-whose library is empty, and pick the file. A production build will do the
-same by itself when it first starts.
+whose library is empty, and pick the file. A production build does the
+same by itself when it first starts (below).
 
 A snapshot comes from the internet, so it is read like the answer of a
 server (BRIEF section 7, Untrusted input):
@@ -1194,6 +1222,82 @@ work on the library gets its turn. Measured on the snapshot above: all
 Three quarters of that go to the videos, each of which is put into the
 search index; a larger SQLite cache changed nothing. The library file
 that comes of it is 414 MB.
+
+### The first start of a production build
+
+A production build makes itself ready the first time it starts, with
+nothing for the user to do (`FirstStartController`,
+`lib/features/snapshot/first_start_controller.dart`). Two things happen at
+the same time, and Home says how far they are ("Getting your library
+ready"):
+
+- **The library is fetched and read.** The snapshot comes from the one
+  address the build was given (`DHARA_SNAPSHOT_URL`, see
+  [Installer](#installer)), is saved as `library.snapshot.gz` in the data
+  folder (under `.part` until it is whole), read into the library as
+  above and removed. `SnapshotFetcher` asks that address and no other: a
+  redirect to another host is refused, the request carries no cookie and
+  nothing about the user or the library, the file may be 512 MB at most,
+  and the fetch gives up when nothing has arrived for 30 seconds. An
+  answer that is not the file (another status, a page, something that
+  does not start like gzip) counts as "not there". The body goes to the
+  disk as it arrives (`SafeHttpClient.download`).
+- **The servers are found.** The servers of the starter list that were
+  checked by hand are tested like a run of the BDIX Tester, at their
+  listed addresses only, and the ones the app can read are switched on.
+  The unchecked candidates and the websites without an adapter are not
+  asked.
+
+It only acts on what is not there yet: a library that holds a server or a
+title is left alone; the servers are not tested once one of them is
+switched on; and once a snapshot was read (`library.snapshotReadAt` in the
+settings) none is fetched again unless the user asks. So on a PC where
+Dhara is in use, a production build does none of this.
+
+When it goes wrong, Home says what and offers **Try again**, **Read the
+servers** (the crawl a development build starts by hand; it takes much
+longer, and the titles appear when it is done) and Server Discovery. A
+build made without an address fetches nothing and only finds the servers.
+
+A reading that is cut off (the app is closed, the PC goes off) leaves the
+library marked: while a snapshot is read, `PRAGMA application_id` of
+`library.db` holds a number, 0 at all other times. Every build looks for
+it as it starts (`removeCutOffSnapshot`, before anything else uses the
+library) and takes the half-read rows out, so the next first start begins
+with an empty library; the file that was fetched is still there and is
+read without asking for it again. Taking out half a library takes a while,
+and the window only opens after it: more than nine seconds for 320,000
+videos.
+
+While a snapshot is read the library is held (`IndexController.hold`):
+no crawl starts and no file names are read until it is in, because both
+would write into the tables the snapshot is filling.
+
+Not built yet: after the first start nothing reads the servers again by
+itself in a production build, and titles a later crawl finds get no
+posters (increments 5 and 6 of [ROADMAP.md](ROADMAP.md) section 1). A
+release asset on GitHub cannot be the address yet: GitHub answers with a
+redirect to another host, which the fetcher refuses.
+
+**Tried on 2026-11-24.** With the automated tests: the whole first start
+against a web server on this PC (fetching, reading, the servers, every
+failure above). With a real production build, release, with a data folder
+of its own and the user's snapshot of 76 MB laid into it as a fetch would
+leave it:
+
+- started on the empty folder, it found 29 servers from this connection
+  and switched them on within seconds, read the snapshot in under two
+  minutes with Home saying how far it was, and then showed Home with its
+  banner and rows. Nobody touched it. The library held exactly what the
+  snapshot holds (577,233 videos, 90,201 titles, 28 servers);
+- killed in the middle of the reading (322,856 videos in), the library
+  carried the mark; started again, it took the half out, read the file
+  again and ended with the same full library and no mark.
+
+**Not tried:** fetching from Google Drive with the app itself, because no
+snapshot is on Drive yet (the address was tried by hand on 2026-11-21 with
+another large file; the app's own fetching is tried against a web server
+on this PC only); a build made with `-SnapshotUrl`; a second PC.
 
 ## Titles and metadata
 

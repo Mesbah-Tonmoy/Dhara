@@ -7,6 +7,7 @@ import 'package:dhara/features/details/ui/details_screen.dart';
 import 'package:dhara/features/home/home_controller.dart';
 import 'package:dhara/features/home/home_store.dart';
 import 'package:dhara/features/home/ui/card_row.dart';
+import 'package:dhara/features/home/ui/first_start_view.dart';
 import 'package:dhara/features/home/ui/hero_banner.dart';
 import 'package:dhara/features/home/ui/poster_card.dart';
 import 'package:dhara/features/home/ui/wide_card.dart';
@@ -74,10 +75,11 @@ class HomeScreen extends StatelessWidget {
       body = _Centered(
         key: const Key('home-start'),
         left: contentLeft,
-        // The steps lead to tools only a development build has.
+        // The steps lead to tools only a development build has; a
+        // production build makes itself ready.
         child: ShellScope.read(context).devTools
             ? const _GetStarted()
-            : const _Empty(),
+            : const FirstStartView(empty: _Empty()),
       );
     } else {
       body = _Rows(

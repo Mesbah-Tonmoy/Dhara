@@ -95,7 +95,8 @@ class TitlesController extends ChangeNotifier {
   }
 
   void _onIndexChanged() {
-    if (_index.isRunning || isReading) return;
+    // Not while a crawl or a snapshot is still filling the library.
+    if (_index.isRunning || _index.isHeld || isReading) return;
     if (_indexState() != _readFor) unawaited(refresh());
   }
 

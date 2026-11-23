@@ -150,6 +150,41 @@ class SafeHttpClient {
         readBody: false,
       );
 
+  /// Fetches [url] into [file], for an answer too large to hold in memory:
+  /// the body goes to the file as it arrives, replacing what the file
+  /// held. Redirects are followed under the same rules as [get].
+  ///
+  /// Only a plain "200 OK" is saved; with any other status the file is not
+  /// touched, and the response says what the server answered. The returned
+  /// response has an empty body.
+  ///
+  /// The body may be [maxBytes] long at most. The call may take [timeout]
+  /// in all, and fails as soon as nothing has arrived for [stallTimeout].
+  /// [onProgress] hears how many bytes are saved, and how many there will
+  /// be if the server said.
+  ///
+  /// After a [SafeHttpException], or a [FileSystemException] if the file
+  /// cannot be written, the file may hold a part of the body: the caller
+  /// removes it.
+  Future<SafeHttpResponse> download(
+    Uri url,
+    File file, {
+    required int maxBytes,
+    Map<String, String> headers = const {},
+    Duration timeout = const Duration(hours: 1),
+    Duration stallTimeout = const Duration(seconds: 30),
+    void Function(int received, int? total)? onProgress,
+  }) =>
+      _send(
+        'GET',
+        url,
+        headers,
+        null,
+        timeout,
+        maxBytes,
+        save: _Save(file, stallTimeout, onProgress),
+      );
+
   /// Drops every connection, including requests still running.
   void close() => _inner.close(force: true);
 
@@ -161,6 +196,7 @@ class SafeHttpClient {
     Duration? timeout,
     int? maxBytes, {
     bool readBody = true,
+    _Save? save,
   }) {
     final limit = timeout ?? this.timeout;
     final call = _Call();
@@ -172,6 +208,7 @@ class SafeHttpClient {
       jsonBody,
       maxBytes ?? this.maxBytes,
       readBody: readBody,
+      save: save,
     ).timeout(
       limit,
       onTimeout: () {
@@ -192,6 +229,7 @@ class SafeHttpClient {
     String? jsonBody,
     int maxBytes, {
     required bool readBody,
+    _Save? save,
   }) async {
     if (!_isWebUrl(url) || !_isAllowedHost(url.host)) {
       throw const SafeHttpException(
@@ -234,9 +272,13 @@ class SafeHttpClient {
             responseTime: responseTime,
             headers: _headerMap(response.headers),
             charset: _charsetOf(response.headers),
-            bodyBytes: readBody
-                ? await _readBody(call, response, maxBytes)
-                : _dropBody(response),
+            bodyBytes: save != null
+                ? response.statusCode == HttpStatus.ok
+                    ? await _saveBody(call, response, maxBytes, save)
+                    : _dropBody(response)
+                : readBody
+                    ? await _readBody(call, response, maxBytes)
+                    : _dropBody(response),
           );
         }
 
@@ -328,6 +370,53 @@ class SafeHttpClient {
     return done.future;
   }
 
+  /// Writes the body to a file as it arrives, and returns no bytes.
+  Future<Uint8List> _saveBody(
+    _Call call,
+    HttpClientResponse response,
+    int maxBytes,
+    _Save save,
+  ) async {
+    SafeHttpException tooLarge() => SafeHttpException(
+          SafeHttpFailure.tooLarge,
+          'The answer is larger than ${maxBytes ~/ (1024 * 1024)} MB.',
+        );
+
+    final total = response.contentLength < 0 ? null : response.contentLength;
+    if (total != null && total > maxBytes) {
+      _dropBody(response);
+      throw tooLarge();
+    }
+    final RandomAccessFile out;
+    try {
+      out = await save.file.open(mode: FileMode.write);
+    } on FileSystemException {
+      _dropBody(response);
+      rethrow;
+    }
+    var received = 0;
+    try {
+      // Each piece is written before the next is taken, so a disk slower
+      // than the connection cannot fill the memory.
+      await for (final chunk in response.timeout(save.stallTimeout)) {
+        // The whole call ran out of time while this was waiting.
+        if (call.cancelled) throw const _Cancelled();
+        received += chunk.length;
+        if (received > maxBytes) throw tooLarge();
+        await out.writeFrom(chunk);
+        save.onProgress?.call(received, total);
+      }
+    } on TimeoutException {
+      throw SafeHttpException(
+        SafeHttpFailure.timeout,
+        'Nothing more arrived within ${save.stallTimeout.inSeconds} s.',
+      );
+    } finally {
+      await out.close();
+    }
+    return Uint8List(0);
+  }
+
   static bool _isWebUrl(Uri url) =>
       allowedUrlSchemes.contains(url.scheme) &&
       url.host.isNotEmpty &&
@@ -355,6 +444,15 @@ class SafeHttpClient {
       return null;
     }
   }
+}
+
+/// Where the body of a download goes.
+class _Save {
+  const _Save(this.file, this.stallTimeout, this.onProgress);
+
+  final File file;
+  final Duration stallTimeout;
+  final void Function(int received, int? total)? onProgress;
 }
 
 /// The parts of a running call that a timeout has to stop.

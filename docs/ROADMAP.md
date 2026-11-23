@@ -113,6 +113,30 @@ Done:
   read as untrusted input, and the brief says so now: only what lies on a
   server of the source list is taken. The user's snapshot went in whole
   (1.81 million rows, none left out) in about a minute and a half.
+- **(4), 2026-11-24.** A production build makes itself ready the first
+  time it starts: it fetches the snapshot from the address it was built
+  with (`tool/package.ps1 -SnapshotUrl`, which takes a Google Drive share
+  link), reads it, and meanwhile tests the hand-checked servers of the
+  starter list and switches on the ones it can read. Home shows how far
+  that is, and what to do if it fails. The brief has its line for this.
+  Tried with a real production build on a data folder of its own, with the
+  snapshot file laid into it: Home filled by itself in under two minutes;
+  killed half way and started again, it cleaned up and filled again. Two
+  faults that trial found were put right before the commit (a snapshot
+  lying in the folder was not read by a build without an address; nothing
+  kept a crawl from starting while a snapshot was being read).
+  **Not tried: the fetch from Google Drive itself**, which needs the
+  user's link.
+
+Still to do: (5) the TMDB key built in, and matching by itself; (6)
+reading the servers again in the background, with the progress in the
+title bar; (7) packaging, README, manual test list, version 1.1.0. Until
+(5) and (6) are done, no production installer should be handed out.
+
+Needed from the user for (4) to be tried for real: write a snapshot with
+the development build (Library index, **Write snapshot**), put it on
+Google Drive, share it with "anyone with the link", and give the link to
+`tool/package.ps1 -SnapshotUrl`.
 
 ### 2. Updates from inside the app
 

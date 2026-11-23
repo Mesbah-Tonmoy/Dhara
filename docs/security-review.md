@@ -61,15 +61,17 @@ Not findings, but worth knowing:
 | Rule | Where | Checked by | |
 |---|---|---|---|
 | Only enabled sources, TMDB and AniList are contacted | every request goes through `SafeHttpClient` (`lib/core/net/safe_http_client.dart`), made with the hosts it may reach: the sources being crawled or tested, `api.themoviedb.org`, `image.tmdb.org`, `graphql.anilist.co`, `s4.anilist.co` | *guard* (one `HttpClient`, no sockets, the four host names); `safe_http_client_test.dart`; the client tests of TMDB, AniList and pictures | ok |
+| A production build also fetches its library snapshot, from the one https address built into it (since 2026-11-24; the brief has a line for it) | `SnapshotFetcher` (`lib/features/snapshot/snapshot_fetcher.dart`): its client knows that host and no other, so a redirect elsewhere is refused; no cookie, no header of its own, nothing about the user or the library in the request; `snapshotUrlFrom` takes only an https address without a user name or password. The address is a build-time value (`DHARA_SNAPSHOT_URL`), not in the code. What comes back is only saved as a file and then read as untrusted input (see below): finding 8 is why that matters, since https from a PC with a false root can be changed on the way | `snapshot_fetcher_test.dart`; *guard* (no host named in the code) | ok |
+| On its first start a production build tests servers nobody switched on | `FirstStartController`: the servers of the starter list that were checked by hand, at their listed addresses only, once, while none is switched on; the ones the app can read are switched on. The candidates and the websites are not asked | `first_start_controller_test.dart` | ok (the brief has a line for it) |
 | TMDB and AniList over `https` | `Uri.https(...)` in `tmdb_client.dart`, `anilist_client.dart`, `image_store.dart` | their tests | ok |
 | `http`/`https` only, no scheme from a server | `parseMediaUrl` (`lib/core/net/media_url.dart`); `childEntry` (`listing_parser.dart`) drops links to other schemes | `media_url_test.dart`, `listing_parser_test.dart`; *guard* (no other scheme written in code) | ok |
 | Redirects: same host or a configured source, capped | `_redirectTarget`, at most 5; headers stay with the first host and do not go from https to http | `safe_http_client_test.dart` ("redirects") | fixed (finding 1) |
 | Redirects the player follows | none: `max_redirects=0` | `libmpv_hardening_test.dart` | fixed (finding 3); a playlist may still name another host (finding 13) |
-| Every request has a time limit and a size limit | 15 s and 4 MB by default (8 MB for a folder page, 3 MB for a picture), counted after decompression | `safe_http_client_test.dart` ("the size limit", "the time limit") | ok |
+| Every request has a time limit and a size limit | 15 s and 4 MB by default (8 MB for a folder page, 3 MB for a picture), counted after decompression. The snapshot is the one answer that goes to the disk as it arrives (`SafeHttpClient.download`): 512 MB at most, an hour in all, and given up when nothing has arrived for 30 s | `safe_http_client_test.dart` ("the size limit", "the time limit", "download") | ok |
 | A video stream | no size limit can apply; `network-timeout` 5 s, and the stall watch | `stall_watch_test.dart` | ok |
 | Private addresses are not blocked | no such check exists | `safe_http_client_test.dart` runs against 127.0.0.1 | ok |
 | No proxy, no cookies, certificate checks left on | `HttpClient()` as it comes; no `findProxy`, no `badCertificateCallback` | *guard* | ok |
-| No port scanning, no address sweeps | the tester and the crawler ask only the addresses in the list | `source_tester_test.dart`, `crawler_test.dart` | ok |
+| No port scanning, no address sweeps | the tester, the crawler and the first start ask only the addresses in the list | `source_tester_test.dart`, `crawler_test.dart` | ok |
 
 ## Untrusted input
 
@@ -93,7 +95,7 @@ Not findings, but worth knowing:
 | A picture must be a picture | at most 3 MB, kept only if it starts like a JPEG, PNG or WebP | `image_store_test.dart` | ok |
 | An external subtitle | picked in the system's file dialog; `.srt/.ass/.ssa/.vtt`, a regular file, at most 20 MB; only handed to the player | `subtitle_file_test.dart` | ok |
 | Nothing is executed or opened with another program | no `Process`, no shell, no link opened | *guard* | ok |
-| Which files reach the file system at all | fifteen files import `dart:io`, one of them (`library_db.dart`) for its compression only | *guard* (the list) | ok |
+| Which files reach the file system at all | seventeen files import `dart:io`, one of them (`library_db.dart`) for its compression only | *guard* (the list) | ok |
 
 ## Secrets
 

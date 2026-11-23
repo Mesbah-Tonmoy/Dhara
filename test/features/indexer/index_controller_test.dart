@@ -135,6 +135,35 @@ void main() {
     expect(server.requests, isEmpty);
   });
 
+  test(
+    'while the library is held for something else no crawl starts',
+    () async {
+      await sources.setEnabled(['films'], enabled: true);
+      var changes = 0;
+      index.addListener(() => changes++);
+
+      final release = index.hold();
+      final again = index.hold();
+      expect(index.isHeld, isTrue);
+      expect(changes, 2);
+      await index.start();
+
+      expect(index.isRunning, isFalse);
+      expect(server.requests, isEmpty);
+
+      // Held until everyone who holds it has let go; letting go twice
+      // counts once.
+      release();
+      release();
+      expect(index.isHeld, isTrue);
+      again();
+      expect(index.isHeld, isFalse);
+      await index.start();
+
+      expect(server.requests, hasLength(2));
+    },
+  );
+
   test('search only looks in enabled sources', () async {
     await sources.setEnabled(['films', 'shows'], enabled: true);
     await index.start();

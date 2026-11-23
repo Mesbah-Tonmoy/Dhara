@@ -250,6 +250,8 @@ void main() {
           'lib/features/player/subtitle_file.dart',
           // Reads a snapshot file, as data, and writes the library to one
           // where the user says.
+          'lib/features/snapshot/first_start_controller.dart',
+          'lib/features/snapshot/snapshot_fetcher.dart',
           'lib/features/snapshot/snapshot_reader.dart',
           'lib/features/snapshot/snapshot_writer.dart',
           'lib/features/sources/source_store.dart',

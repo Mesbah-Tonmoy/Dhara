@@ -186,6 +186,7 @@ Each phase is split into small increments, each with its own commit message (sec
 **Network**
 
 - The app only contacts enabled sources, plus TMDB and AniList over HTTPS.
+- A production build also fetches the library snapshot from the one https address built into it, without cookies, with a size limit, and sends nothing about the user or the library. On its first start it tests the servers of the starter list (their listed URLs only) and enables the ones it can read.
 - Only `http`/`https` schemes are allowed. Never use `file://` or other schemes coming from server responses.
 - Redirects are allowed only to the same host or another configured source, and are capped.
 - Every request has a timeout and a size limit.
