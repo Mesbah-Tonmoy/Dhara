@@ -107,6 +107,12 @@ Done:
   what only this PC should know. On the user's library it is 76.6 MB (not
   the 50 MB estimated: the folders and what the file names say are in it
   too), written in 14 seconds.
+- **(3), 2026-11-24.** A snapshot is read into an empty library
+  (`readSnapshot`; **Read snapshot** on the Library index page of a
+  development build, for trying it with a data folder of its own). It is
+  read as untrusted input, and the brief says so now: only what lies on a
+  server of the source list is taken. The user's snapshot went in whole
+  (1.81 million rows, none left out) in about a minute and a half.
 
 ### 2. Updates from inside the app
 

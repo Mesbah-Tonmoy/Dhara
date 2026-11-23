@@ -82,6 +82,7 @@ Not findings, but worth knowing:
 | What is typed into search cannot act as query syntax | `ftsQueryFor` quotes every word | `index_store_test.dart`, `browse_store_test.dart` | ok |
 | JSON from Emby, TMDB and AniList | every field is type-checked; ids must match `[A-Za-z0-9-]{1,64}`, tokens `[A-Za-z0-9._-]{1,256}`; texts are cut to a length | `emby_adapter_test.dart`, `tmdb_client_test.dart`, `anilist_client_test.dart` | ok |
 | A source list that is imported | at most 2 MB and 2,000 sources; every address must be http(s) without a user name or password | `source_list_test.dart` | ok |
+| A library snapshot that is read | `snapshot_reader.dart`: only the tables and columns it knows, every value checked for type, size and range, under the database's own strict types, checks and foreign keys; a source only if the source list has it, a crawl's starting folder only if it is a base URL of that source, a folder, a video and a subtitle only on a server (scheme, host, port) of their source, written the one way an address is written; lines of at most 64 KB, 4 GB unpacked, 20 million rows; a file that does not hold together (no head, no end line, another number of rows) is refused whole and what was read is taken out again. Only an empty library is filled | `snapshot_reader_test.dart` | ok |
 
 ## Files
 
@@ -92,7 +93,7 @@ Not findings, but worth knowing:
 | A picture must be a picture | at most 3 MB, kept only if it starts like a JPEG, PNG or WebP | `image_store_test.dart` | ok |
 | An external subtitle | picked in the system's file dialog; `.srt/.ass/.ssa/.vtt`, a regular file, at most 20 MB; only handed to the player | `subtitle_file_test.dart` | ok |
 | Nothing is executed or opened with another program | no `Process`, no shell, no link opened | *guard* | ok |
-| Which files reach the file system at all | thirteen files import `dart:io`, one of them (`library_db.dart`) for its compression only | *guard* (the list) | ok |
+| Which files reach the file system at all | fifteen files import `dart:io`, one of them (`library_db.dart`) for its compression only | *guard* (the list) | ok |
 
 ## Secrets
 

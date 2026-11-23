@@ -5,11 +5,12 @@ import 'package:dhara/core/db/library_isolate.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/metadata/match_controller.dart';
 import 'package:dhara/features/metadata/titles_controller.dart';
+import 'package:dhara/features/snapshot/snapshot_reader.dart';
 import 'package:dhara/features/snapshot/snapshot_writer.dart';
 import 'package:flutter/widgets.dart';
 
-/// Writes the library out as a snapshot for a production build to start
-/// from, and says how far that is. Only a development build has one.
+/// Writes the library out as a snapshot, which a production build starts
+/// from, and fills an empty library from one; says how far either is.
 class LibrarySnapshotController extends ChangeNotifier {
   LibrarySnapshotController({
     required LibraryWorker library,
@@ -31,25 +32,30 @@ class LibrarySnapshotController extends ChangeNotifier {
   final MatchController _match;
 
   Future<void>? _run;
+  var _reading = false;
   var _rowsDone = 0;
   var _rowsTotal = 0;
   SnapshotWritten? _written;
+  SnapshotRead? _read;
   var _failed = false;
   var _disposed = false;
 
   /// A snapshot is being written.
-  bool get isWriting => _run != null;
+  bool get isWriting => _run != null && !_reading;
 
-  /// One can be written now: not while the library is being changed by a
-  /// crawl, the reading of file names or a run of matching, which would
-  /// leave it half of each.
-  bool get canWrite =>
-      !isWriting &&
+  /// A snapshot is being read into the library.
+  bool get isReading => _run != null && _reading;
+
+  /// One can be written or read now: not while the other is under way, and
+  /// not while the library is being changed by a crawl, the reading of
+  /// file names or a run of matching.
+  bool get isFree =>
+      _run == null &&
       !_index.isRunning &&
       !_titles.isReading &&
       !_match.isRunning;
 
-  /// How many rows of the one being written are in the file, and how many
+  /// How many rows of the one being written or read are done, and how many
   /// there are.
   int get rowsDone => _rowsDone;
   int get rowsTotal => _rowsTotal;
@@ -61,12 +67,61 @@ class LibrarySnapshotController extends ChangeNotifier {
   /// full).
   bool get failed => _failed;
 
+  /// What became of the snapshot read last in this run of the app.
+  SnapshotRead? get lastRead => _read;
+
   /// Writes a snapshot to the file at [path], replacing what is there, and
   /// completes when that has ended one way or the other. Does nothing
-  /// while [canWrite] says no. Never throws.
+  /// while [isFree] says no. Never throws.
   Future<void> write(String path) {
-    if (!canWrite) return _run ?? Future.value();
-    return _run = _write(path);
+    if (!isFree) return Future.value();
+    _reading = false;
+    return _run = _work(() async {
+      _failed = false;
+      _written = null;
+      _read = null;
+      try {
+        final written = await _library.run(writeSnapshot, (
+          path,
+          _events!.sendPort,
+        ));
+        _written = written;
+        // The last word on the way may still be under way.
+        _rowsDone = _rowsTotal = written.rows;
+      } on LibraryWorkException {
+        _failed = true;
+      }
+    });
+  }
+
+  /// Fills the library from the snapshot file at [path], if the library is
+  /// empty, and returns what became of it; the index is read anew, so the
+  /// names of the videos and Home follow. Does nothing, and returns
+  /// `null`, while [isFree] says no. Never throws.
+  ///
+  /// Only what lies on a server of the source list is taken: see
+  /// `readSnapshot`.
+  Future<SnapshotRead?> read(String path) async {
+    if (!isFree) return null;
+    _reading = true;
+    late SnapshotRead read;
+    await (_run = _work(() async {
+      _read = null;
+      _written = null;
+      _failed = false;
+      try {
+        read = await _library.run(readSnapshot, (
+          path,
+          _index.sources.sources,
+          _events!.sendPort,
+        ));
+      } on LibraryWorkException {
+        read = const SnapshotRead(problem: SnapshotProblem.libraryFailed);
+      }
+      _read = read;
+    }));
+    if (read.ok) await _index.load();
+    return read;
   }
 
   @override
@@ -78,12 +133,13 @@ class LibrarySnapshotController extends ChangeNotifier {
     super.dispose();
   }
 
-  Future<void> _write(String path) async {
-    _failed = false;
-    _written = null;
+  ReceivePort? _events;
+
+  /// Does [work] as the one thing under way, with its progress heard.
+  Future<void> _work(Future<void> Function() work) async {
     _rowsDone = 0;
     _rowsTotal = 0;
-    final events = ReceivePort();
+    final events = _events = ReceivePort();
     events.listen((message) {
       if (message case (final int done, final int total)) {
         _rowsDone = done;
@@ -94,17 +150,10 @@ class LibrarySnapshotController extends ChangeNotifier {
     // Lets the caller's `_run` be set before anyone is told.
     scheduleMicrotask(_notify);
     try {
-      final written = await _library.run(writeSnapshot, (
-        path,
-        events.sendPort,
-      ));
-      _written = written;
-      // The last word on the way may still be under way.
-      _rowsDone = _rowsTotal = written.rows;
-    } on LibraryWorkException {
-      _failed = true;
+      await work();
     } finally {
       events.close();
+      _events = null;
       _run = null;
       _notify();
     }
@@ -115,6 +164,21 @@ class LibrarySnapshotController extends ChangeNotifier {
   }
 }
 
+/// What to tell the user about a snapshot that was not taken.
+String snapshotProblemText(SnapshotProblem problem) => switch (problem) {
+  SnapshotProblem.unreadable => 'The snapshot file could not be read.',
+  SnapshotProblem.notASnapshot => 'That file is not a library snapshot.',
+  SnapshotProblem.newerVersion =>
+    'The snapshot was written by a newer version of Dhara, which this one '
+        'cannot read.',
+  SnapshotProblem.cutShort =>
+    'The snapshot is not whole: it ends before its end.',
+  SnapshotProblem.libraryNotEmpty =>
+    'The library is not empty, so nothing was read: a snapshot only fills '
+        'an empty library.',
+  SnapshotProblem.libraryFailed => 'The library could not be written.',
+};
+
 /// Makes the [LibrarySnapshotController] available to the widget tree.
 class LibrarySnapshotScope
     extends InheritedNotifier<LibrarySnapshotController> {
@@ -124,8 +188,8 @@ class LibrarySnapshotScope
     required super.child,
   }) : super(notifier: controller);
 
-  /// The controller, if there is one above (a production build has none);
-  /// the calling widget rebuilds whenever it changes.
+  /// The controller, if there is one above; the calling widget rebuilds
+  /// whenever it changes.
   static LibrarySnapshotController? maybeOf(BuildContext context) => context
       .dependOnInheritedWidgetOfExactType<LibrarySnapshotScope>()
       ?.notifier;

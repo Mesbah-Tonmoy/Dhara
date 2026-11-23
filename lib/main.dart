@@ -148,7 +148,8 @@ Future<void> main() async {
           home: home,
         ),
         filmDetails: filmDetails,
-        // Only a development build writes the library out.
+        // The page that writes the library out, and reads one in for a
+        // try, is a development build's.
         snapshots: _devTools
             ? LibrarySnapshotController(
                 library: library,

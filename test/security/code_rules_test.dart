@@ -248,7 +248,9 @@ void main() {
           'lib/features/metadata/anilist_client.dart',
           'lib/features/metadata/tmdb_client.dart',
           'lib/features/player/subtitle_file.dart',
-          // Writes the library to the file the user picked.
+          // Reads a snapshot file, as data, and writes the library to one
+          // where the user says.
+          'lib/features/snapshot/snapshot_reader.dart',
           'lib/features/snapshot/snapshot_writer.dart',
           'lib/features/sources/source_store.dart',
           'lib/features/sources/source_test_controller.dart',

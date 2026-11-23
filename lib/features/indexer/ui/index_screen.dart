@@ -16,16 +16,27 @@ import 'package:dhara/widgets/surfaces.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+const _snapshotFiles = XTypeGroup(
+  label: 'Library snapshot',
+  extensions: ['gz'],
+);
+
 /// Asks the user where a snapshot is to be saved, in the system's own
 /// dialog, and returns the path, or `null` if they cancel.
 Future<String?> askSnapshotPath() async {
   final location = await getSaveLocation(
     suggestedName: snapshotFileName,
-    acceptedTypeGroups: const [
-      XTypeGroup(label: 'Library snapshot', extensions: ['gz']),
-    ],
+    acceptedTypeGroups: const [_snapshotFiles],
   );
   return location?.path;
+}
+
+/// Lets the user pick a snapshot file, in the system's own dialog, and
+/// returns its path, or `null` if they cancel. The file is only ever read,
+/// as data.
+Future<String?> askSnapshotFile() async {
+  final file = await openFile(acceptedTypeGroups: const [_snapshotFiles]);
+  return file?.path;
 }
 
 /// The library index: how much of each enabled server has been read, the
@@ -35,10 +46,17 @@ Future<String?> askSnapshotPath() async {
 /// Opened from Settings. Every piece of server-supplied text (file names,
 /// folder paths, messages) is shown through plain `Text` widgets only.
 class IndexScreen extends StatefulWidget {
-  const IndexScreen({super.key, this.pickSnapshotPath = askSnapshotPath});
+  const IndexScreen({
+    super.key,
+    this.pickSnapshotPath = askSnapshotPath,
+    this.pickSnapshotFile = askSnapshotFile,
+  });
 
   /// Asks where a snapshot of the library is to be saved.
   final Future<String?> Function() pickSnapshotPath;
+
+  /// Asks which snapshot is to be read.
+  final Future<String?> Function() pickSnapshotFile;
 
   @override
   State<IndexScreen> createState() => _IndexScreenState();
@@ -80,6 +98,11 @@ class _IndexScreenState extends State<IndexScreen> {
   Future<void> _writeSnapshot(LibrarySnapshotController snapshots) async {
     final path = await widget.pickSnapshotPath();
     if (path != null) await snapshots.write(path);
+  }
+
+  Future<void> _readSnapshot(LibrarySnapshotController snapshots) async {
+    final path = await widget.pickSnapshotFile();
+    if (path != null) await snapshots.read(path);
   }
 
   void _play(FileHit hit) => unawaited(
@@ -161,25 +184,38 @@ class _IndexScreenState extends State<IndexScreen> {
                             tooltip:
                                 'Writes the library to a file that a '
                                 'production build starts from',
-                            onPressed: snapshots.canWrite
+                            onPressed: snapshots.isFree
                                 ? () => unawaited(_writeSnapshot(snapshots))
+                                : null,
+                          ),
+                        if (snapshots != null)
+                          DharaButton(
+                            key: const Key('index-snapshot-read'),
+                            icon: DharaIcons.importFile,
+                            label: snapshots.isReading
+                                ? 'Reading …'
+                                : 'Read snapshot',
+                            tooltip:
+                                'Fills an empty library from a snapshot '
+                                'file, as a production build does when it '
+                                'first starts',
+                            onPressed: snapshots.isFree
+                                ? () => unawaited(_readSnapshot(snapshots))
                                 : null,
                           ),
                       ],
                     ),
-                    if (snapshots != null && snapshotStatus != null) ...[
+                    if (snapshotStatus case (final text, final wrong)) ...[
                       const SizedBox(height: rem),
                       Text(
-                        snapshotStatus,
+                        text,
                         key: const Key('index-snapshot-status'),
                         style: TextStyle(
                           fontFamily: DharaFonts.ui,
                           fontSize: DharaType.sm,
                           height: 1.4,
                           fontFeatures: const [FontFeature.tabularFigures()],
-                          color: snapshots.failed
-                              ? DharaColors.warn
-                              : DharaColors.text2,
+                          color: wrong ? DharaColors.warn : DharaColors.text2,
                         ),
                       ),
                     ],
@@ -255,23 +291,48 @@ class _IndexScreenState extends State<IndexScreen> {
   }
 }
 
-/// What to say about the snapshot being written or written last, if
-/// anything.
-String? _statusOf(LibrarySnapshotController snapshots) {
-  if (snapshots.isWriting) {
-    return snapshots.rowsTotal == 0
-        ? 'Writing the snapshot …'
-        : 'Writing the snapshot … ${snapshots.rowsDone} of '
-              '${snapshots.rowsTotal} rows';
+/// What to say about the snapshot being written or read, or the one that
+/// was last, if anything; and whether it says that something went wrong.
+(String, bool)? _statusOf(LibrarySnapshotController snapshots) {
+  if (snapshots.isWriting || snapshots.isReading) {
+    final doing = snapshots.isWriting ? 'Writing' : 'Reading';
+    return (
+      snapshots.rowsTotal == 0
+          ? '$doing the snapshot …'
+          : '$doing the snapshot … ${snapshots.rowsDone} of '
+                '${snapshots.rowsTotal} rows',
+      false,
+    );
   }
   if (snapshots.failed) {
-    return 'The snapshot could not be written there. Nothing was left '
-        'behind; pick another folder and try again.';
+    return (
+      'The snapshot could not be written there. Nothing was left behind; '
+          'pick another folder and try again.',
+      true,
+    );
   }
-  final written = snapshots.written;
-  if (written == null) return null;
-  return 'Snapshot written: ${written.videos} videos and ${written.titles} '
-      'titles in ${_size(written.bytes)} · ${written.path}';
+  if (snapshots.written case final written?) {
+    return (
+      'Snapshot written: ${written.videos} videos and ${written.titles} '
+          'titles in ${_size(written.bytes)} · ${written.path}',
+      false,
+    );
+  }
+  final read = snapshots.lastRead;
+  if (read == null) return null;
+  if (read.problem case final problem?) {
+    return (snapshotProblemText(problem), true);
+  }
+  final skipped = read.skipped == 0
+      ? ''
+      : read.skipped == 1
+      ? ' One row was left out.'
+      : ' ${read.skipped} rows were left out.';
+  return (
+    'Snapshot read: ${read.videos} videos and ${read.titles} titles are '
+        'in the library.$skipped',
+    false,
+  );
 }
 
 Source? _sourceOf(IndexController index, String id) {

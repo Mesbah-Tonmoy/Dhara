@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dhara/core/db/library_db.dart';
@@ -293,8 +294,8 @@ void main() {
     setUp(() => folder = Directory.systemTemp.createTempSync('dhara-index-'));
     tearDown(() => folder.deleteSync(recursive: true));
 
-    /// Shows the screen of a development build, whose save dialog answers
-    /// with [path].
+    /// Shows the screen of a development build, whose dialogs answer with
+    /// [path]: where to save a snapshot, and which one to read.
     Future<LibrarySnapshotController> show(
       WidgetTester tester,
       String? path,
@@ -308,9 +309,10 @@ void main() {
       final library = LocalLibrary(db);
       final index = IndexController(
         library: library,
-        sources: SourceStore(starter: const []),
+        sources: SourceStore(starter: [_source('alpha')]),
         deviceId: 'dhara-test',
       );
+      addTearDown(index.dispose);
       final titles = TitlesController(library: library, index: index);
       final snapshots = LibrarySnapshotController(
         library: library,
@@ -330,7 +332,10 @@ void main() {
             controller: snapshots,
             child: MaterialApp(
               theme: buildDharaTheme(),
-              home: IndexScreen(pickSnapshotPath: () async => path),
+              home: IndexScreen(
+                pickSnapshotPath: () async => path,
+                pickSnapshotFile: () async => path,
+              ),
             ),
           ),
         ),
@@ -387,6 +392,73 @@ void main() {
             .data,
         startsWith('The snapshot could not be written there.'),
       );
+    });
+
+    String? status(WidgetTester tester) => tester
+        .widget<Text>(find.byKey(const Key('index-snapshot-status')))
+        .data;
+
+    /// Lets a reading that was started get through the file and tell the
+    /// index, and the names of the videos be read after it.
+    Future<void> settle(WidgetTester tester) async {
+      for (var turn = 0; turn < 30; turn++) {
+        await tester.pump(const Duration(milliseconds: 1));
+      }
+    }
+
+    testWidgets('is read into the empty library from the file the user '
+        'picks', (tester) async {
+      final path = '${folder.path}${Platform.pathSeparator}library.gz';
+      File(path).writeAsBytesSync(
+        gzip.encode(
+          utf8.encode(
+            [
+              {'format': 'dhara-library-snapshot', 'version': 1},
+              {
+                'table': 'sources',
+                'columns': ['id', 'source_id'],
+              },
+              [1, 'alpha'],
+              {
+                'table': 'folders',
+                'columns': ['id', 'source', 'parent', 'url', 'path'],
+              },
+              [1, 1, null, 'http://10.0.0.1/alpha/', ''],
+              {
+                'table': 'files',
+                'columns': ['id', 'folder', 'name', 'url', 'added_at'],
+              },
+              [1, 1, 'Tenet.2020.mkv', 'Tenet.2020.mkv', 1],
+              [2, 1, 'Dune.2021.mkv', 'Dune.2021.mkv', 1],
+              [3, 1, 'Elsewhere.mkv', 'http://evil.test/Elsewhere.mkv', 1],
+              {'end': true, 'rows': 5},
+            ].map((line) => '${jsonEncode(line)}\n').join(),
+          ),
+        ),
+      );
+      final snapshots = await show(tester, path);
+
+      await tester.tap(find.byKey(const Key('index-snapshot-read')));
+      await settle(tester);
+
+      expect(snapshots.lastRead!.ok, isTrue);
+      expect(
+        status(tester),
+        'Snapshot read: 2 videos and 0 titles are in the library. One row '
+        'was left out.',
+      );
+      expect(find.text('Read snapshot'), findsOneWidget);
+    });
+
+    testWidgets('that is no snapshot is said not to be one', (tester) async {
+      final path = '${folder.path}${Platform.pathSeparator}other.gz';
+      File(path).writeAsStringSync('something else');
+      await show(tester, path);
+
+      await tester.tap(find.byKey(const Key('index-snapshot-read')));
+      await settle(tester);
+
+      expect(status(tester), 'That file is not a library snapshot.');
     });
   });
 

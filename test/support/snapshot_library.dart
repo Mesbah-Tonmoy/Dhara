@@ -173,3 +173,15 @@ List<Object?> readSnapshotLines(String path) => [
   ))
     jsonDecode(line),
 ];
+
+/// Writes [lines] as a snapshot file at [path]: each as one line of JSON,
+/// or as it is if it is text already.
+void writeSnapshotLines(String path, Iterable<Object?> lines) {
+  final text = StringBuffer();
+  for (final line in lines) {
+    text
+      ..write(line is String ? line : jsonEncode(line))
+      ..write('\n');
+  }
+  File(path).writeAsBytesSync(gzip.encode(utf8.encode(text.toString())));
+}

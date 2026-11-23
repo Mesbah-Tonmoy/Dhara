@@ -1090,7 +1090,7 @@ A development build's page: open it from the rail or from Settings. It
 lists the enabled servers with what the
 index holds of each, shows the progress of a crawl, and offers **Update
 index**, **Stop** and **Full re-check** (reads every folder again, also
-those that look unchanged), and **Write snapshot** (see
+those that look unchanged), and **Write snapshot** and **Read snapshot** (see
 [Library snapshot](#library-snapshot)). An enabled source without an
 adapter (a custom website) is listed too, as one the app cannot read: it is not crawled and
 not counted in "Servers indexed". The search box searches file names and
@@ -1157,6 +1157,43 @@ folders, 90,201 titles, 228,563 episodes; 1.81 million rows): 76.6 MB,
 written in 14 seconds. Unpacked it is 319 MB, a third of it the videos.
 The highest gzip level saves one megabyte and takes six seconds more, so
 the usual one is used.
+
+**Reading one.** `readSnapshot` fills an **empty** library from such a file
+(a library that holds a server or a title is left as it is). A development
+build has **Read snapshot** on the Library index page for trying it: start
+a copy with its own data folder (see
+[Trying a build without touching the real data](#trying-a-build-without-touching-the-real-data)),
+whose library is empty, and pick the file. A production build will do the
+same by itself when it first starts.
+
+A snapshot comes from the internet, so it is read like the answer of a
+server (BRIEF section 7, Untrusted input):
+
+- only the tables and columns of `snapshot_format.dart` are read; every
+  value is checked for its type, size and range, and the database's own
+  strict types, checks and foreign keys apply. A row that fails is left
+  out and counted, and so is every row that points at it;
+- a server is taken only if the source list has it; the folder a crawl
+  starts from only if it is a base URL of that server; every other
+  folder, every video and every subtitle only if it lies on a server
+  (scheme, host and port) of its source, written the one way an address is
+  written. A video's address is checked whole, after what the library
+  keeps of it is put behind the address of its folder;
+- pictures are taken as paths of TMDB's image server in the one shape
+  those have, or not at all;
+- a line may be 64 KB long, the whole 4 GB unpacked and 20 million rows;
+- a file that does not hold together (not gzip, no first or last line,
+  another number of rows than the last line says, something that is
+  neither a table nor a row) is refused as a whole, and what was read of
+  it is taken out of the library again.
+
+Rows are written 16,000 to a transaction, and between two of those other
+work on the library gets its turn. Measured on the snapshot above: all
+1,813,681 rows taken and none left out, in about a minute and a half
+(1:29 to 1:43; with one transaction per 1,500 rows it was 1:43 to 2:13).
+Three quarters of that go to the videos, each of which is put into the
+search index; a larger SQLite cache changed nothing. The library file
+that comes of it is 414 MB.
 
 ## Titles and metadata
 

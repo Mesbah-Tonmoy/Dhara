@@ -195,6 +195,7 @@ Each phase is split into small increments, each with its own commit message (sec
 
 - Use a real HTML parser (no regex), never render server HTML, and no WebView or JS execution.
 - Escape all server strings in the UI, and use parameterised SQL only.
+- A snapshot is untrusted input like a server's answer: it is parsed strictly, and a video's or folder's address is taken only if it lies on a server of the source list.
 
 **Files**
 
