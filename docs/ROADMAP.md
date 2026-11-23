@@ -139,10 +139,15 @@ Done:
   stand-in for TMDB. The installer with the real key should be made after
   the PC is set up anew.
 
-Still to do: (6) reading the servers again in the background, with the
-progress in the title bar; (7) packaging, README, manual test list,
-version 1.1.0. Until (6) is done, no production installer should be
-handed out.
+- **(6), 2026-11-24.** A production build reads the enabled servers
+  again by itself: it looks every hour whether the index is more than a
+  day old, the first time 15 seconds after its first start has made it
+  ready. A pill in the title bar says what is being done in the
+  background and how far it is. Tried with a real production build after
+  it had fetched the user's snapshot: the reading began by itself, and
+  the library grew by 5,818 videos in three minutes.
+
+Still to do: (7) packaging, README, manual test list, version 1.1.0.
 
 ### 2. Updates from inside the app
 

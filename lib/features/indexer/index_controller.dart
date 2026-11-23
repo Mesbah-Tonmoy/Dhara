@@ -59,6 +59,7 @@ class IndexController extends ChangeNotifier {
   var _failed = false;
   var _disposed = false;
   var _holds = 0;
+  Timer? _freshening;
 
   /// A crawl is under way.
   bool get isRunning => _run != null;
@@ -139,6 +140,15 @@ class IndexController extends ChangeNotifier {
     if (stale) await start();
   }
 
+  /// Keeps the index up to date for as long as the app runs: looks now
+  /// whether it has grown stale (see [updateIfStale]), and again every
+  /// [every]. For a build that has no page to update it from.
+  void keepFresh({Duration every = const Duration(hours: 1)}) {
+    _freshening?.cancel();
+    _freshening = Timer.periodic(every, (_) => unawaited(updateIfStale()));
+    unawaited(updateIfStale());
+  }
+
   /// Stops the crawl under way; what was found so far is kept and the next
   /// crawl carries on from there.
   void stop() {
@@ -164,6 +174,7 @@ class IndexController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _freshening?.cancel();
     _sources.removeListener(_onSourcesChanged);
     super.dispose();
   }

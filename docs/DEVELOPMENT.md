@@ -74,10 +74,9 @@ on a PC that has both only one should be open at a time.
 A production build fills its library by itself the first time it starts
 (see [The first start of a production build](#the-first-start-of-a-production-build)).
 It carries a TMDB key if it was built with one (see [TMDB key](#tmdb-key)),
-and looks titles up by itself. Still to come, in section 1 of
-[ROADMAP.md](ROADMAP.md): reading the servers again in the background.
-**Until that is built, no production installer newer than 1.0.3 should be
-handed out:** nothing would bring its library up to date.
+looks titles up by itself, and reads the servers again in the background
+once a day, with a small pill in the title bar that says how far that is
+(see [Library index screen](#library-index-screen)).
 
 ## Installer
 
@@ -709,7 +708,14 @@ use, run `flutter run --release`.
 
 `AppShell` (`lib/shell`) is the frame every page sits in: the app's own
 title bar (Back, brand, search field, state of the servers, window
-buttons), the navigation rail on the left, and the page between them. The
+buttons), the navigation rail on the left, and the page between them. In
+a production build the title bar also has a small pill beside the brand
+while the app works on the library in the background
+(`lib/shell/activity_chip.dart`): "Getting ready 45%", "Reading servers
+12/29", "Reading names 30%", "Finding posters 75%", the first of them
+that applies, with a ring that fills and a sentence for whoever points at
+it. It is not there when nothing is being done, and it never spins, so it
+asks for no frame while the numbers stand still. The
 pages have a navigator of their own; no routing package is used. Home is
 always the first page, a place of the rail opens on top of it and replaces
 the place that was open, so Back always leads toward Home. The player is
@@ -1152,6 +1158,24 @@ Once the index has been built, the app brings it up to date by itself: 15
 seconds after start-up, if an enabled server was last crawled to the end
 more than a day ago. The very first crawl only starts when you ask for it.
 
+A production build has no such page. Once its first start has made it
+ready it looks every hour, for as long as it runs, whether an enabled
+server was last read to the end more than a day ago
+(`IndexController.keepFresh`), and reads the enabled servers again if so:
+the same crawl, which passes over folders that have not changed. After a
+first start that is at once, because the times in a snapshot are those of
+the development build's crawls. What it finds gets its names read and,
+with a key, is looked up, and Home follows. The pill in the title bar is
+all that shows of it; closing the app stops it, and the next start goes
+on from there. An empty library is still only read when the user asks
+("Read the servers" on Home).
+
+Tried on 2026-11-24 with a real production build that had just fetched
+the user's snapshot: 15 seconds after Home appeared the pill said "Reading
+servers", 22 of 28 were done within a minute and 27 after three, and the
+library had 5,818 videos more than the snapshot. The last server was
+still being read when the copy was closed.
+
 Measured with the automated tests: search over 100,000 files answers in
 under 30 ms, and writing 100,000 files takes about 5 s.
 
@@ -1295,10 +1319,8 @@ While a snapshot is read the library is held (`IndexController.hold`):
 no crawl starts and no file names are read until it is in, because both
 would write into the tables the snapshot is filling.
 
-Not built yet: after the first start nothing reads the servers again by
-itself in a production build (increment 6 of [ROADMAP.md](ROADMAP.md)
-section 1). A release asset on GitHub cannot be the address yet: GitHub
-answers with a redirect to another host, which the fetcher refuses.
+A release asset on GitHub cannot be the address yet: GitHub answers with
+a redirect to another host, which the fetcher refuses.
 
 **Tried on 2026-11-24.** With the automated tests: the whole first start
 against a web server on this PC (fetching, reading, the servers, every

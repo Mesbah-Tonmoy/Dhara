@@ -210,10 +210,10 @@ Future<void> main() async {
       ),
     ),
   );
-  unawaited(firstStart?.start());
+  final madeReady = firstStart?.start();
   // Notice enabled servers that died since they were last tested.
   unawaited(sourceTests.retestEnabledIfStale());
-  unawaited(_keepIndexFresh(index));
+  unawaited(_keepIndexFresh(index, madeReady));
   // Once the app has settled, keeps the folder of posters within its limit.
   unawaited(
     Future<void>.delayed(
@@ -236,10 +236,23 @@ String? _bundledLibmpv() {
 
 /// Reads the size of the index, then, once the app has settled, brings an
 /// index up to date that is more than a day old.
-Future<void> _keepIndexFresh(IndexController index) async {
+///
+/// A development build does that once, as it starts; its Library index
+/// page does the rest. A production build has no such page: once its first
+/// start has made it ready ([madeReady]), it looks every hour whether the
+/// index has grown stale, for as long as it runs.
+Future<void> _keepIndexFresh(
+  IndexController index,
+  Future<void>? madeReady,
+) async {
   await index.load();
+  await madeReady;
   await Future<void>.delayed(const Duration(seconds: 15));
-  await index.updateIfStale();
+  if (madeReady == null) {
+    await index.updateIfStale();
+  } else {
+    index.keepFresh();
+  }
 }
 
 /// Opens the on-disk settings. If that fails (unreadable profile folder,

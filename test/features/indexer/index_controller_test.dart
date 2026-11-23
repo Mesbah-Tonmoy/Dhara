@@ -269,5 +269,23 @@ void main() {
 
       expect(index.statsOf('shows')!.files, 1);
     });
+
+    test('keepFresh looks now and again later, for as long as the '
+        'controller lives', () async {
+      await index.start();
+      final requests = server.requests.length;
+
+      // Not stale yet: looking now finds nothing to do.
+      index.keepFresh(every: const Duration(milliseconds: 40));
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      expect(server.requests, hasLength(requests));
+
+      // A day later the next look starts a crawl, with nobody asking.
+      now = DateTime.now().add(const Duration(hours: 25));
+      await until(() => index.isRunning);
+      await until(() => !index.isRunning);
+      expect(server.requests.length, greaterThan(requests));
+      expect(index.progressOf('films')!.state, CrawlState.complete);
+    });
   });
 }

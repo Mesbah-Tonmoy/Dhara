@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:dhara/core/window/window_widgets.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
+import 'package:dhara/shell/activity_chip.dart';
 import 'package:dhara/shell/shell_controller.dart';
 import 'package:dhara/theme/tokens.dart';
 import 'package:dhara/widgets/buttons.dart';
@@ -10,9 +11,10 @@ import 'package:dhara/widgets/logo.dart';
 import 'package:dhara/widgets/pressable.dart';
 import 'package:flutter/material.dart';
 
-/// The app's own title bar: Back, the brand, the search field in the
-/// middle, the state of the servers and, once the system's title bar is
-/// gone, the window buttons. Its empty space moves the window.
+/// The app's own title bar: Back, the brand, in a production build what
+/// the app is doing to the library in the background, the search field in
+/// the middle, the state of the servers and, once the system's title bar
+/// is gone, the window buttons. Its empty space moves the window.
 ///
 /// It is glass: clear while a page's artwork lies under it, and otherwise
 /// blurring what scrolls past beneath.
@@ -43,6 +45,11 @@ class TitleBar extends StatelessWidget {
                   const SizedBox(width: DharaSpace.s2),
                 ],
                 _Brand(onPressed: () => shell.open(ShellDestination.home)),
+                // A development build has its own pages for this.
+                if (!shell.devTools) ...[
+                  const SizedBox(width: DharaSpace.s4),
+                  const ActivityChip(),
+                ],
                 const Spacer(),
                 const _ServerStatus(),
                 const SizedBox(width: DharaSpace.s2),
