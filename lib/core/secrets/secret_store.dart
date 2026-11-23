@@ -39,6 +39,32 @@ bool isSecretName(String name) => _secretName.hasMatch(name);
 
 final _secretName = RegExp(r'^[a-z0-9._-]{1,64}$');
 
+/// Holds the one secret a build was made with, and nothing else: for the
+/// TMDB key of a production build, which is part of the program. It cannot
+/// be replaced or removed, and it is written nowhere by the app.
+class BuiltInSecretStore implements SecretStore {
+  const BuiltInSecretStore(this._name, this._value);
+
+  final String _name;
+  final String _value;
+
+  static const _fixed = SecretStoreException(
+    'This build carries its key; it cannot be changed.',
+  );
+
+  @override
+  bool get keepsSecrets => true;
+
+  @override
+  Future<String?> read(String name) async => name == _name ? _value : null;
+
+  @override
+  Future<void> write(String name, String value) async => throw _fixed;
+
+  @override
+  Future<void> delete(String name) async => throw _fixed;
+}
+
 /// Keeps secrets in memory, for this run only: for tests, and for systems
 /// where the app has no secure storage yet.
 class MemorySecretStore implements SecretStore {

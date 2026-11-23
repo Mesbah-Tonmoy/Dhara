@@ -61,7 +61,11 @@ void main() {
   late MatchController match;
 
   /// Opens the controllers over [worker]; [key] is the saved TMDB key.
-  Future<void> open(LibraryWorker worker, {String? key = _apiKey}) async {
+  Future<void> open(
+    LibraryWorker worker, {
+    String? key = _apiKey,
+    bool startsByItself = false,
+  }) async {
     library = worker;
     final sources = SourceStore(
       starter: [
@@ -89,6 +93,7 @@ void main() {
       library: library,
       titles: titles,
       tmdbKey: tmdbKey,
+      startsByItself: startsByItself,
       tmdbUrl: tmdb.url,
       tmdbRetries: 0,
     );
@@ -405,6 +410,41 @@ void main() {
 
       expect(match.isRunning, isFalse);
       expect(tmdb.asked, hasLength(asked));
+      expect(match.counts!.pending, 1);
+    });
+  });
+
+  group('in a build that starts it by itself', () {
+    test('titles are looked up as soon as their names are read, the '
+        'first time too', () async {
+      await open(LocalLibrary(LibraryDb.inMemory()), startsByItself: true);
+      tmdb.addFilm(1, 'Stillwater', 2018);
+      await put('Movies/English', ['Stillwater (2018) 1080p WEBDL.mkv']);
+
+      await readNames();
+      // Nobody asks for it: the names set it off.
+      for (var turn = 0; turn < 300 && match.lastEnd == null; turn++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+
+      expect(tmdb.asked, contains('movie|stillwater|2018'));
+      expect((await stored())['Stillwater']!.take(3), [2018, 1, 1]);
+      expect(match.lastEnd, MatchEnd.finished);
+    });
+
+    test('nothing is looked up without a key', () async {
+      await open(
+        LocalLibrary(LibraryDb.inMemory()),
+        key: null,
+        startsByItself: true,
+      );
+      tmdb.addFilm(1, 'Stillwater', 2018);
+      await put('Movies/English', ['Stillwater (2018) 1080p WEBDL.mkv']);
+
+      await readNames();
+
+      expect(match.isRunning, isFalse);
+      expect(tmdb.asked, isEmpty);
       expect(match.counts!.pending, 1);
     });
   });

@@ -125,18 +125,24 @@ Done:
   faults that trial found were put right before the commit (a snapshot
   lying in the folder was not read by a build without an address; nothing
   kept a crawl from starting while a snapshot was being read).
-  **Not tried: the fetch from Google Drive itself**, which needs the
-  user's link.
+  **Tried for real on 2026-11-24**, after the user put their snapshot on
+  Google Drive: a production build given that address fetched it (76.65
+  MB), read it and showed Home by itself, about a minute and a half after
+  it was started on an empty folder. The link is not written into the
+  repository, which is public: it is given to `tool/package.ps1
+  -SnapshotUrl` when building.
+- **(5), 2026-11-24.** A production build carries a TMDB key if it is
+  built with one (`tool/package.ps1 -TmdbKeyFile`, from a file outside the
+  repository; never printed, and what the build leaves of it on the PC is
+  removed), and looks titles up by itself. The brief has its line for
+  this. **No real key was used**: tried with made-up keys against a
+  stand-in for TMDB. The installer with the real key should be made after
+  the PC is set up anew.
 
-Still to do: (5) the TMDB key built in, and matching by itself; (6)
-reading the servers again in the background, with the progress in the
-title bar; (7) packaging, README, manual test list, version 1.1.0. Until
-(5) and (6) are done, no production installer should be handed out.
-
-Needed from the user for (4) to be tried for real: write a snapshot with
-the development build (Library index, **Write snapshot**), put it on
-Google Drive, share it with "anyone with the link", and give the link to
-`tool/package.ps1 -SnapshotUrl`.
+Still to do: (6) reading the servers again in the background, with the
+progress in the title bar; (7) packaging, README, manual test list,
+version 1.1.0. Until (6) is done, no production installer should be
+handed out.
 
 ### 2. Updates from inside the app
 

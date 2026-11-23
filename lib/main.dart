@@ -81,18 +81,27 @@ Future<void> main() async {
   final titles = TitlesController(library: library, index: index);
   // The TMDB key lives in the secure storage of the system. Other systems
   // than Windows have none the app can use yet: there it lasts for this run.
+  // A production build that was made with a key carries it instead, and
+  // neither reads nor writes the storage.
   final tmdbKey = TmdbKeyController(
-    Platform.isWindows && _dataFolderOverride.isEmpty
+    !_devTools && tmdbKeyKindOf(_builtInTmdbKey) != null
+        ? const BuiltInSecretStore(
+            TmdbKeyController.secretName,
+            _builtInTmdbKey,
+          )
+        : Platform.isWindows && _dataFolderOverride.isEmpty
         ? const WindowsCredentialStore()
         : MemorySecretStore(),
   );
   unawaited(tmdbKey.load());
-  // Looks titles up on TMDB: the first time when asked, later by itself
-  // for what crawls add.
+  // Looks titles up on TMDB. A development build does so the first time
+  // when asked, later by itself for what crawls add; a production build
+  // always by itself.
   final match = MatchController(
     library: library,
     titles: titles,
     tmdbKey: tmdbKey,
+    startsByItself: !_devTools,
   );
   // Fetches the episodes of matched shows whenever titles were matched; it
   // lives as long as the controller it listens to.
@@ -333,6 +342,15 @@ const _dataFolderOverride = String.fromEnvironment('DHARA_DATA_DIR');
 /// `--dart-define=DHARA_SNAPSHOT_URL=<address>` (`tool/package.ps1
 /// -SnapshotUrl`). A build made without it fetches nothing.
 const _snapshotUrl = String.fromEnvironment('DHARA_SNAPSHOT_URL');
+
+/// The TMDB key a production build carries, given when building with
+/// `tool/package.ps1 -TmdbKeyFile` from a file outside the repository
+/// (`DHARA_TMDB_KEY`). It is part of the program, so whoever has the
+/// program can read it out; it is never shown, logged or written anywhere
+/// by the app. Empty in a build made without it, and never used by a
+/// development build, which keeps the user's own key in the secure storage
+/// of the system.
+const _builtInTmdbKey = String.fromEnvironment('DHARA_TMDB_KEY');
 
 /// Whether this is a development build, which has the tools for working on
 /// the library (Titles and matching, Library index, the TMDB key): every

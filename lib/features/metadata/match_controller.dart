@@ -59,11 +59,14 @@ class MatchProgress {
 /// The first run only starts when the user asks for it: it is thousands of
 /// requests. After that, titles that crawls add are looked up by
 /// themselves once their names have been read, as long as a key is saved.
+/// With [startsByItself] the first run does not wait either: a production
+/// build has nobody to ask and nowhere to ask from.
 class MatchController extends ChangeNotifier {
   MatchController({
     required LibraryWorker library,
     required TitlesController titles,
     required TmdbKeyController tmdbKey,
+    this.startsByItself = false,
     Uri? tmdbUrl,
     int tmdbRetries = 3,
   }) : _library = library,
@@ -74,6 +77,10 @@ class MatchController extends ChangeNotifier {
     _wasReading = titles.isReading;
     _titles.addListener(_onTitlesChanged);
   }
+
+  /// Titles are looked up as soon as their names are read, also when none
+  /// was ever looked up before.
+  final bool startsByItself;
 
   final LibraryWorker _library;
   final TitlesController _titles;
@@ -247,10 +254,14 @@ class MatchController extends ChangeNotifier {
     await _refresh();
     final counts = _counts;
     if (_disposed || isRunning || counts == null) return;
-    // Not the first run, which the user starts, and not with a key TMDB
-    // has just refused.
-    if (counts.pending == 0 || counts.lookedUp == 0) return;
-    if (_lastEnd == MatchEnd.keyRefused || !_tmdbKey.hasKey) return;
+    // Not the first run, which the user starts unless the build is to
+    // start it, and not with a key TMDB has just refused.
+    if (counts.pending == 0) return;
+    if (counts.lookedUp == 0 && !startsByItself) return;
+    if (_lastEnd == MatchEnd.keyRefused) return;
+    // Asked for, not taken from memory: at start-up the names may be read
+    // before the key is.
+    if (await _tmdbKey.key() == null || _disposed || isRunning) return;
     await start();
   }
 

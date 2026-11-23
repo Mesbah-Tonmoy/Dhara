@@ -23,6 +23,16 @@
 # the address Drive hands the file itself out at. Without it the build
 # fetches nothing and has to read the servers itself.
 #
+# -TmdbKeyFile <file> builds a TMDB key into the production build, so that it
+# shows posters and looks up new titles without asking anyone for a key. The
+# file holds the key (the API key or the read access token) and nothing
+# else, and must lie outside this repository. The key is never printed. It
+# becomes part of the program: whoever has the installer can read it out.
+# After such a build the script removes what the build left of the key on
+# this PC (build\windows, .dart_tool\flutter_build and the generated build
+# settings); it stays in dist\, in the folder and the installer made for
+# handing out.
+#
 # -TestDataDir <folder> makes a copy for trying the installer without
 # touching the real library: that build keeps its data in <folder>, is called
 # "Dhara Test" and installs beside the real app, never over it.
@@ -37,6 +47,7 @@ param(
   [string]$Flutter,
   [switch]$Dev,
   [string]$SnapshotUrl,
+  [string]$TmdbKeyFile,
   [string]$TestDataDir,
   [string]$Logo,
   [switch]$LogoFromSettings
@@ -45,7 +56,19 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-function Fail([string]$message) { Write-Host "package: $message" -ForegroundColor Red; exit 1 }
+# What a build keeps of the values it was given: a TMDB key would lie on in
+# these files until the next build. They are all made again by a build.
+$script:keyWasBuilt = $false
+function ForgetBuiltKey {
+  if (-not $script:keyWasBuilt) { return }
+  foreach ($left in 'build\windows', '.dart_tool\flutter_build', 'windows\flutter\ephemeral\generated_config.cmake') {
+    Remove-Item (Join-Path $root $left) -Recurse -Force -ErrorAction SilentlyContinue
+  }
+  $script:keyWasBuilt = $false
+}
+function Fail([string]$message) { ForgetBuiltKey; Write-Host "package: $message" -ForegroundColor Red; exit 1 }
+# Also when a step of the script itself breaks.
+trap { ForgetBuiltKey; break }
 function Step([string]$message) { Write-Host "== $message" -ForegroundColor Cyan }
 function SizeMb([string]$path) {
   $bytes = (Get-ChildItem $path -Recurse -File | Measure-Object Length -Sum).Sum
@@ -85,6 +108,29 @@ if ($SnapshotUrl) {
   $snapshotAddress = SnapshotAddress $SnapshotUrl
   if (-not $snapshotAddress) { Fail '-SnapshotUrl must be an https address or a Google Drive share link.' }
 }
+
+# The TMDB key of a production build: read from a file outside the
+# repository, checked for its shape, and never shown.
+function TmdbKeyKind([string]$key) {
+  if ($key -cmatch '^[0-9a-fA-F]{32}$') { return 'API key' }
+  if ($key.Length -ge 80 -and $key.Length -le 1024 -and
+      $key -cmatch '^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$') { return 'access token' }
+  return $null
+}
+function IsInside([string]$path, [string]$folder) {
+  $full = [IO.Path]::GetFullPath($path)
+  $base = [IO.Path]::GetFullPath($folder).TrimEnd('\') + '\'
+  return $full.StartsWith($base, [StringComparison]::OrdinalIgnoreCase)
+}
+$tmdbKey = $null
+if ($TmdbKeyFile) {
+  if ($Dev) { Fail '-TmdbKeyFile is for the production build; a development build asks for the key in Settings.' }
+  if (-not (Test-Path $TmdbKeyFile -PathType Leaf)) { Fail '-TmdbKeyFile names no file.' }
+  if (IsInside $TmdbKeyFile $root) { Fail 'the file with the TMDB key must lie outside this repository.' }
+  $tmdbKey = (Get-Content $TmdbKeyFile -Raw).Trim()
+  $tmdbKeyKind = TmdbKeyKind $tmdbKey
+  if (-not $tmdbKeyKind) { Fail 'the file does not hold a TMDB key (32 letters and digits) or a TMDB read access token, alone.' }
+}
 $stage = Join-Path $root "dist\$name-$version"
 
 if (-not $Flutter) {
@@ -115,18 +161,31 @@ $buildArgs = @('build', 'windows', '--release')
 if ($Dev) { $buildArgs += '--dart-define=DHARA_DEV=true' }
 if ($test) { $buildArgs += "--dart-define=DHARA_DATA_DIR=$TestDataDir" }
 if ($Logo) { $buildArgs += "--dart-define=DHARA_LOGO=$Logo"; Write-Host "  logo: $Logo" }
-# The address goes to the build in a file: it holds "&", which a command
-# line would cut it at. The file lies outside the repository and is removed.
-$defines = $null
+# The address and the key go to the build in a file: the address holds "&",
+# which a command line would cut it at, and a key on a command line can be
+# read by every program of this user. The file lies outside the repository
+# and is removed.
+$given = @{}
 if ($snapshotAddress) {
-  $defines = Join-Path ([IO.Path]::GetTempPath()) "dhara-defines-$([guid]::NewGuid().ToString('N')).json"
-  [IO.File]::WriteAllText($defines, (@{ DHARA_SNAPSHOT_URL = $snapshotAddress } | ConvertTo-Json))
-  $buildArgs += "--dart-define-from-file=$defines"
+  $given.DHARA_SNAPSHOT_URL = $snapshotAddress
   Write-Host "  library from: $snapshotAddress"
 } elseif (-not $Dev) {
   Write-Host '  No -SnapshotUrl: this build fetches no library and has to read the servers itself.' -ForegroundColor Yellow
 }
+if ($tmdbKey) {
+  $given.DHARA_TMDB_KEY = $tmdbKey
+  Write-Host "  TMDB key: built in (a TMDB $tmdbKeyKind, from a file outside the repository)"
+} elseif (-not $Dev) {
+  Write-Host '  No -TmdbKeyFile: this build looks nothing up on TMDB unless a key is saved on the PC it runs on.' -ForegroundColor Yellow
+}
+$defines = $null
+if ($given.Count -gt 0) {
+  $defines = Join-Path ([IO.Path]::GetTempPath()) "dhara-defines-$([guid]::NewGuid().ToString('N')).json"
+  [IO.File]::WriteAllText($defines, ($given | ConvertTo-Json))
+  $buildArgs += "--dart-define-from-file=$defines"
+}
 try {
+  if ($tmdbKey) { $script:keyWasBuilt = $true }
   & $Flutter @buildArgs
 } finally {
   if ($defines) { Remove-Item $defines -Force -ErrorAction SilentlyContinue }
@@ -168,6 +227,11 @@ foreach ($file in $runtime) {
   }
   Copy-Item $from $stage
 }
+
+# The staged folder has what it needs; nothing of the key stays in the
+# build's own files.
+ForgetBuiltKey
+$tmdbKey = $null; $given = $null
 
 # --- Check the bundled libraries ----------------------------------------------
 # media_kit's build script checks its download (ANGLE) by MD5 only, and

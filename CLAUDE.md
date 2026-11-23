@@ -205,6 +205,7 @@ Each phase is split into small increments, each with its own commit message (sec
 **Secrets**
 
 - Store the TMDB key in OS secure storage. Never commit it or log it.
+- Exception: a production build carries a TMDB key given at build time from outside the repository; it is never committed, logged or shown. The development build keeps the key in OS secure storage.
 
 **Privacy**
 

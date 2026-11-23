@@ -73,11 +73,11 @@ on a PC that has both only one should be open at a time.
 
 A production build fills its library by itself the first time it starts
 (see [The first start of a production build](#the-first-start-of-a-production-build)).
-Still to come, in section 1 of [ROADMAP.md](ROADMAP.md): a TMDB key that is
-built in, and reading the servers again in the background. **Until those
-are built, no production installer newer than 1.0.3 should be handed
-out:** what a crawl finds after the snapshot would have no posters, and
-nothing would start that crawl.
+It carries a TMDB key if it was built with one (see [TMDB key](#tmdb-key)),
+and looks titles up by itself. Still to come, in section 1 of
+[ROADMAP.md](ROADMAP.md): reading the servers again in the background.
+**Until that is built, no production installer newer than 1.0.3 should be
+handed out:** nothing would bring its library up to date.
 
 ## Installer
 
@@ -130,8 +130,30 @@ snapshot. Without `-SnapshotUrl` the build fetches nothing, and the script
 says so. To put a newer snapshot under the same link: in Drive,
 right-click the file, "File information", "Manage versions", "Upload new
 version". **Not yet tried:** an installer made with `-SnapshotUrl` (the
-script was parsed and its turning of links tried by hand; the build
-option `--dart-define-from-file` is one this Flutter has).
+script was parsed and its turning of links tried by hand; a release built
+with the address the script would give it fetched the user's snapshot
+from Drive, see below).
+
+`-TmdbKeyFile <file>` builds a TMDB key into the production build:
+
+```powershell
+pwsh tool/package.ps1 -SnapshotUrl "<link>" -TmdbKeyFile D:\keys\dhara-tmdb.txt
+```
+
+The file holds the key and nothing else (the v3 API key or the API Read
+Access Token) and must lie outside the repository; the script refuses a
+file inside it, checks the shape of the key and never prints it. The key
+goes to the build in the same temp file as the address, never on a
+command line. A build writes the values it is given into its own files
+(`build\windows`, `.dart_tool\flutter_build`,
+`windows\flutter\ephemeral\generated_config.cmake`): after a build with
+a key the script removes those, also when it fails, so the next build
+starts from nothing and takes a few minutes longer. The key stays where it
+is meant to be: in `dist\`, in the staged folder and the installer.
+Without `-TmdbKeyFile` the build has no key of its own, and the script
+says so. **Not yet tried:** a build with `-TmdbKeyFile` (the script was
+parsed and its checks tried with made-up keys; no real key was used, see
+[TMDB key](#tmdb-key)).
 
 `-Logo <name>` makes another drawing the logo the installed app starts
 with, and `-LogoFromSettings` takes the one chosen in Settings on the PC
@@ -1274,10 +1296,9 @@ no crawl starts and no file names are read until it is in, because both
 would write into the tables the snapshot is filling.
 
 Not built yet: after the first start nothing reads the servers again by
-itself in a production build, and titles a later crawl finds get no
-posters (increments 5 and 6 of [ROADMAP.md](ROADMAP.md) section 1). A
-release asset on GitHub cannot be the address yet: GitHub answers with a
-redirect to another host, which the fetcher refuses.
+itself in a production build (increment 6 of [ROADMAP.md](ROADMAP.md)
+section 1). A release asset on GitHub cannot be the address yet: GitHub
+answers with a redirect to another host, which the fetcher refuses.
 
 **Tried on 2026-11-24.** With the automated tests: the whole first start
 against a web server on this PC (fetching, reading, the servers, every
@@ -1294,10 +1315,15 @@ leave it:
   carried the mark; started again, it took the half out, read the file
   again and ended with the same full library and no mark.
 
-**Not tried:** fetching from Google Drive with the app itself, because no
-snapshot is on Drive yet (the address was tried by hand on 2026-11-21 with
-another large file; the app's own fetching is tried against a web server
-on this PC only); a build made with `-SnapshotUrl`; a second PC.
+- built with the address of the user's snapshot on Google Drive (given on
+  2026-11-24) and started on an empty folder, it fetched the 76.65 MB from
+  Drive in seconds, read them and showed Home: 577,306 videos, 90,228
+  titles, 29 servers switched on, in about a minute and a half from the
+  start, with nobody touching it.
+
+**Not tried:** an installer made by `tool/package.ps1 -SnapshotUrl` (the
+build above was given the address by hand, in the way the script does
+it); a second PC.
 
 ## Titles and metadata
 
@@ -1333,11 +1359,34 @@ directly; it is never written to the settings file, the database or a log,
 and never shown again. The app checks it with TMDB when it is saved.
 Without a key everything else works; titles simply have no pictures.
 
+**A production build has no page for a key.** It carries one if it was
+built with one (`tool/package.ps1 -TmdbKeyFile`, see
+[Installer](#installer)): `DHARA_TMDB_KEY`, read in `lib/main.dart` and
+held by `BuiltInSecretStore`, which gives it to the requests that need it
+and can neither be written to nor emptied. It is never shown, logged or
+written anywhere by the app, and Credential Manager is not touched. It is
+part of the program, though: whoever has the installer can read it out
+and use up its allowance or get it suspended by TMDB, after which posters
+stop until a build with a new key is made. It gives no way into the TMDB
+account as long as it is the API key or the read access token. A
+production build made without a key uses the one saved on the PC, if
+there is one (so on the developer's own PC it finds theirs), and none
+otherwise. A development build never uses the built-in key.
+
+No real key was given to any build while this was written (2026-11-24):
+the PC it was written on has been infected since before 2026-11-16 (see
+the security review, finding 8), and a key that passes through it should
+be counted as known to others. Make the installer that carries the real
+key after the PC is set up anew, with a key made after that.
+
 This product uses the TMDB API but is not endorsed or certified by TMDB.
 
 ### Matching
 
-"Match now" on the "Titles and matching" page (a development build's; it
+A production build looks titles up by itself, as soon as their names are
+read and whenever it has a key
+(`MatchController.startsByItself`). In a development build the first run
+waits to be asked: "Match now" on the "Titles and matching" page (which
 also counts the films, shows and other videos) looks every title up
 (`MatchController`, `title_matcher.dart`): by name and year, then without
 the year, then by the name the file gives it. Candidates get up to 70

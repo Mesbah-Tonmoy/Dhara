@@ -41,6 +41,34 @@ void main() {
     });
   });
 
+  group('BuiltInSecretStore', () {
+    const store = BuiltInSecretStore('tmdb', 'the key of the build');
+
+    test('holds the one secret the build was made with', () async {
+      expect(store.keepsSecrets, isTrue);
+      expect(await store.read('tmdb'), 'the key of the build');
+      expect(await store.read('other'), isNull);
+    });
+
+    test('cannot be written to or emptied', () async {
+      await expectLater(
+        store.write('tmdb', 'another'),
+        throwsA(isA<SecretStoreException>()),
+      );
+      await expectLater(
+        store.delete('tmdb'),
+        throwsA(isA<SecretStoreException>()),
+      );
+      expect(await store.read('tmdb'), 'the key of the build');
+      // What it says of itself never names the key.
+      try {
+        await store.write('tmdb', 'another');
+      } on SecretStoreException catch (error) {
+        expect('$error', isNot(contains('the key of the build')));
+      }
+    });
+  });
+
   // Writes real entries to the Credential Manager of whoever runs the
   // tests, under a name of their own, and removes them again.
   group('WindowsCredentialStore', () {

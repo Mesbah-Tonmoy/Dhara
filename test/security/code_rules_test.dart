@@ -278,6 +278,91 @@ void main() {
     });
   });
 
+  group('secrets', () {
+    test('what a build is given is read in two places, the key in one', () {
+      final given = {
+        for (final hit in _hits(
+          lib,
+          RegExp(r'''fromEnvironment\(\s*['"]?(\w*)'''),
+        ))
+          hit.file,
+      };
+      expect(given, {'lib/main.dart', 'lib/theme/logo_style.dart'});
+      expect(
+        _hits(lib, RegExp('DHARA_TMDB_KEY')).map((hit) => hit.file).toSet(),
+        {'lib/main.dart'},
+      );
+      // Only a production build uses it, and only as its key.
+      final main = File('lib/main.dart').readAsStringSync();
+      expect(
+        RegExp(r'\b_builtInTmdbKey\b').allMatches(main),
+        hasLength(3),
+        reason: 'its definition, the check of its shape, and the store',
+      );
+      expect(main, contains('!_devTools && tmdbKeyKindOf(_builtInTmdbKey)'));
+    });
+
+    test('no key or token is written into a file of the repository', () {
+      final texts = [
+        for (final folder in const ['lib', 'tool', 'installer', 'docs'])
+          for (final file in Directory(folder).listSync(recursive: true))
+            if (file is File) file,
+        for (final name in const [
+          'README.md',
+          'README.bn.md',
+          'BRIEF.md',
+          'CLAUDE.md',
+          'pubspec.yaml',
+        ])
+          File(name),
+      ];
+      final token = RegExp(
+        r'eyJ[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}',
+      );
+      final keyGiven = RegExp(
+        r'''(api_key|DHARA_TMDB_KEY)\s*[=:]\s*['"]?[0-9a-fA-F]{32}\b''',
+      );
+      expect(texts.length, greaterThan(100));
+      for (final file in texts) {
+        final String text;
+        try {
+          text = file.readAsStringSync();
+        } on FileSystemException {
+          continue; // not text
+        }
+        expect(token.hasMatch(text), isFalse, reason: file.path);
+        expect(keyGiven.hasMatch(text), isFalse, reason: file.path);
+      }
+    });
+
+    test('what a build leaves of its key is never committed', () {
+      final ignored = File('.gitignore').readAsLinesSync();
+      // The folders a build writes the values it was given into, and the
+      // one the installer is staged in.
+      for (final folder in const [
+        'build/',
+        '.dart_tool/',
+        'windows/flutter/ephemeral/',
+        'dist/',
+      ]) {
+        expect(ignored, contains(folder));
+      }
+      // And the script takes them away again after a build with a key.
+      final script = File('tool/package.ps1').readAsStringSync();
+      for (final left in const [
+        r'build\windows',
+        r'.dart_tool\flutter_build',
+        r'windows\flutter\ephemeral\generated_config.cmake',
+      ]) {
+        expect(script, contains(left));
+      }
+      expect(script, contains('must lie outside this repository'));
+      // It says what kind of key it has, never the key.
+      expect(script, isNot(contains(r'Write-Host $tmdbKey')));
+      expect(RegExp(r'Write-Host[^\n]*\$tmdbKey\b').hasMatch(script), isFalse);
+    });
+  });
+
   group('privacy', () {
     test('nothing is logged, printed or reported', () {
       expect(

@@ -50,6 +50,23 @@ void main() {
     }
   });
 
+  test('the key a production build carries is there, and stays', () async {
+    final controller = TmdbKeyController(
+      const BuiltInSecretStore(TmdbKeyController.secretName, _apiKey),
+      check: (_, _) async => TmdbKeyCheck.accepted,
+    );
+    await controller.load();
+
+    expect(controller.hasKey, isTrue);
+    expect(controller.kind, TmdbKeyKind.apiKey);
+    expect(controller.keptAfterRestart, isTrue);
+    expect(await controller.key(), _apiKey);
+    // Nobody can replace or remove it.
+    expect(await controller.save(_token), TmdbKeyProblem.storage);
+    expect(await controller.remove(), TmdbKeyProblem.storage);
+    expect(await controller.key(), _apiKey);
+  });
+
   group('TmdbKeyController', () {
     late MemorySecretStore store;
     late TmdbKeyController controller;
