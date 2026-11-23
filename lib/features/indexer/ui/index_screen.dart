@@ -4,6 +4,8 @@ import 'package:dhara/features/indexer/crawler.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/indexer/index_store.dart';
 import 'package:dhara/features/player/player_screen.dart';
+import 'package:dhara/features/snapshot/snapshot_controller.dart';
+import 'package:dhara/features/snapshot/snapshot_format.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/shell/page_bleed.dart';
 import 'package:dhara/theme/tokens.dart';
@@ -11,7 +13,20 @@ import 'package:dhara/widgets/buttons.dart';
 import 'package:dhara/widgets/icons.dart';
 import 'package:dhara/widgets/page_parts.dart';
 import 'package:dhara/widgets/surfaces.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+
+/// Asks the user where a snapshot is to be saved, in the system's own
+/// dialog, and returns the path, or `null` if they cancel.
+Future<String?> askSnapshotPath() async {
+  final location = await getSaveLocation(
+    suggestedName: snapshotFileName,
+    acceptedTypeGroups: const [
+      XTypeGroup(label: 'Library snapshot', extensions: ['gz']),
+    ],
+  );
+  return location?.path;
+}
 
 /// The library index: how much of each enabled server has been read, the
 /// buttons to update it, and a plain search over the files that were
@@ -20,7 +35,10 @@ import 'package:flutter/material.dart';
 /// Opened from Settings. Every piece of server-supplied text (file names,
 /// folder paths, messages) is shown through plain `Text` widgets only.
 class IndexScreen extends StatefulWidget {
-  const IndexScreen({super.key});
+  const IndexScreen({super.key, this.pickSnapshotPath = askSnapshotPath});
+
+  /// Asks where a snapshot of the library is to be saved.
+  final Future<String?> Function() pickSnapshotPath;
 
   @override
   State<IndexScreen> createState() => _IndexScreenState();
@@ -59,6 +77,11 @@ class _IndexScreenState extends State<IndexScreen> {
     setState(() => _hits = hits);
   }
 
+  Future<void> _writeSnapshot(LibrarySnapshotController snapshots) async {
+    final path = await widget.pickSnapshotPath();
+    if (path != null) await snapshots.write(path);
+  }
+
   void _play(FileHit hit) => unawaited(
     // Above the shell: the player takes the whole window.
     Navigator.of(context, rootNavigator: true).push(
@@ -73,6 +96,8 @@ class _IndexScreenState extends State<IndexScreen> {
     final websites = index.unreadableSources;
     final hits = _hits;
     final running = index.isRunning;
+    final snapshots = LibrarySnapshotScope.maybeOf(context);
+    final snapshotStatus = snapshots == null ? null : _statusOf(snapshots);
     const sides = EdgeInsets.only(
       left: PageInsets.contentLeft,
       right: DharaLayout.pageRight,
@@ -126,8 +151,38 @@ class _IndexScreenState extends State<IndexScreen> {
                                 'look unchanged',
                             onPressed: () => unawaited(index.start(full: true)),
                           ),
+                        if (snapshots != null)
+                          DharaButton(
+                            key: const Key('index-snapshot'),
+                            icon: DharaIcons.exportFile,
+                            label: snapshots.isWriting
+                                ? 'Writing …'
+                                : 'Write snapshot',
+                            tooltip:
+                                'Writes the library to a file that a '
+                                'production build starts from',
+                            onPressed: snapshots.canWrite
+                                ? () => unawaited(_writeSnapshot(snapshots))
+                                : null,
+                          ),
                       ],
                     ),
+                    if (snapshots != null && snapshotStatus != null) ...[
+                      const SizedBox(height: rem),
+                      Text(
+                        snapshotStatus,
+                        key: const Key('index-snapshot-status'),
+                        style: TextStyle(
+                          fontFamily: DharaFonts.ui,
+                          fontSize: DharaType.sm,
+                          height: 1.4,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                          color: snapshots.failed
+                              ? DharaColors.warn
+                              : DharaColors.text2,
+                        ),
+                      ),
+                    ],
                     if (index.startupNotice case final notice?) ...[
                       const SizedBox(height: rem),
                       NoticeBar(notice),
@@ -198,6 +253,25 @@ class _IndexScreenState extends State<IndexScreen> {
       ),
     );
   }
+}
+
+/// What to say about the snapshot being written or written last, if
+/// anything.
+String? _statusOf(LibrarySnapshotController snapshots) {
+  if (snapshots.isWriting) {
+    return snapshots.rowsTotal == 0
+        ? 'Writing the snapshot …'
+        : 'Writing the snapshot … ${snapshots.rowsDone} of '
+              '${snapshots.rowsTotal} rows';
+  }
+  if (snapshots.failed) {
+    return 'The snapshot could not be written there. Nothing was left '
+        'behind; pick another folder and try again.';
+  }
+  final written = snapshots.written;
+  if (written == null) return null;
+  return 'Snapshot written: ${written.videos} videos and ${written.titles} '
+      'titles in ${_size(written.bytes)} · ${written.path}';
 }
 
 Source? _sourceOf(IndexController index, String id) {

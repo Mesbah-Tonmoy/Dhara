@@ -1090,8 +1090,9 @@ A development build's page: open it from the rail or from Settings. It
 lists the enabled servers with what the
 index holds of each, shows the progress of a crawl, and offers **Update
 index**, **Stop** and **Full re-check** (reads every folder again, also
-those that look unchanged). An enabled source without an adapter (a custom
-website) is listed too, as one the app cannot read: it is not crawled and
+those that look unchanged), and **Write snapshot** (see
+[Library snapshot](#library-snapshot)). An enabled source without an
+adapter (a custom website) is listed too, as one the app cannot read: it is not crawled and
 not counted in "Servers indexed". The search box searches file names and
 folder paths while you type (every word must match, the last one may be
 unfinished); a result opens in the player. Titles are looked for on the
@@ -1124,6 +1125,38 @@ Known gaps:
   can be added from Server Discovery. Its "Media Live Movies" server
   (`http://10.50.50.51/`) did not answer from the connection it was tried
   on.
+
+### Library snapshot
+
+What a production build starts from: the library of a development build,
+written to one file. **Write snapshot** on the Library index page asks
+where to save it (`dhara-library.snapshot.gz` is suggested) and says how
+far it is; the button waits while a crawl, the reading of file names or a
+run of matching is changing the library.
+
+The file is gzip over JSON lines (`lib/features/snapshot/`):
+
+- the first line names the format (`dhara-library-snapshot`, version 1),
+  the schema and the app that wrote it, and how many rows each table has;
+- a line `{"table": …, "columns": […]}` starts a table, and every row of it
+  is one array in the order of those columns. A reader takes the tables and
+  columns it knows, so a later version can add some without a new format;
+- the last line is `{"end": true, "rows": n}`: a file without it was cut
+  short.
+
+In it: `sources` (which servers were read, and when), `folders`, `files`,
+`subtitles`, `titles` (with what TMDB and AniList said of them),
+`title_keys`, `seasons`, `episodes` and `file_meta`. Not in it, because
+only this PC should know: what was watched and where it was left, My List,
+the kept answers of the metadata providers, the errors of crawls, and
+which servers are switched on. It is written under `<name>.part` and gets
+its name once it is whole.
+
+Measured on the user's library on 2026-11-24 (577,233 videos, 183,102
+folders, 90,201 titles, 228,563 episodes; 1.81 million rows): 76.6 MB,
+written in 14 seconds. Unpacked it is 319 MB, a third of it the videos.
+The highest gzip level saves one megabyte and takes six seconds more, so
+the usual one is used.
 
 ## Titles and metadata
 
@@ -1309,7 +1342,7 @@ lib/features/details/  the page of a title: copies, episodes, what to play
 lib/features/browse/   search and browse: query, controller, grid
 lib/features/playback/ which copy to play, and opening the player
 lib/features/        the other features: sources, indexer, metadata,
-                     player, history, my_list
+                     player, history, my_list, snapshot
 windows/runner/      the Windows window (frameless title bar support)
 test/                automated tests (run anywhere)
 test/fixtures/       saved server answers the adapter tests run against

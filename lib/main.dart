@@ -26,6 +26,7 @@ import 'package:dhara/features/my_list/my_list_controller.dart';
 import 'package:dhara/features/playback/copy_probe.dart';
 import 'package:dhara/features/playback/media_sessions.dart';
 import 'package:dhara/features/player/resume_store.dart';
+import 'package:dhara/features/snapshot/snapshot_controller.dart';
 import 'package:dhara/features/sources/device_id.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_list.dart';
@@ -147,6 +148,15 @@ Future<void> main() async {
           home: home,
         ),
         filmDetails: filmDetails,
+        // Only a development build writes the library out.
+        snapshots: _devTools
+            ? LibrarySnapshotController(
+                library: library,
+                index: index,
+                titles: titles,
+                match: match,
+              )
+            : null,
         images: images,
         // A live ping may go to the configured sources, and nowhere else
         // (looked up each time: the list can change).

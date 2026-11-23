@@ -15,6 +15,7 @@ import 'package:dhara/features/my_list/my_list_controller.dart';
 import 'package:dhara/features/playback/copy_probe.dart';
 import 'package:dhara/features/playback/media_sessions.dart';
 import 'package:dhara/features/player/resume_store.dart';
+import 'package:dhara/features/snapshot/snapshot_controller.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
 import 'package:dhara/shell/app_shell.dart';
 import 'package:dhara/shell/page_keys.dart';
@@ -42,6 +43,7 @@ class DharaApp extends StatelessWidget {
     required this.history,
     this.devTools = false,
     this.filmDetails,
+    this.snapshots,
     this.images,
     this.newCopyProber,
     this.mediaSessions,
@@ -69,6 +71,9 @@ class DharaApp extends StatelessWidget {
   /// does.
   final FilmDetailsController? filmDetails;
 
+  /// Writes the library out as a snapshot: a development build has one.
+  final LibrarySnapshotController? snapshots;
+
   /// Where posters are kept; without it, placeholders are shown.
   final RemoteImageStore? images;
 
@@ -83,6 +88,7 @@ class DharaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final filmDetails = this.filmDetails;
+    final snapshots = this.snapshots;
     Widget app = MaterialApp(
       title: 'Dhara',
       debugShowCheckedModeBanner: false,
@@ -125,6 +131,8 @@ class DharaApp extends StatelessWidget {
       (child) => SettingsScope(settings: settings, child: child),
       if (filmDetails != null)
         (child) => FilmDetailsScope(controller: filmDetails, child: child),
+      if (snapshots != null)
+        (child) => LibrarySnapshotScope(controller: snapshots, child: child),
     ]) {
       app = scope(app);
     }

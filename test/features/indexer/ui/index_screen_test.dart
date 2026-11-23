@@ -1,8 +1,15 @@
+import 'dart:io';
+
 import 'package:dhara/core/db/library_db.dart';
 import 'package:dhara/core/db/library_isolate.dart';
+import 'package:dhara/core/secrets/secret_store.dart';
 import 'package:dhara/features/indexer/index_controller.dart';
 import 'package:dhara/features/indexer/index_store.dart';
 import 'package:dhara/features/indexer/ui/index_screen.dart';
+import 'package:dhara/features/metadata/match_controller.dart';
+import 'package:dhara/features/metadata/titles_controller.dart';
+import 'package:dhara/features/metadata/tmdb_key.dart';
+import 'package:dhara/features/snapshot/snapshot_controller.dart';
 import 'package:dhara/features/sources/adapters/source_adapter.dart';
 import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_store.dart';
@@ -278,5 +285,116 @@ void main() {
 
     expect(find.text('Server alpha'), findsOneWidget);
     expect(find.byKey(const Key('index-start-stop')), findsOneWidget);
+  });
+
+  group('a snapshot of the library', () {
+    late Directory folder;
+
+    setUp(() => folder = Directory.systemTemp.createTempSync('dhara-index-'));
+    tearDown(() => folder.deleteSync(recursive: true));
+
+    /// Shows the screen of a development build, whose save dialog answers
+    /// with [path].
+    Future<LibrarySnapshotController> show(
+      WidgetTester tester,
+      String? path,
+    ) async {
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final db = LibraryDb.inMemory();
+      addTearDown(db.close);
+      final library = LocalLibrary(db);
+      final index = IndexController(
+        library: library,
+        sources: SourceStore(starter: const []),
+        deviceId: 'dhara-test',
+      );
+      final titles = TitlesController(library: library, index: index);
+      final snapshots = LibrarySnapshotController(
+        library: library,
+        index: index,
+        titles: titles,
+        match: MatchController(
+          library: library,
+          titles: titles,
+          tmdbKey: TmdbKeyController(MemorySecretStore()),
+        ),
+      );
+      addTearDown(snapshots.dispose);
+      await tester.pumpWidget(
+        IndexScope(
+          controller: index,
+          child: LibrarySnapshotScope(
+            controller: snapshots,
+            child: MaterialApp(
+              theme: buildDharaTheme(),
+              home: IndexScreen(pickSnapshotPath: () async => path),
+            ),
+          ),
+        ),
+      );
+      return snapshots;
+    }
+
+    testWidgets('is written where the user says, and the page says so', (
+      tester,
+    ) async {
+      final path = '${folder.path}${Platform.pathSeparator}library.gz';
+      await show(tester, path);
+      expect(find.byKey(const Key('index-snapshot-status')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('index-snapshot')));
+      await tester.pumpAndSettle();
+
+      expect(File(path).existsSync(), isTrue);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('index-snapshot-status')))
+            .data,
+        allOf(
+          startsWith('Snapshot written: 0 videos and 0 titles in 1 KB'),
+          endsWith(path),
+        ),
+      );
+      expect(find.text('Write snapshot'), findsOneWidget);
+    });
+
+    testWidgets('is not written when the user cancels', (tester) async {
+      final snapshots = await show(tester, null);
+
+      await tester.tap(find.byKey(const Key('index-snapshot')));
+      await tester.pumpAndSettle();
+
+      expect(snapshots.written, isNull);
+      expect(folder.listSync(), isEmpty);
+      expect(find.byKey(const Key('index-snapshot-status')), findsNothing);
+    });
+
+    testWidgets('that cannot be written is said to have failed', (
+      tester,
+    ) async {
+      final separator = Platform.pathSeparator;
+      await show(tester, '${folder.path}${separator}missing${separator}a.gz');
+
+      await tester.tap(find.byKey(const Key('index-snapshot')));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('index-snapshot-status')))
+            .data,
+        startsWith('The snapshot could not be written there.'),
+      );
+    });
+  });
+
+  testWidgets('a build without a snapshot writer has no button for one', (
+    tester,
+  ) async {
+    await show(tester);
+
+    expect(find.byKey(const Key('index-snapshot')), findsNothing);
   });
 }

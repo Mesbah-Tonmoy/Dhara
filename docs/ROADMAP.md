@@ -102,6 +102,11 @@ Done:
   beside the production app). See "Development and production builds" in
   DEVELOPMENT.md. Until (4) to (6) are in, a production build cannot fill
   an empty library.
+- **(2), 2026-11-24.** The Library index page of a development build has
+  **Write snapshot**: the library as one gzip file of JSON lines, without
+  what only this PC should know. On the user's library it is 76.6 MB (not
+  the 50 MB estimated: the folders and what the file names say are in it
+  too), written in 14 seconds.
 
 ### 2. Updates from inside the app
 
