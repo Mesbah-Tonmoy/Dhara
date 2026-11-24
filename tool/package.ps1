@@ -83,23 +83,10 @@ function SizeMb([string]$path) {
   [math]::Round($bytes / 1MB, 1)
 }
 
-# The address a build fetches its snapshot from, out of what was given: a
-# Google Drive link of any of its shapes becomes the address that answers
-# with the file (a plain download link of Drive answers a large file with a
-# page that asks to confirm); anything else has to be an https address.
-function SnapshotAddress([string]$link) {
-  $link = $link.Trim()
-  $id = $null
-  if ($link -match '^https://(?:drive|docs)\.google\.com/.*?(?:/d/|[?&]id=)([A-Za-z0-9_-]{10,})') { $id = $Matches[1] }
-  elseif ($link -match '^https://drive\.usercontent\.google\.com/.*?[?&]id=([A-Za-z0-9_-]{10,})') { $id = $Matches[1] }
-  if ($id) { return "https://drive.usercontent.google.com/download?id=$id&export=download&confirm=t" }
-  # A link of Drive that names no file (a folder, the start page).
-  if ($link -match '^https://(?:drive|docs)\.google\.com/') { return $null }
-  $parsed = $null
-  if (-not [uri]::TryCreate($link, [urikind]::Absolute, [ref]$parsed)) { return $null }
-  if ($parsed.Scheme -ne 'https' -or -not $parsed.Host -or $parsed.UserInfo) { return $null }
-  return $link
-}
+# DownloadAddress: the address a program can fetch a file from, out of a
+# Google Drive share link or an https address. IsInside: whether a path
+# lies in a folder.
+. (Join-Path $PSScriptRoot 'download-address.ps1')
 
 # --- What is being packaged ---------------------------------------------------
 $versionLine = Select-String -Path pubspec.yaml -Pattern '^version:\s*(\d+\.\d+\.\d+)' | Select-Object -First 1
@@ -113,7 +100,7 @@ $name = if ($test) { 'Dhara-Test' } elseif ($Dev) { 'Dhara-Dev' } else { 'Dhara'
 $snapshotAddress = $null
 if ($SnapshotUrl) {
   if ($Dev) { Fail '-SnapshotUrl is for the production build; a development build fetches no library.' }
-  $snapshotAddress = SnapshotAddress $SnapshotUrl
+  $snapshotAddress = DownloadAddress $SnapshotUrl
   if (-not $snapshotAddress) { Fail '-SnapshotUrl must be an https address or a Google Drive share link.' }
 }
 
@@ -133,11 +120,6 @@ function TmdbKeyKind([string]$key) {
   if ($key.Length -ge 80 -and $key.Length -le 1024 -and
       $key -cmatch '^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$') { return 'access token' }
   return $null
-}
-function IsInside([string]$path, [string]$folder) {
-  $full = [IO.Path]::GetFullPath($path)
-  $base = [IO.Path]::GetFullPath($folder).TrimEnd('\') + '\'
-  return $full.StartsWith($base, [StringComparison]::OrdinalIgnoreCase)
 }
 $tmdbKey = $null
 if ($TmdbKeyFile) {

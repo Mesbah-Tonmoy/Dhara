@@ -24,7 +24,7 @@ The full project brief lives in [BRIEF.md](../BRIEF.md) (mirrored in
 | 8. Packaging, security review and docs | Done: the app was gone through against section 7 of the brief ([security-review.md](security-review.md)), there is a per-user installer with a checksum (see [Installer](#installer)), and the README is there in English and Bangla, with how to keep the player up to date and a list of what to try by hand ([manual-test.bn.md](manual-test.bn.md)). On 2026-11-18 the libmpv of 2023 was replaced by a current build (see [Player hardening](#player-hardening)). **Not yet tried:** the installer on a PC without the Visual C++ runtime, an update over an older version, and the newer libmpv on real BDIX servers. The installer is to be made again after the PC it was built on is reset |
 | 9 | Not started |
 | Production build (version 1.1.0, 2026-11-24) | Done: one code, two builds. The installer holds the production build, which fills its library by itself on its first start (a snapshot fetched from the address it was built with, or one that came in the installer), finds the servers that answer, carries a TMDB key if it was built with one, looks titles up and reads the servers again by itself. Tried with real builds, with test installers the script made and with the user's snapshot on Google Drive; see [The first start of a production build](#the-first-start-of-a-production-build). **Not yet tried:** an installer run on a second PC, a build with a real TMDB key (none was used: the PC is to be set up anew first), and matching in a production build against TMDB itself |
-| Updates from inside the app | Under way since 2026-11-25: the signature check is in; see [Updates from inside the app](#updates-from-inside-the-app). The app does not ask for updates yet |
+| Updates from inside the app | Under way since 2026-11-25: the signature check, the update notice and the script that signs one are in; see [Updates from inside the app](#updates-from-inside-the-app). The app does not ask for updates yet |
 
 ## Prerequisites (Windows)
 
@@ -1419,6 +1419,92 @@ pairs Windows makes inside the test (`test/support/update_keys.dart`,
 in memory only, never written), whose signatures fit their message and
 key, and do not fit after one bit of the message or of the signature is
 another, with another key, or in another length.
+
+### The update notice
+
+What the app will ask for is a small file, the **update notice**
+(`lib/features/update/update_notice.dart`):
+
+```json
+{"dhara_update": 1, "signed": "<base64>", "signature": "<base64>"}
+```
+
+`signed` holds, as UTF-8, what the notice says, and `signature` the
+signature over exactly those bytes:
+
+```json
+{"version": "1.2.0", "installer": "https://…", "size": 50651234,
+ "sha256": "<64 hex digits>", "notes": "What is new."}
+```
+
+`readUpdateNotice` treats it as untrusted input, in this order:
+
+1. More than 64 KB, no JSON object, or not these three fields in their
+   types: **not a notice** (a page that asks to sign in ends here).
+   Nothing of it goes to the signature check.
+2. The signature is checked over the bytes of `signed` as they came. If
+   it does not fit the key: **not signed**, whatever the bytes say. They
+   are not read as content before this.
+3. What was signed is then still taken apart strictly, and is **not
+   usable** if it is a kind of notice this version does not know
+   (`dhara_update` other than 1), if a field is missing or of another
+   type, if the version is not three numbers, the size is not between 1
+   byte and 1 GB, the digest is not 64 lower-case hex digits, or the
+   installer's address is not an https address on the very host and port
+   the notice was asked from (no user name, no fragment, at most 2,000
+   characters). So a notice cannot send the app to another host, to plain
+   http or to a file of this PC, even a signed one.
+
+The notes are kept as plain text: control characters become spaces, and
+4,000 characters are kept at most. Fields this version does not know are
+passed over, so a later version can say more.
+
+Because the version, the size and the digest are inside what is signed,
+the signature on the notice is also the signature on the installer: a
+file that is not that long or has another SHA-256 is not the installer.
+And an older notice, which is signed just as well, names an older
+version, which the app will not take for a newer one (`AppVersion`
+compares the three numbers).
+
+### Signing an update
+
+`tool/sign-update.ps1` makes the key pair, once, and the notice for each
+release. It needs PowerShell 7 and nothing else: the signing is .NET's.
+
+```powershell
+pwsh tool/sign-update.ps1 -NewKey D:\keys\dhara-update
+```
+
+writes `dhara-update.private.pem` (the private half, PKCS#8, not
+encrypted) and `dhara-update.public.txt` (the public half as the app
+takes it). It refuses a place inside the repository and never writes over
+a key that is there: a key that is replaced cannot sign for the copies
+that were built with the old one.
+
+```powershell
+pwsh tool/sign-update.ps1 -Installer dist\Dhara-Setup-1.2.0.exe -InstallerLink "<link of the uploaded installer>" -KeyFile D:\keys\dhara-update.private.pem -Notes "What is new."
+```
+
+writes `dist\dhara-update.json`. The link is an https address or a Google
+Drive share link, turned into the address Drive hands the file out at, as
+for `-SnapshotUrl` (both scripts share `tool/download-address.ps1`). The
+version is read from the installer (Inno Setup writes it in) unless
+`-Version` says it. The script checks its own signature before it writes
+anything, prints the public half the notice is signed for, never prints
+the private one, and uploads nothing.
+
+**No real key exists yet.** The PC is to be set up anew first (see
+[Installer](#installer), "How far to trust it"); until then every key is
+made inside a test and gone with it.
+
+Tested (`test/features/update/update_notice_test.dart`): every refusal
+above with a stand-in for the signature check; with key pairs made in
+the test, that a notice signed with another key or changed after signing
+is refused; and the script itself, run by the test in a temporary
+folder: the notice it writes is taken by `readUpdateNotice` with the
+public half it wrote, and not with another key; it refuses a key inside
+the repository, a second key under the same name, a link that is not
+https, a version that is none, and the public half as a signing key.
 
 ## Titles and metadata
 

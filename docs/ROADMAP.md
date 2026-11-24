@@ -228,6 +228,10 @@ Done:
 - **(1), 2026-11-25.** SHA-256 and the signature check, through Windows'
   CNG (`lib/features/update/update_signature.dart`). Tested against
   published signatures and against key pairs made inside the tests.
+- **(2), 2026-11-25.** The update notice and its reader
+  (`lib/features/update/update_notice.dart`), and `tool/sign-update.ps1`,
+  which makes the key pair and signs a release. The script was run by the
+  tests with keys of their own; no real key exists.
 
 Not yet tried: whether Google Drive hands an `.exe` file to a program the
 way it hands out the snapshot.
