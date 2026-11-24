@@ -24,7 +24,7 @@ The full project brief lives in [BRIEF.md](../BRIEF.md) (mirrored in
 | 8. Packaging, security review and docs | Done: the app was gone through against section 7 of the brief ([security-review.md](security-review.md)), there is a per-user installer with a checksum (see [Installer](#installer)), and the README is there in English and Bangla, with how to keep the player up to date and a list of what to try by hand ([manual-test.bn.md](manual-test.bn.md)). On 2026-11-18 the libmpv of 2023 was replaced by a current build (see [Player hardening](#player-hardening)). **Not yet tried:** the installer on a PC without the Visual C++ runtime, an update over an older version, and the newer libmpv on real BDIX servers. The installer is to be made again after the PC it was built on is reset |
 | 9 | Not started |
 | Production build (version 1.1.0, 2026-11-24) | Done: one code, two builds. The installer holds the production build, which fills its library by itself on its first start (a snapshot fetched from the address it was built with, or one that came in the installer), finds the servers that answer, carries a TMDB key if it was built with one, looks titles up and reads the servers again by itself. Tried with real builds, with test installers the script made and with the user's snapshot on Google Drive; see [The first start of a production build](#the-first-start-of-a-production-build). **Not yet tried:** an installer run on a second PC, a build with a real TMDB key (none was used: the PC is to be set up anew first), and matching in a production build against TMDB itself |
-| Updates from inside the app | Under way since 2026-11-25: a production build that was given an address and a key asks once a day whether a newer version exists, and Settings says what it found; the code that fetches an installer and checks it against the signed notice is in, but nothing in the app calls it yet; see [Updates from inside the app](#updates-from-inside-the-app). Nothing is installed yet. **Not yet tried:** a build asking a real address |
+| Updates from inside the app | Built in code and automated tests since 2026-11-25: a production build that was given an address and a key asks once a day whether a newer version exists and says so; on a click it fetches the installer, checks it against the signed notice, starts it and closes; see [Updates from inside the app](#updates-from-inside-the-app). **Not yet tried:** any of it in a real build against a real address (it needs a notice and an installer put on a host, and a key, which are the user's to make), and an update over an older version. Still to come: the manual test list, and version 1.2.0 |
 
 ## Prerequisites (Windows)
 
@@ -624,7 +624,7 @@ Every control does something and is saved as it is changed
 - **Sources:** the way to Server Discovery.
 - **Privacy and security:** what the app never does, "Clear history",
   and, in a production build that can ask for updates, what it knows
-  about them with **Check now**
+  about them with **Check now** and, when there is one, **Install…**
   (see [Updates from inside the app](#updates-from-inside-the-app)).
 
 ## Subtitles and audio tracks
@@ -757,7 +757,9 @@ use, run `flutter run --release`.
 title bar (Back, brand, search field, state of the servers, window
 buttons), the navigation rail on the left, and the page between them. In
 a production build the title bar also has a small pill beside the brand
-while the app works on the library in the background
+while the app works on the library in the background, and an **Update**
+pill once a newer version is known (see
+[Installing, on a click](#installing-on-a-click)). The first
 (`lib/shell/activity_chip.dart`): "Getting ready 45%", "Reading servers
 12/29", "Reading names 30%", "Finding posters 75%", the first of them
 that applies, with a ring that fills and a sentence for whoever points at
@@ -1401,10 +1403,11 @@ Dhara never was.
 ## Updates from inside the app
 
 Under way since 2026-11-25; the plan and what is done are in
-[ROADMAP.md](ROADMAP.md), point 2. So far a production build **asks and
-says** whether a newer version exists. Fetching an installer and checking
-it is built and tested, but no button leads to it yet, and nothing is
-started. What is there is listed here, piece by piece.
+[ROADMAP.md](ROADMAP.md), point 2. A production build asks and says whether a
+newer version exists, and on the user's click fetches its installer,
+checks it, starts it and closes. All of it is tested piece by piece; the
+whole way with a real installer from a real address has **not been
+tried** yet.
 
 ### Checking a signature
 
@@ -1611,6 +1614,53 @@ digest for the longer file), another file of the same length, a page,
 a redirect to another host and a notice that names another host are all
 refused, with nothing left in the folder; so is a fetch that is ended
 half way.
+
+### Installing, on a click
+
+While a newer version is known, the title bar has a small **Update**
+pill (`lib/features/update/ui/update_chip.dart`) and the Updates row of
+Settings an **Install…** button. Both open the same dialog
+(`update_dialog.dart`) and fetch nothing: the dialog says which version
+there is, how large its installer is, what its maker wrote about it
+(the notice's notes, as plain text) and what will happen. **Later**,
+Esc or a click beside it leave everything as it was.
+
+**Download and install** is the one click that does it
+(`UpdateController.install`):
+
+1. the installer is fetched (a bar and "12.3 of 48.3 MB"; **Stop** ends
+   it, and while it runs the dialog cannot be closed);
+2. it is checked against the notice, as above;
+3. `InstallerLauncher` (`installer_launcher.dart`) starts it;
+4. the app closes its window, so that the installer can replace its
+   files.
+
+If any step fails, the dialog says which and that nothing was
+installed, the file is removed, and **Try again** does the whole of it
+again. Nothing is started unless the check passed.
+
+The launcher is the one place in the app that starts a program
+(`Process.start`), and the rule test holds it to that: it takes a
+`CheckedInstaller` and nothing else, runs the file as it is by its full
+path, without a shell and without an option. So the installer is not
+silent: it shows the pages it showed the first time and asks before it
+changes anything, runs as the user and needs no admin rights (see
+[Installer](#installer)). Its last page offers to start Dhara again.
+What it leaves in `update` is removed when the new version starts.
+
+A file the app writes itself carries no mark that it came from the
+internet, so Windows SmartScreen is not expected to ask about it here
+as it does about an installer saved by a browser; that is a guess, not
+something seen.
+
+Tested: the launcher with a small program of Windows itself
+(`whoami.exe`, copied into a folder with a space in its name) standing
+in for an installer, and that a file that is no program is not
+started; the controller (nothing is started before the check, nor
+after a failed one, nor by asking or by starting the app); the dialog,
+the pill and the Settings button in widget tests, with the window's
+close noted. **Not yet tried:** a real installer started this way, an
+update over an older version, and what SmartScreen does.
 
 ## Titles and metadata
 

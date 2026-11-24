@@ -30,6 +30,7 @@ abstract final class DharaIcons {
   static const exportFile = Icons.file_download_outlined;
   static const remove = Icons.delete_outline_rounded;
   static const refresh = Icons.refresh_rounded;
+  static const update = Icons.system_update_alt_rounded;
   static const info = Icons.info_outline_rounded;
   static const list = Icons.format_list_bulleted_rounded;
   static const left = Icons.chevron_left_rounded;

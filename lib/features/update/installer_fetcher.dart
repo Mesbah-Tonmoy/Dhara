@@ -35,6 +35,10 @@ enum InstallerProblem {
 
   /// It could not be saved on this PC.
   notSaved,
+
+  /// It was fetched and checked, but Windows did not start it. (Said by
+  /// what starts it, never by the fetcher.)
+  notStarted,
 }
 
 /// What [InstallerFetcher.fetch] did.

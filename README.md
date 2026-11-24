@@ -56,7 +56,10 @@ The installer copies the app to `%LOCALAPPDATA%\Programs\Dhara` and adds a
 Start Menu shortcut (a desktop shortcut if you tick it). It installs for
 your user only and asks for no admin rights. It adds no service, no
 start-up entry and no updater. A newer version is installed over the older
-one by running its installer.
+one by running its installer. An app that was built for it also says when
+there is a newer version (**Update** in the title bar) and, if you choose
+**Download and install** there, fetches that installer, checks that it is
+the one its maker signed, and starts it for you.
 
 ## First steps
 
@@ -144,8 +147,8 @@ list whether they answer, and fetches its library from the one address it
 was built with: a plain download that sends nothing about you or your PC.
 If it was built with an address for updates, it asks there once a day
 whether a newer version exists (the same kind of plain request, which does
-not even say which version you have) and tells you in Settings; it
-installs nothing by itself.
+not even say which version you have) and tells you; it fetches and
+installs nothing unless you click for it.
 It contacts nothing else and writes no log.
 
 ## Removing it

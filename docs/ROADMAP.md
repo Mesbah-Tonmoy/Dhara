@@ -245,6 +245,15 @@ Done:
   the disk, must be the ones that were signed, or it is removed
   (`lib/features/update/installer_fetcher.dart`). Nothing in the app
   calls it yet; the button comes with (5).
+- **(5), 2026-11-25.** A newer version is offered: an **Update** pill in
+  the title bar and **Install…** in Settings open a dialog that says
+  what will happen, and its **Download and install** fetches the
+  installer, checks it, starts it and closes the app. The brief has its
+  two last lines (the exception to "nothing is ever executed", and that
+  an update is only ever offered). The start itself was tried with a
+  small program of Windows standing in for an installer. **Not tried:**
+  the whole way with a real installer and a real notice, which needs
+  files put on a host by the user; that is part of (6).
 
 Not yet tried: whether Google Drive hands an `.exe` file to a program the
 way it hands out the snapshot.

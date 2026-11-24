@@ -1,3 +1,4 @@
+import 'package:dhara/features/update/installer_fetcher.dart';
 import 'package:dhara/features/update/update_checker.dart';
 import 'package:dhara/features/update/update_notice.dart';
 
@@ -10,12 +11,17 @@ String updateStatus({
   required UpdateAskProblem? problem,
   required DateTime? askedAt,
   required DateTime now,
+  bool canInstall = false,
 }) {
   if (asking) return 'Asking whether a newer version exists…';
   if (available != null) {
-    return 'Version ${available.version} is available; this copy is '
-        '$current. Nothing is fetched or installed by itself: to have it, '
-        'run its installer.';
+    return canInstall
+        ? 'Version ${available.version} is available; this copy is '
+              '$current. Nothing is fetched or installed until you choose '
+              'Install.'
+        : 'Version ${available.version} is available; this copy is '
+              '$current. Nothing is fetched or installed by itself: to '
+              'have it, run its installer.';
   }
   switch (problem) {
     case UpdateAskProblem.unreachable:
@@ -39,6 +45,30 @@ String updateStatus({
   return 'Dhara asks once a day whether a newer version exists. Nothing '
       'is fetched or installed by itself.';
 }
+
+/// Why an installer was not fetched or not started, for the user. Each
+/// ends by saying what that means: nothing was installed.
+String installerProblemWords(InstallerProblem problem) => switch (problem) {
+  InstallerProblem.unreachable =>
+    'The installer could not be fetched: the place it lies at did not '
+        'answer, or stopped answering. Nothing was installed.',
+  InstallerProblem.notThere =>
+    'The installer is not where the update notice says it is. Nothing '
+        'was installed.',
+  InstallerProblem.notTheInstaller =>
+    'What came is not the installer its maker signed, so it was removed '
+        'and not started. Nothing was installed.',
+  InstallerProblem.notSaved =>
+    'The installer could not be saved on this PC. Is the disk full? '
+        'Nothing was installed.',
+  InstallerProblem.notStarted =>
+    'The installer was fetched and checked, but Windows did not start '
+        'it. Nothing was installed.',
+};
+
+/// A size in megabytes, as "48.3 MB".
+String megabytes(int bytes) =>
+    '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 
 /// How long ago something was, in words.
 String _ago(Duration time) {

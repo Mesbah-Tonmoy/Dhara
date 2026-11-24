@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:dhara/core/window/window_widgets.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
+import 'package:dhara/features/update/ui/update_chip.dart';
 import 'package:dhara/shell/activity_chip.dart';
 import 'package:dhara/shell/shell_controller.dart';
 import 'package:dhara/theme/tokens.dart';
@@ -12,7 +13,8 @@ import 'package:dhara/widgets/pressable.dart';
 import 'package:flutter/material.dart';
 
 /// The app's own title bar: Back, the brand, in a production build what
-/// the app is doing to the library in the background, the search field in
+/// the app is doing to the library in the background and whether a newer
+/// version of the app exists, the search field in
 /// the middle, the state of the servers and, once the system's title bar
 /// is gone, the window buttons. Its empty space moves the window.
 ///
@@ -50,6 +52,8 @@ class TitleBar extends StatelessWidget {
                   const SizedBox(width: DharaSpace.s4),
                   const ActivityChip(),
                 ],
+                // There only when a newer version is known.
+                const UpdateChip(),
                 const Spacer(),
                 const _ServerStatus(),
                 const SizedBox(width: DharaSpace.s2),

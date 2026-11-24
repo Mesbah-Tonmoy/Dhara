@@ -203,6 +203,7 @@ Each phase is split into small increments, each with its own commit message (sec
 **Files**
 
 - Sanitised file names, protection against path traversal, the extension whitelist, and nothing is ever executed or auto-opened.
+- Exception: on the user's click a production build starts the installer of a newer version that it fetched itself, after its size and SHA-256 were found to be the ones the signed update notice names. A file that fails that check is refused and removed. Nothing else is ever started.
 
 **Secrets**
 
@@ -217,6 +218,7 @@ Each phase is split into small increments, each with its own commit message (sec
 **Least privilege**
 
 - Per-user install, no admin rights, no background services, no startup entries, and no silent auto-update.
+- An update is only ever offered: nothing is fetched or started without the user's click, the installer runs in the open, per user and without admin rights, and a development build never asks for updates.
 
 **Supply chain**
 

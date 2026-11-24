@@ -5,6 +5,7 @@ import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/my_list/ui/lists_screen.dart';
 import 'package:dhara/features/player/widgets/seek_step_panel.dart';
+import 'package:dhara/features/update/ui/update_dialog.dart';
 import 'package:dhara/features/update/update_controller.dart';
 import 'package:dhara/features/update/update_words.dart';
 import 'package:dhara/shell/page_bleed.dart';
@@ -415,15 +416,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
               problem: updates.problem,
               askedAt: updates.askedAt,
               now: DateTime.now(),
+              canInstall: updates.canInstall,
             ),
-            control: DharaButton(
-              key: const Key('set-check-updates'),
-              label: 'Check now',
-              icon: DharaIcons.refresh,
-              small: true,
-              onPressed: updates.isAsking
-                  ? null
-                  : () => unawaited(updates.askNow()),
+            control: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DharaButton(
+                  key: const Key('set-check-updates'),
+                  label: 'Check now',
+                  icon: DharaIcons.refresh,
+                  small: true,
+                  onPressed: updates.isAsking
+                      ? null
+                      : () => unawaited(updates.askNow()),
+                ),
+                // Opens the dialog that says what will happen; nothing is
+                // fetched by this click.
+                if (updates.available != null && updates.canInstall) ...[
+                  const SizedBox(width: DharaSpace.s2),
+                  DharaButton(
+                    key: const Key('set-install-update'),
+                    label: 'Install…',
+                    icon: DharaIcons.update,
+                    small: true,
+                    style: DharaButtonStyle.primary,
+                    onPressed: () => unawaited(showUpdateDialog(context)),
+                  ),
+                ],
+              ],
             ),
           ),
         _SetRow(

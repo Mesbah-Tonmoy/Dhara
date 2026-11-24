@@ -39,6 +39,7 @@ import 'package:dhara/features/sources/source_test_controller.dart';
 import 'package:dhara/features/sources/source_tester.dart';
 import 'package:dhara/features/sources/starter_sources.dart';
 import 'package:dhara/features/update/installer_fetcher.dart';
+import 'package:dhara/features/update/installer_launcher.dart';
 import 'package:dhara/features/update/update_checker.dart';
 import 'package:dhara/features/update/update_controller.dart';
 import 'package:dhara/features/update/update_notice.dart';
@@ -263,8 +264,9 @@ String _besideProgram(String folder, String name) {
 /// build was given both an address to ask (`DHARA_UPDATE_URL`) and the
 /// public half of the key the answer has to be signed with
 /// (`DHARA_UPDATE_KEY`). The check is Windows' own, so it is only made
-/// there. An installer it fetches is kept in `update` in the data
-/// [folder] until it is started, and comes from the host that is asked.
+/// there. An installer it fetches, on the user's click, is kept in
+/// `update` in the data [folder] until it is started, and comes from the
+/// host that is asked.
 UpdateController? _updateController(KeyValueStore settings, String? folder) {
   if (!Platform.isWindows) return null;
   final url = updateUrlFrom(_updateUrl);
@@ -281,6 +283,7 @@ UpdateController? _updateController(KeyValueStore settings, String? folder) {
             folder: Directory('$folder${Platform.pathSeparator}update'),
             host: url.host,
           ),
+    launcher: const InstallerLauncher(),
   );
 }
 

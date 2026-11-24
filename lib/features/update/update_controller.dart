@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/features/update/installer_fetcher.dart';
+import 'package:dhara/features/update/installer_launcher.dart';
 import 'package:dhara/features/update/update_checker.dart';
 import 'package:dhara/features/update/update_notice.dart';
 import 'package:flutter/widgets.dart';
@@ -14,27 +15,32 @@ enum UpdateStep {
 
   /// It is all there and is being held against the update notice.
   checking,
+
+  /// It is the file the notice names, and is being started.
+  starting,
 }
 
-/// Knows whether a newer version of the app exists, and fetches its
-/// installer when told to.
+/// Knows whether a newer version of the app exists, and fetches, checks
+/// and starts its installer when the user says so.
 ///
 /// Only a production build that was given an address to ask and the key to
 /// check the answer with has one. By itself it only asks, once a day at
 /// most, and what it fetches then is the update notice and nothing else.
-/// An installer is fetched when [fetchInstaller] is called, which nothing
-/// does by itself, and is only handed on once it was found to be the file
-/// the signed notice names.
+/// An installer is fetched when [install] is called, which only a click
+/// of the user's does, and it is started only once it was found to be the
+/// file the signed notice names.
 class UpdateController extends ChangeNotifier {
   UpdateController({
     required UpdateChecker checker,
     required KeyValueStore settings,
     required this.current,
     InstallerFetcher? installers,
+    InstallerLauncher? launcher,
     DateTime Function() clock = DateTime.now,
   }) : _checker = checker,
        _settings = settings,
        _installers = installers,
+       _launcher = launcher,
        _clock = clock;
 
   /// Where the time of the last asking is kept (milliseconds).
@@ -57,6 +63,9 @@ class UpdateController extends ChangeNotifier {
   /// Fetches installers; without it (the app has no folder to keep one
   /// in) the app can say that there is a newer version and no more.
   final InstallerFetcher? _installers;
+
+  /// Starts an installer that was checked; without it none is started.
+  final InstallerLauncher? _launcher;
   final DateTime Function() _clock;
 
   UpdateNotice? _available;
@@ -67,6 +76,8 @@ class UpdateController extends ChangeNotifier {
   DateTime? _asked;
   Future<void>? _asking;
   Future<CheckedInstaller?>? _fetching;
+  Future<bool>? _installing;
+  var _started = false;
   UpdateStep? _step;
   var _received = 0;
   var _stopped = false;
@@ -88,6 +99,16 @@ class UpdateController extends ChangeNotifier {
   /// Whether this copy can fetch the installer of a newer version.
   bool get canFetchInstaller => _installers != null;
 
+  /// Whether this copy can fetch that installer and start it.
+  bool get canInstall => _installers != null && _launcher != null;
+
+  /// An installer is being fetched, checked or started right now.
+  bool get isInstalling => _installing != null || _fetching != null;
+
+  /// The installer of the newer version was started in this run: it is
+  /// open, and the app is to close.
+  bool get installerStarted => _started;
+
   /// What is being done with the installer right now; `null` when
   /// nothing is.
   UpdateStep? get step => _step;
@@ -96,8 +117,9 @@ class UpdateController extends ChangeNotifier {
   /// `available.size`.
   int get bytesFetched => _received;
 
-  /// Why the last fetch gave no installer; `null` if it gave one, if it
-  /// was stopped by the user, or if there was none yet.
+  /// Why the last try gave no installer, or did not start it; `null` if
+  /// it went well, if it was stopped by the user, or if there was none
+  /// yet.
   InstallerProblem? get installerProblem => _installerProblem;
 
   /// When the place was last asked; `null` if it never was.
@@ -157,6 +179,20 @@ class UpdateController extends ChangeNotifier {
     return fetching;
   }
 
+  /// Fetches the installer of the newer version, checks it against the
+  /// notice and starts it: the user clicked for it. Returns whether the
+  /// installer was started; if not, [installerProblem] says why (or
+  /// nothing, if [stopFetching] ended it). Never throws.
+  ///
+  /// The installer runs on by itself; the caller closes the app.
+  Future<bool> install() {
+    final running = _installing;
+    if (running != null) return running;
+    final installing = _install();
+    _installing = installing;
+    return installing;
+  }
+
   /// Ends a fetch under way: the user does not want it after all.
   void stopFetching() {
     if (_fetching == null) return;
@@ -172,6 +208,32 @@ class UpdateController extends ChangeNotifier {
     _checker.close();
     _installers?.cancel();
     super.dispose();
+  }
+
+  Future<bool> _install() async {
+    try {
+      final launcher = _launcher;
+      if (launcher == null) return false;
+      final installer = await fetchInstaller();
+      // Only what the fetcher checked gets this far.
+      if (installer == null || _disposed) return false;
+      _step = UpdateStep.starting;
+      _notify();
+      final started = await launcher.start(installer);
+      if (started) {
+        _started = true;
+      } else {
+        _installerProblem = InstallerProblem.notStarted;
+        // It is not kept for a later try: that one fetches and checks
+        // anew.
+        await _installers?.clear();
+      }
+      return started;
+    } finally {
+      _step = null;
+      _installing = null;
+      _notify();
+    }
   }
 
   Future<CheckedInstaller?> _fetch() async {

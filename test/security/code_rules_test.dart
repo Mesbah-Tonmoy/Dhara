@@ -103,16 +103,57 @@ void main() {
       );
     });
 
-    test('nothing starts a program or opens a file with one', () {
+    test('nothing starts a program or opens a file with one, but for the '
+        'checked installer of an update, in one place', () {
+      const launcherFile = 'lib/features/update/installer_launcher.dart';
+      final starts = _hits(
+        lib,
+        RegExp(
+          r'\bProcess\.(run|runSync|start|killPid)\b|ShellExecute|'
+          r'CreateProcess|WinExec|OpenFile\.open|package:process',
+        ),
+      );
+      expect(
+        [for (final hit in starts) '${hit.file}: ${hit.match[0]}'],
+        ['$launcherFile: Process.start'],
+      );
+      final launcher = File(launcherFile).readAsStringSync();
+      // Run as it is, by its path: no shell, and no option given to it,
+      // so the installer shows its own pages.
+      expect(
+        launcher,
+        contains(
+          'Process.start(path, const [], mode: ProcessStartMode.detached)',
+        ),
+      );
+      expect(launcher, isNot(contains('runInShell')));
+      // Only a file the fetcher checked can be handed to it...
+      expect(
+        launcher,
+        contains('Future<bool> start(CheckedInstaller installer)'),
+      );
+      expect(launcher, contains('await _start(installer.file.path);'));
+      // ...and only the controller hands one over, after its fetch.
+      expect(
+        _hits(lib, RegExp(r'\blauncher\.start\(')).map((hit) => hit.file),
+        ['lib/features/update/update_controller.dart'],
+      );
+      // A production build's updater is the one launcher there is.
       expect(
         _hits(
           lib,
-          RegExp(
-            r'\bProcess\.(run|runSync|start|killPid)\b|ShellExecute|'
-            r'CreateProcess|WinExec|OpenFile\.open|package:process',
-          ),
-        ),
-        isEmpty,
+          RegExp(r'\bInstallerLauncher\('),
+        ).map((hit) => hit.file).toSet(),
+        {launcherFile, 'lib/main.dart'},
+      );
+      // And installing is asked for in one place: the button of the
+      // dialog. Nothing does it by itself.
+      expect(_hits(lib, RegExp(r'\.install\(\)')).map((hit) => hit.file), [
+        'lib/features/update/ui/update_dialog.dart',
+      ]);
+      expect(
+        _hits(lib, RegExp(r'\bfetchInstaller\(\)')).map((hit) => hit.file),
+        everyElement('lib/features/update/update_controller.dart'),
       );
     });
 
@@ -262,6 +303,8 @@ void main() {
           // folder, under a name made from the version's numbers, and
           // reads it back to check it.
           'lib/features/update/installer_fetcher.dart',
+          // Starts that installer once it was checked.
+          'lib/features/update/installer_launcher.dart',
           'lib/main.dart',
         },
         reason:

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/features/update/installer_fetcher.dart';
+import 'package:dhara/features/update/installer_launcher.dart';
 import 'package:dhara/features/update/update_checker.dart';
 import 'package:dhara/features/update/update_controller.dart';
 import 'package:dhara/features/update/update_notice.dart';
@@ -415,6 +416,167 @@ void main() {
     });
   });
 
+  group('installing', () {
+    late List<String> started;
+    var startWorks = true;
+    setUp(() {
+      started = [];
+      startWorks = true;
+    });
+
+    UpdateController installing(
+      FakeInstallerFetcher? installers, {
+      bool withLauncher = true,
+      String version = '1.2.0',
+    }) {
+      final made = UpdateController(
+        checker: FakeUpdateChecker(
+          answers: [updateNoticeText(version: version, size: 4000)],
+        ),
+        settings: settings,
+        current: current,
+        installers: installers,
+        launcher: withLauncher
+            ? InstallerLauncher(
+                start: (path) async {
+                  if (!startWorks) throw const FormatException('refused');
+                  started.add(path);
+                },
+              )
+            : null,
+        clock: () => now,
+      );
+      addTearDown(made.dispose);
+      return made;
+    }
+
+    test('nothing is started by asking, by starting the app or by '
+        'fetching', () async {
+      final installers = FakeInstallerFetcher();
+      final updates = installing(installers)
+        ..start(
+          first: const Duration(milliseconds: 1),
+          look: const Duration(milliseconds: 5),
+        );
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+      await updates.askNow();
+      expect(updates.available, isNotNull);
+      expect(await updates.fetchInstaller(), isNotNull);
+      expect(started, isEmpty);
+      expect(updates.installerStarted, isFalse);
+    });
+
+    test('fetches, checks, then starts the checked file, in that '
+        'order', () async {
+      final installers = FakeInstallerFetcher(progress: [1000, 4000]);
+      final updates = installing(installers);
+      await updates.askNow();
+      expect(updates.canInstall, isTrue);
+
+      final steps = <UpdateStep?>[];
+      updates.addListener(() {
+        if (steps.isEmpty || steps.last != updates.step) {
+          steps.add(updates.step);
+        }
+        // Nothing is started before the check is over.
+        if (updates.step != UpdateStep.starting && updates.step != null) {
+          expect(started, isEmpty);
+        }
+      });
+      final installing1 = updates.install();
+      expect(updates.isInstalling, isTrue);
+      // A second click does it no second time.
+      final installing2 = updates.install();
+
+      expect(await installing1, isTrue);
+      expect(await installing2, isTrue);
+      expect(installers.fetched, hasLength(1));
+      expect(started, ['nowhere/Dhara-Setup-1.2.0.exe']);
+      expect(steps, [
+        UpdateStep.fetching,
+        UpdateStep.checking,
+        // Between the check and the start.
+        null,
+        UpdateStep.starting,
+        null,
+      ]);
+      expect(updates.installerStarted, isTrue);
+      expect(updates.installerProblem, isNull);
+      expect(updates.isInstalling, isFalse);
+    });
+
+    test('whatever the fetch or the check finds wrong, nothing is '
+        'started', () async {
+      for (final problem in InstallerProblem.values) {
+        final installers = FakeInstallerFetcher(problem: problem);
+        final updates = installing(installers);
+        await updates.askNow();
+        expect(await updates.install(), isFalse, reason: problem.name);
+        expect(started, isEmpty, reason: problem.name);
+        expect(updates.installerProblem, problem);
+        expect(updates.installerStarted, isFalse);
+        expect(updates.step, isNull);
+      }
+    });
+
+    test('an installer Windows does not start is said, and not kept', () async {
+      final installers = FakeInstallerFetcher();
+      final updates = installing(installers);
+      await updates.askNow();
+      startWorks = false;
+
+      expect(await updates.install(), isFalse);
+      expect(updates.installerProblem, InstallerProblem.notStarted);
+      expect(updates.installerStarted, isFalse);
+      expect(installers.cleared, 1);
+
+      // The next try fetches and checks anew.
+      startWorks = true;
+      expect(await updates.install(), isTrue);
+      expect(installers.fetched, hasLength(2));
+      expect(updates.installerProblem, isNull);
+    });
+
+    test('a fetch the user ends starts nothing', () async {
+      final installers = FakeInstallerFetcher()..hold = Completer<void>();
+      final updates = installing(installers);
+      await updates.askNow();
+
+      final running = updates.install();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      updates.stopFetching();
+
+      expect(await running, isFalse);
+      expect(started, isEmpty);
+      expect(updates.installerProblem, isNull);
+      expect(updates.isInstalling, isFalse);
+    });
+
+    test('nothing is installed while no newer version is known', () async {
+      final installers = FakeInstallerFetcher();
+      final updates = installing(installers, version: '1.1.0');
+      await updates.askNow();
+      expect(await updates.install(), isFalse);
+      expect(installers.fetched, isEmpty);
+      expect(started, isEmpty);
+    });
+
+    test('a copy without the means installs nothing', () async {
+      final installers = FakeInstallerFetcher();
+      final noLauncher = installing(installers, withLauncher: false);
+      await noLauncher.askNow();
+      expect(noLauncher.canInstall, isFalse);
+      expect(await noLauncher.install(), isFalse);
+      expect(installers.fetched, isEmpty, reason: 'not even fetched');
+
+      final noFolder = installing(null);
+      await noFolder.askNow();
+      expect(noFolder.canInstall, isFalse);
+      expect(await noFolder.install(), isFalse);
+      expect(started, isEmpty);
+    });
+  });
+
   group('what Settings says', () {
     String words({
       bool asking = false,
@@ -471,6 +633,38 @@ void main() {
         said,
         startsWith('Version 1.2.0 is available; this copy is 1.1.0.'),
       );
+    });
+
+    test('a copy that can install says that nothing happens before a '
+        'click', () {
+      final said = updateStatus(
+        current: current,
+        asking: false,
+        available: UpdateNotice(
+          version: const AppVersion(1, 2, 0),
+          installer: Uri.parse('https://updates.example/installer'),
+          size: 1,
+          sha256: '0' * 64,
+        ),
+        problem: null,
+        askedAt: now,
+        now: now,
+        canInstall: true,
+      );
+      expect(said, startsWith('Version 1.2.0 is available; this copy is'));
+      expect(said, endsWith('until you choose Install.'));
+    });
+
+    test('every problem of an installer has its own words, and each says '
+        'that nothing was installed', () {
+      final said = {
+        for (final problem in InstallerProblem.values)
+          installerProblemWords(problem),
+      };
+      expect(said, hasLength(InstallerProblem.values.length));
+      expect(said, everyElement(endsWith('Nothing was installed.')));
+      expect(megabytes(50651234), '48.3 MB');
+      expect(megabytes(0), '0.0 MB');
     });
 
     test('every problem has its own words', () {
