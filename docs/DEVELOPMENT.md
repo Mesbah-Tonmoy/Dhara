@@ -24,6 +24,7 @@ The full project brief lives in [BRIEF.md](../BRIEF.md) (mirrored in
 | 8. Packaging, security review and docs | Done: the app was gone through against section 7 of the brief ([security-review.md](security-review.md)), there is a per-user installer with a checksum (see [Installer](#installer)), and the README is there in English and Bangla, with how to keep the player up to date and a list of what to try by hand ([manual-test.bn.md](manual-test.bn.md)). On 2026-11-18 the libmpv of 2023 was replaced by a current build (see [Player hardening](#player-hardening)). **Not yet tried:** the installer on a PC without the Visual C++ runtime, an update over an older version, and the newer libmpv on real BDIX servers. The installer is to be made again after the PC it was built on is reset |
 | 9 | Not started |
 | Production build (version 1.1.0, 2026-11-24) | Done: one code, two builds. The installer holds the production build, which fills its library by itself on its first start (a snapshot fetched from the address it was built with, or one that came in the installer), finds the servers that answer, carries a TMDB key if it was built with one, looks titles up and reads the servers again by itself. Tried with real builds, with test installers the script made and with the user's snapshot on Google Drive; see [The first start of a production build](#the-first-start-of-a-production-build). **Not yet tried:** an installer run on a second PC, a build with a real TMDB key (none was used: the PC is to be set up anew first), and matching in a production build against TMDB itself |
+| Updates from inside the app | Under way since 2026-11-25: the signature check is in; see [Updates from inside the app](#updates-from-inside-the-app). The app does not ask for updates yet |
 
 ## Prerequisites (Windows)
 
@@ -1377,6 +1378,48 @@ leave it:
 **Not tried:** a second PC, and so an installer that is run on a PC where
 Dhara never was.
 
+## Updates from inside the app
+
+Under way since 2026-11-25; the plan and what is done are in
+[ROADMAP.md](ROADMAP.md), point 2. **The app does not ask for updates
+yet**: what is there so far is listed here, piece by piece.
+
+### Checking a signature
+
+An update is believed because it is signed, not because of where it comes
+from. `lib/features/update/update_signature.dart` has the two things that
+takes:
+
+- `Sha256` (`sha256Of` for bytes at hand): the SHA-256 of something that
+  comes piece by piece, such as a file too large for memory.
+- `UpdateKey`: the public half of the signing key (a point of the curve
+  P-256, its X and Y as 64 bytes in base64), and `signed(message,
+  signature)`, which says whether a signature was made over that message
+  with the private half. A signature is ECDSA over the SHA-256 of the
+  message, as the two numbers r and s, 32 bytes each: what .NET's
+  `SignData` writes, so PowerShell 7 can make one with nothing installed.
+
+Both are done by Windows itself (CNG, `bcrypt.dll`, called through
+`dart:ffi`). Dart's own libraries have neither, the `win32` package does
+not bind these functions, and a package for it would be the app's first
+piece of cryptography written in Dart; so the nine functions used are
+bound in that one file, and `test/security/code_rules_test.dart` names it
+as the second place that calls native code (the first keeps the TMDB key)
+and `bcrypt.dll` as the only library opened by name. The check is
+Windows-only, as the installer is.
+
+Why this kind of signature: Windows has P-256 built in on every version
+the app runs on; Ed25519 it has not, and a signature Windows checks by
+itself (Authenticode) needs a bought certificate.
+
+Tested (`test/features/update/update_signature_test.dart`): the digests
+the SHA-256 standard gives; two published signatures (RFC 6979, A.2.5),
+so the check is held against something this PC did not make; and key
+pairs Windows makes inside the test (`test/support/update_keys.dart`,
+in memory only, never written), whose signatures fit their message and
+key, and do not fit after one bit of the message or of the signature is
+another, with another key, or in another length.
+
 ## Titles and metadata
 
 The index is a list of files. This part works out which film or show each
@@ -1584,7 +1627,7 @@ lib/features/details/  the page of a title: copies, episodes, what to play
 lib/features/browse/   search and browse: query, controller, grid
 lib/features/playback/ which copy to play, and opening the player
 lib/features/        the other features: sources, indexer, metadata,
-                     player, history, my_list, snapshot
+                     player, history, my_list, snapshot, update
 windows/runner/      the Windows window (frameless title bar support)
 test/                automated tests (run anywhere)
 test/fixtures/       saved server answers the adapter tests run against

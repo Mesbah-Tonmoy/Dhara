@@ -267,13 +267,26 @@ void main() {
       );
     });
 
-    test('native code is called for the TMDB key only', () {
+    test('native code is called for the TMDB key and for checking an '
+        'update, nowhere else', () {
       expect(
         _hits(
           lib,
           RegExp(r'''['"](dart:ffi|package:ffi/|package:win32/)'''),
         ).map((hit) => hit.file).toSet(),
-        {'lib/core/secrets/windows_credential_store.dart'},
+        {
+          'lib/core/secrets/windows_credential_store.dart',
+          // SHA-256 and the signature check, done by Windows (bcrypt.dll).
+          'lib/features/update/update_signature.dart',
+        },
+      );
+      // The one library opened by name is part of Windows.
+      expect(
+        _hits(
+          lib,
+          RegExp(r'DynamicLibrary\.\w+\(([^)]*)\)'),
+        ).map((hit) => '${hit.file}: ${hit.match[1]}').toSet(),
+        {"lib/features/update/update_signature.dart: 'bcrypt.dll'"},
       );
     });
   });

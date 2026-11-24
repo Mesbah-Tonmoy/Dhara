@@ -188,6 +188,50 @@ Seen while this was built, and left as it is:
   key that never lives on the PC as it is now (so: after the reset).
 - An unsigned installer shows Windows' SmartScreen warning on another PC.
 
+Agreed with the user on 2026-11-25 (the plan, and five lines for section 7
+of the brief, each written into it with the increment that needs it):
+
+- **Where:** the user's Google Drive, like the snapshot, not a release on
+  GitHub. The production installer carries the user's TMDB key and the
+  snapshot's address, and a public release would hand both to everyone;
+  and a release asset answers with a redirect from `github.com` to
+  `release-assets.githubusercontent.com` (seen on 2026-11-25), which the
+  brief's rule on redirects does not allow. Drive is one host without a
+  redirect, and the address is a build-time value, so no host is named in
+  the code. Two files: an **update notice** under a link that stays
+  (a new version of it is uploaded for each release), and each release's
+  installer as a file of its own.
+- **The check:** the notice is signed (ECDSA P-256 over SHA-256) and holds
+  the version, the installer's address, its size and its SHA-256. The app
+  checks the notice against the public key it was built with, then the
+  installer it fetched against the notice. The version is signed too, so
+  an older installer cannot be passed off as a newer one. Done by Windows'
+  own CNG, with no new package.
+- **The public key** is given at build time (`tool/package.ps1`); a build
+  without it, or without the address, has no updater at all. The private
+  half is made after the PC is set up anew and never enters the
+  repository; until then tests make their own key pairs.
+- **Handing over:** after the check the app starts the installer, which
+  shows its usual pages (per user, no admin rights, nothing silent), and
+  closes itself.
+- A development build does none of it.
+
+The increments: (1) the signature check; (2) the update notice, its
+reader, and `tool/sign-update.ps1`; (3) asking once a day, the build
+options, Settings; (4) fetching and checking the installer; (5) starting
+it on a click, the pill in the title bar, the dialog; (6) docs, the
+manual test list, the security review, version 1.2.0, and a try of the
+whole way with a test copy.
+
+Done:
+
+- **(1), 2026-11-25.** SHA-256 and the signature check, through Windows'
+  CNG (`lib/features/update/update_signature.dart`). Tested against
+  published signatures and against key pairs made inside the tests.
+
+Not yet tried: whether Google Drive hands an `.exe` file to a program the
+way it hands out the snapshot.
+
 ### 3. A longer server list
 
 - Source: <https://sites.google.com/view/bdixftpserverlist/media-ftp-servers>.
