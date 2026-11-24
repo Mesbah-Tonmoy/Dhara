@@ -15,7 +15,8 @@ gets a line for each rule that changes with them, as the code that needs it
 goes in. So far (rows marked "since 2026-11-25"): a production build asks
 one address whether a newer version exists, an update notice is read as
 untrusted input and believed only if it is signed, and the key that signs
-has no private half anywhere in the app. Nothing is fetched or started yet.
+has no private half anywhere in the app. The code that fetches an installer
+and checks it is in (nothing calls it yet); nothing is started yet.
 
 Verdicts: **ok** (done and checked), **gap** (known and accepted, with the
 reason), **fixed** (found in this review and put right), **later** (belongs
@@ -98,6 +99,7 @@ Not findings, but worth knowing:
 | JSON from Emby, TMDB and AniList | every field is type-checked; ids must match `[A-Za-z0-9-]{1,64}`, tokens `[A-Za-z0-9._-]{1,256}`; texts are cut to a length | `emby_adapter_test.dart`, `tmdb_client_test.dart`, `anilist_client_test.dart` | ok |
 | A source list that is imported | at most 2 MB and 2,000 sources; every address must be http(s) without a user name or password | `source_list_test.dart` | ok |
 | An update notice that is read (since 2026-11-25; the brief has a line for it) | `readUpdateNotice` (`lib/features/update/update_notice.dart`): at most 64 KB, a JSON object of three fields; the signature (ECDSA P-256 over SHA-256, checked by Windows' CNG in `update_signature.dart`) is checked over the bytes as they came before any of them is read as content, against the public key the build was given (`DHARA_UPDATE_KEY`); what was signed is then still checked field by field, and the installer's address is taken only if it is https on the host and port the notice was asked from. A notice kept from an earlier run goes through the same check when it is read back. Its notes are shown as plain text | `update_notice_test.dart` (every refusal; real key pairs made in the test; the signing script run by the test), `update_signature_test.dart` (published signatures, one changed bit) | ok |
+| An installer that is fetched (since 2026-11-25; nothing calls it until the next increment) | `InstallerFetcher` (`lib/features/update/installer_fetcher.dart`): from the host the notice was asked from and no other, no byte more than the signed size, into the app's own folder under a name made from the version's numbers. It is read back from the disk, and unless its length and SHA-256 are the ones of the signed notice it is removed; only then is there a `CheckedInstaller`, which nothing else can make | `installer_fetcher_test.dart` (one bit, shorter, longer, a page, another host, a fetch ended half way: nothing is left); *guard* (only the fetcher makes a `CheckedInstaller`) | ok |
 | A library snapshot that is read | `snapshot_reader.dart`: only the tables and columns it knows, every value checked for type, size and range, under the database's own strict types, checks and foreign keys; a source only if the source list has it, a crawl's starting folder only if it is a base URL of that source, a folder, a video and a subtitle only on a server (scheme, host, port) of their source, written the one way an address is written; lines of at most 64 KB, 4 GB unpacked, 20 million rows; a file that does not hold together (no head, no end line, another number of rows) is refused whole and what was read is taken out again. Only an empty library is filled | `snapshot_reader_test.dart` | ok |
 
 ## Files

@@ -38,6 +38,7 @@ import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
 import 'package:dhara/features/sources/source_tester.dart';
 import 'package:dhara/features/sources/starter_sources.dart';
+import 'package:dhara/features/update/installer_fetcher.dart';
 import 'package:dhara/features/update/update_checker.dart';
 import 'package:dhara/features/update/update_controller.dart';
 import 'package:dhara/features/update/update_notice.dart';
@@ -156,7 +157,7 @@ Future<void> main() async {
         );
   // Only a production build asks whether a newer version exists, and only
   // if it was built with the address to ask and the key to check with.
-  final updates = _devTools ? null : _updateController(store);
+  final updates = _devTools ? null : _updateController(store, folder);
   final myList = MyListController(library: library);
   unawaited(myList.load());
   // Posters are kept next to the settings; without a data folder they are
@@ -262,8 +263,9 @@ String _besideProgram(String folder, String name) {
 /// build was given both an address to ask (`DHARA_UPDATE_URL`) and the
 /// public half of the key the answer has to be signed with
 /// (`DHARA_UPDATE_KEY`). The check is Windows' own, so it is only made
-/// there.
-UpdateController? _updateController(KeyValueStore settings) {
+/// there. An installer it fetches is kept in `update` in the data
+/// [folder] until it is started, and comes from the host that is asked.
+UpdateController? _updateController(KeyValueStore settings, String? folder) {
   if (!Platform.isWindows) return null;
   final url = updateUrlFrom(_updateUrl);
   final key = UpdateKey.from(_updateKey);
@@ -273,6 +275,12 @@ UpdateController? _updateController(KeyValueStore settings) {
     checker: UpdateChecker(url, signed: key.signed),
     settings: settings,
     current: current,
+    installers: folder == null
+        ? null
+        : InstallerFetcher(
+            folder: Directory('$folder${Platform.pathSeparator}update'),
+            host: url.host,
+          ),
   );
 }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dhara/core/settings/key_value_store.dart';
+import 'package:dhara/features/update/installer_fetcher.dart';
 import 'package:dhara/features/update/update_checker.dart';
 import 'package:dhara/features/update/update_controller.dart';
 import 'package:dhara/features/update/update_notice.dart';
@@ -292,6 +293,125 @@ void main() {
         ..start();
       expect(updates.available, isNull);
       expect(settings.getString(UpdateController.noticeKey), isNull);
+    });
+  });
+
+  group('the installer', () {
+    UpdateController withInstallers(
+      FakeInstallerFetcher? installers, {
+      String version = '1.2.0',
+    }) {
+      final made = UpdateController(
+        checker: FakeUpdateChecker(
+          answers: [updateNoticeText(version: version, size: 4000)],
+        ),
+        settings: settings,
+        current: current,
+        installers: installers,
+        clock: () => now,
+      );
+      addTearDown(made.dispose);
+      return made;
+    }
+
+    test('is not fetched by asking, nor by starting', () async {
+      final installers = FakeInstallerFetcher();
+      final updates = withInstallers(installers)
+        ..start(
+          first: const Duration(milliseconds: 1),
+          look: const Duration(milliseconds: 5),
+        );
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+      expect(updates.available, isNotNull);
+      expect(installers.fetched, isEmpty);
+      expect(updates.step, isNull);
+      // What an earlier run left is cleared as the app starts.
+      expect(installers.cleared, 1);
+    });
+
+    test(
+      'is fetched and checked when told to, and says how far it is',
+      () async {
+        final installers = FakeInstallerFetcher(progress: [1000, 4000]);
+        final updates = withInstallers(installers);
+        await updates.askNow();
+        expect(updates.canFetchInstaller, isTrue);
+
+        final steps = <(UpdateStep?, int)>[];
+        updates.addListener(
+          () => steps.add((updates.step, updates.bytesFetched)),
+        );
+        final fetching = updates.fetchInstaller();
+        // A second click fetches no second time.
+        final again = updates.fetchInstaller();
+        final installer = await fetching;
+
+        expect(await again, same(installer));
+        expect(installers.fetched, hasLength(1));
+        expect(installers.fetched.single.version, const AppVersion(1, 2, 0));
+        expect(installer!.version, const AppVersion(1, 2, 0));
+        expect(updates.installerProblem, isNull);
+        expect(steps.first.$1, UpdateStep.fetching);
+        expect(steps, contains((UpdateStep.checking, 4000)));
+        expect(steps.last.$1, isNull);
+        expect(updates.step, isNull);
+      },
+    );
+
+    test(
+      'that is not the file of the notice gives nothing, and says why',
+      () async {
+        for (final problem in InstallerProblem.values) {
+          final installers = FakeInstallerFetcher(problem: problem);
+          final updates = withInstallers(installers);
+          await updates.askNow();
+          expect(await updates.fetchInstaller(), isNull, reason: problem.name);
+          expect(updates.installerProblem, problem);
+          expect(updates.step, isNull);
+          // The next try starts clean.
+          installers.problem = null;
+          expect(await updates.fetchInstaller(), isNotNull);
+          expect(updates.installerProblem, isNull);
+        }
+      },
+    );
+
+    test('is not fetched while no newer version is known', () async {
+      final installers = FakeInstallerFetcher();
+      final updates = withInstallers(installers, version: '1.1.0');
+      expect(await updates.fetchInstaller(), isNull);
+      await updates.askNow();
+      expect(updates.available, isNull);
+      expect(await updates.fetchInstaller(), isNull);
+      expect(installers.fetched, isEmpty);
+      expect(updates.installerProblem, isNull);
+    });
+
+    test('cannot be fetched by a copy that has no folder for it', () async {
+      final updates = withInstallers(null);
+      await updates.askNow();
+      expect(updates.available, isNotNull);
+      expect(updates.canFetchInstaller, isFalse);
+      expect(await updates.fetchInstaller(), isNull);
+    });
+
+    test('a fetch the user ends gives nothing and is no problem', () async {
+      final installers = FakeInstallerFetcher()..hold = Completer<void>();
+      final updates = withInstallers(installers);
+      await updates.askNow();
+
+      final fetching = updates.fetchInstaller();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(updates.step, UpdateStep.fetching);
+      updates.stopFetching();
+
+      expect(await fetching, isNull);
+      expect(installers.cancelled, 1);
+      expect(updates.installerProblem, isNull);
+      expect(updates.step, isNull);
+      // Ending what is not running does nothing.
+      updates.stopFetching();
+      expect(installers.cancelled, 1);
     });
   });
 

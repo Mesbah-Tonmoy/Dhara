@@ -24,7 +24,7 @@ The full project brief lives in [BRIEF.md](../BRIEF.md) (mirrored in
 | 8. Packaging, security review and docs | Done: the app was gone through against section 7 of the brief ([security-review.md](security-review.md)), there is a per-user installer with a checksum (see [Installer](#installer)), and the README is there in English and Bangla, with how to keep the player up to date and a list of what to try by hand ([manual-test.bn.md](manual-test.bn.md)). On 2026-11-18 the libmpv of 2023 was replaced by a current build (see [Player hardening](#player-hardening)). **Not yet tried:** the installer on a PC without the Visual C++ runtime, an update over an older version, and the newer libmpv on real BDIX servers. The installer is to be made again after the PC it was built on is reset |
 | 9 | Not started |
 | Production build (version 1.1.0, 2026-11-24) | Done: one code, two builds. The installer holds the production build, which fills its library by itself on its first start (a snapshot fetched from the address it was built with, or one that came in the installer), finds the servers that answer, carries a TMDB key if it was built with one, looks titles up and reads the servers again by itself. Tried with real builds, with test installers the script made and with the user's snapshot on Google Drive; see [The first start of a production build](#the-first-start-of-a-production-build). **Not yet tried:** an installer run on a second PC, a build with a real TMDB key (none was used: the PC is to be set up anew first), and matching in a production build against TMDB itself |
-| Updates from inside the app | Under way since 2026-11-25: a production build that was given an address and a key asks once a day whether a newer version exists, and Settings says what it found; see [Updates from inside the app](#updates-from-inside-the-app). Nothing is fetched or installed yet. **Not yet tried:** a build asking a real address |
+| Updates from inside the app | Under way since 2026-11-25: a production build that was given an address and a key asks once a day whether a newer version exists, and Settings says what it found; the code that fetches an installer and checks it against the signed notice is in, but nothing in the app calls it yet; see [Updates from inside the app](#updates-from-inside-the-app). Nothing is installed yet. **Not yet tried:** a build asking a real address |
 
 ## Prerequisites (Windows)
 
@@ -1402,8 +1402,9 @@ Dhara never was.
 
 Under way since 2026-11-25; the plan and what is done are in
 [ROADMAP.md](ROADMAP.md), point 2. So far a production build **asks and
-says** whether a newer version exists; it fetches and installs nothing
-yet. What is there is listed here, piece by piece.
+says** whether a newer version exists. Fetching an installer and checking
+it is built and tested, but no button leads to it yet, and nothing is
+started. What is there is listed here, piece by piece.
 
 ### Checking a signature
 
@@ -1569,6 +1570,47 @@ row in Settings. A test copy made by `tool/package.ps1` with the two
 options held the address and the key in its program. **Not yet tried:**
 a real build asking a real address; that needs a notice put somewhere,
 which is the user's to do.
+
+### Fetching the installer, and checking it
+
+`InstallerFetcher` (`lib/features/update/installer_fetcher.dart`)
+fetches the installer a notice names, when
+`UpdateController.fetchInstaller` is called. Nothing calls that by
+itself: asking for updates fetches the notice and no more.
+
+- It goes into `update` in the data folder
+  (`%APPDATA%\com.dhara\dhara\update`), as
+  `Dhara-Setup-<version>.exe.part`. The name is made from the three
+  numbers of the version; nothing a server says goes into a path.
+- The request goes to the host the notice was asked from and to no
+  other (a redirect elsewhere is refused), without a cookie or a header
+  of its own, and takes no byte more than the notice says the file is
+  long. Anything but a "200 OK" with a body that is not `text/…` is
+  "not there".
+- Then the file is read back **from the disk** and its length and
+  SHA-256 are held against the notice. Only if both are exactly the
+  ones that were signed does it get its name without `.part`, and only
+  then is there a `CheckedInstaller`: a type nothing else can make, so
+  what starts an installer later cannot be handed an unchecked file.
+- Whatever else came (a byte more or less, one bit another, a page, a
+  fetch that broke off or was ended) is removed at once, and nothing
+  comes of it.
+- No installer is kept from one run to the next: the folder is cleared
+  of installers and their parts as the app starts and before each
+  fetch. Other files that may lie there are left alone.
+
+The controller says how far a fetch is (`step`, `bytesFetched`), why
+the last one gave nothing (`installerProblem`), and can end one
+(`stopFetching`).
+
+Tested (`test/features/update/installer_fetcher_test.dart`, against a
+web server on this PC, with Windows' own SHA-256): the right file is
+kept; a file with one bit changed, a shorter one, a longer one (whether
+the server announces its length or not, and even with the "right"
+digest for the longer file), another file of the same length, a page,
+a redirect to another host and a notice that names another host are all
+refused, with nothing left in the folder; so is a fetch that is ended
+half way.
 
 ## Titles and metadata
 

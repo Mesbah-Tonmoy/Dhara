@@ -240,6 +240,11 @@ Done:
   fetched or installed yet. A test copy was made with the two options and
   the values were found in its program; **not tried:** a build asking a
   real address (there is no notice anywhere yet).
+- **(4), 2026-11-25.** Fetching the installer a notice names into the
+  data folder and checking it: its length and SHA-256, read back from
+  the disk, must be the ones that were signed, or it is removed
+  (`lib/features/update/installer_fetcher.dart`). Nothing in the app
+  calls it yet; the button comes with (5).
 
 Not yet tried: whether Google Drive hands an `.exe` file to a program the
 way it hands out the snapshot.

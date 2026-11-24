@@ -258,6 +258,10 @@ void main() {
           'lib/features/sources/source_test_controller.dart',
           'lib/features/sources/ui/server_discovery_screen.dart',
           'lib/features/sources/ui/source_list_files.dart',
+          // Saves the installer of a newer version in the app's own
+          // folder, under a name made from the version's numbers, and
+          // reads it back to check it.
+          'lib/features/update/installer_fetcher.dart',
           'lib/main.dart',
         },
         reason:
@@ -341,6 +345,14 @@ void main() {
         {'lib/main.dart', 'lib/features/update/update_checker.dart'},
       );
       expect(main, contains('UpdateChecker(url, signed: key.signed)'));
+      // An installer comes from the host that is asked, and only a
+      // checked one leaves the place that fetches it.
+      expect(main, contains('host: url.host,'));
+      expect(
+        _hits(lib, RegExp(r'\bCheckedInstaller\._\(')).map((h) => h.file),
+        everyElement('lib/features/update/installer_fetcher.dart'),
+      );
+      expect(_hits(lib, RegExp(r'CheckedInstaller\.forTest\(')), hasLength(1));
       expect(
         _hits(
           lib,

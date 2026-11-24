@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:dhara/features/update/installer_fetcher.dart';
 import 'package:dhara/features/update/update_checker.dart';
 import 'package:dhara/features/update/update_notice.dart';
 
@@ -33,6 +36,66 @@ String updateNoticeText({
   ),
   'signature': base64.encode(signature),
 });
+
+/// A fetcher that fetches nothing: [fetch] reports the bytes of
+/// [progress] one after the other, says that it is checking, and gives a
+/// checked installer, or [problem] if that is set.
+class FakeInstallerFetcher extends InstallerFetcher {
+  FakeInstallerFetcher({this.problem, this.progress = const [10, 20]})
+    : super(folder: Directory('nowhere'), host: 'updates.example');
+
+  InstallerProblem? problem;
+  final List<int> progress;
+
+  /// The notices an installer was fetched for, in order.
+  final fetched = <UpdateNotice>[];
+
+  /// How often what earlier fetches left was cleared, and how often a
+  /// fetch was ended.
+  var cleared = 0;
+  var cancelled = 0;
+
+  /// Completes when [fetch] may go on after its progress, if a test wants
+  /// to hold it. [cancel] lets it go, as a real fetch would end.
+  Completer<void>? hold;
+
+  @override
+  Future<InstallerFetched> fetch(
+    UpdateNotice notice, {
+    void Function(int received)? onProgress,
+    void Function()? onChecking,
+  }) async {
+    fetched.add(notice);
+    for (final received in progress) {
+      await Future<void>.delayed(Duration.zero);
+      onProgress?.call(received);
+    }
+    await hold?.future;
+    if (cancelled > 0 && problem == null) {
+      return const InstallerFetched.problem(InstallerProblem.unreachable);
+    }
+    final problemNow = problem;
+    if (problemNow != null) return InstallerFetched.problem(problemNow);
+    onChecking?.call();
+    await Future<void>.delayed(Duration.zero);
+    return InstallerFetched.checked(
+      CheckedInstaller.forTest(
+        File('nowhere/Dhara-Setup-${notice.version}.exe'),
+        notice.version,
+      ),
+    );
+  }
+
+  @override
+  Future<void> clear() async => cleared++;
+
+  @override
+  void cancel() {
+    cancelled++;
+    final held = hold;
+    if (held != null && !held.isCompleted) held.complete();
+  }
+}
 
 /// A checker that asks nobody: [ask] gives the next of [answers], which
 /// are notices as text ([updateNoticeText]) or the problem to report.
