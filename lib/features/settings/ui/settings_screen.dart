@@ -5,6 +5,8 @@ import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/metadata/tmdb_key.dart';
 import 'package:dhara/features/my_list/ui/lists_screen.dart';
 import 'package:dhara/features/player/widgets/seek_step_panel.dart';
+import 'package:dhara/features/update/update_controller.dart';
+import 'package:dhara/features/update/update_words.dart';
 import 'package:dhara/shell/page_bleed.dart';
 import 'package:dhara/shell/shell_controller.dart';
 import 'package:dhara/theme/tokens.dart';
@@ -72,6 +74,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final settings = SettingsScope.of(context);
     final shell = ShellScope.read(context);
     final tmdbKey = TmdbKeyScope.of(context);
+    // A production build that can ask for updates has one.
+    final updates = UpdateScope.maybeOf(context);
 
     Widget group(SettingsGroup group, List<Widget> rows) => Padding(
       key: _anchors[group],
@@ -382,20 +386,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'turn off.',
           control: DharaBadge('ALWAYS OFF', style: DharaBadgeStyle.good),
         ),
-        const _SetRow(
+        _SetRow(
           label: 'Network',
-          hint:
-              'Only the enabled servers, TMDB and AniList are contacted, '
-              'and only over http and https.',
-          control: DharaBadge('RESTRICTED', style: DharaBadgeStyle.good),
+          hint: updates == null
+              ? 'Only the enabled servers, TMDB and AniList are contacted, '
+                    'and only over http and https.'
+              : 'Only the enabled servers, TMDB, AniList and the one '
+                    'address this copy asks for updates are contacted, and '
+                    'only over http and https.',
+          control: const DharaBadge('RESTRICTED', style: DharaBadgeStyle.good),
         ),
-        const _SetRow(
-          label: 'Updates',
-          hint:
-              'The app never updates itself and starts nothing in the '
-              'background.',
-          control: DharaBadge('MANUAL'),
-        ),
+        if (updates == null)
+          const _SetRow(
+            label: 'Updates',
+            hint:
+                'The app never updates itself and starts nothing in the '
+                'background.',
+            control: DharaBadge('MANUAL'),
+          )
+        else
+          _SetRow(
+            key: const Key('set-updates'),
+            label: 'Updates',
+            hint: updateStatus(
+              current: updates.current,
+              asking: updates.isAsking,
+              available: updates.available,
+              problem: updates.problem,
+              askedAt: updates.askedAt,
+              now: DateTime.now(),
+            ),
+            control: DharaButton(
+              key: const Key('set-check-updates'),
+              label: 'Check now',
+              icon: DharaIcons.refresh,
+              small: true,
+              onPressed: updates.isAsking
+                  ? null
+                  : () => unawaited(updates.askNow()),
+            ),
+          ),
         _SetRow(
           label: 'Watch history',
           hint:
@@ -625,6 +655,7 @@ class _GroupCard extends StatelessWidget {
 /// the right.
 class _SetRow extends StatelessWidget {
   const _SetRow({
+    super.key,
     required this.label,
     required this.hint,
     required this.control,

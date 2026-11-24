@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dhara/core/app_info.dart';
 import 'package:dhara/core/settings/key_value_store.dart';
 import 'package:dhara/core/settings/settings_controller.dart';
 import 'package:dhara/features/settings/ui/settings_screen.dart';
+import 'package:dhara/features/update/update_checker.dart';
+import 'package:dhara/features/update/update_controller.dart';
+import 'package:dhara/features/update/update_notice.dart';
 import 'package:dhara/theme/scale.dart';
 import 'package:dhara/widgets/chips.dart';
 import 'package:dhara/widgets/logo.dart';
@@ -13,6 +17,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/test_app.dart';
+import '../../../support/update_notices.dart';
 
 final _page = find.byKey(const Key('settings'));
 
@@ -20,12 +25,15 @@ Future<void> _boot(
   WidgetTester tester,
   KeyValueStore store, {
   bool devTools = true,
+  UpdateController? updates,
 }) async {
   tester.view
     ..physicalSize = const Size(1280, 720)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(testApp(settings: store, devTools: devTools).app);
+  await tester.pumpWidget(
+    testApp(settings: store, devTools: devTools, updates: updates).app,
+  );
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('rail-settings')));
   await tester.pumpAndSettle();
@@ -88,6 +96,122 @@ void main() {
     // A part that is left out is not looked for when another is shown.
     await _tap(tester, find.byKey(const Key('settings-nav-about')));
     expect(tester.takeException(), isNull);
+  });
+
+  group('updates', () {
+    String hint(WidgetTester tester) => tester
+        .widgetList<Text>(
+          find.descendant(
+            of: find.byKey(const Key('set-updates'), skipOffstage: false),
+            matching: find.byType(Text, skipOffstage: false),
+          ),
+        )
+        .map((text) => text.data)
+        .join(' | ');
+
+    testWidgets('a build that cannot ask for them says that it never '
+        'updates itself', (tester) async {
+      for (final devTools in [true, false]) {
+        await _boot(tester, MemoryKeyValueStore(), devTools: devTools);
+        expect(
+          find.byKey(const Key('set-updates'), skipOffstage: false),
+          findsNothing,
+        );
+        expect(
+          find.byKey(const Key('set-check-updates'), skipOffstage: false),
+          findsNothing,
+        );
+        expect(
+          find.textContaining('never updates itself', skipOffstage: false),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('asks for updates', skipOffstage: false),
+          findsNothing,
+        );
+        await tester.pumpWidget(const SizedBox());
+      }
+    });
+
+    testWidgets('a build that can says what it knows, and Check now asks', (
+      tester,
+    ) async {
+      final store = MemoryKeyValueStore();
+      final checker = FakeUpdateChecker(
+        answers: [
+          updateNoticeText(version: '1.1.0'),
+          updateNoticeText(version: '7.8.9'),
+          UpdateAskProblem.unreachable,
+        ],
+      );
+      final updates = UpdateController(
+        checker: checker,
+        settings: store,
+        current: AppVersion.parse(dharaVersion)!,
+      );
+      addTearDown(updates.dispose);
+      await _boot(tester, store, devTools: false, updates: updates);
+
+      // Nothing was asked by opening the page.
+      expect(checker.asked, 0);
+      expect(hint(tester), contains('asks once a day'));
+      expect(
+        find.textContaining(
+          'the one address this copy asks for updates',
+          skipOffstage: false,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('never updates itself', skipOffstage: false),
+        findsNothing,
+      );
+
+      final check = find.byKey(const Key('set-check-updates'));
+      await _tap(tester, check);
+      expect(checker.asked, 1);
+      expect(hint(tester), contains('is the newest version. Asked just now.'));
+
+      await _tap(tester, check);
+      expect(checker.asked, 2);
+      expect(
+        hint(tester),
+        contains('Version 7.8.9 is available; this copy is $dharaVersion.'),
+      );
+
+      // An asking that fails leaves what is known.
+      await _tap(tester, check);
+      expect(checker.asked, 3);
+      expect(hint(tester), contains('Version 7.8.9 is available'));
+    });
+
+    testWidgets('while it asks, the button waits', (tester) async {
+      final gate = Completer<void>();
+      final store = MemoryKeyValueStore();
+      final checker = FakeUpdateChecker(answers: [UpdateAskProblem.notSigned])
+        ..hold = gate.future;
+      final updates = UpdateController(
+        checker: checker,
+        settings: store,
+        current: AppVersion.parse(dharaVersion)!,
+      );
+      addTearDown(updates.dispose);
+      await _boot(tester, store, devTools: false, updates: updates);
+
+      final check = find.byKey(const Key('set-check-updates'));
+      await tester.ensureVisible(check);
+      await tester.pumpAndSettle();
+      await tester.tap(check);
+      await tester.pump();
+      expect(hint(tester), contains('Asking whether a newer version exists'));
+      await tester.tap(check, warnIfMissed: false);
+      await tester.pump();
+      expect(checker.asked, 1);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(hint(tester), contains('not signed by whoever made this copy'));
+    });
   });
 
   testWidgets('shows what was saved before', (tester) async {

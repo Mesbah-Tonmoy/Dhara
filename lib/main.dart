@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dhara/app.dart';
+import 'package:dhara/core/app_info.dart';
 import 'package:dhara/core/db/library_db.dart';
 import 'package:dhara/core/db/library_isolate.dart';
 import 'package:dhara/core/images/image_store.dart';
@@ -37,6 +38,10 @@ import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
 import 'package:dhara/features/sources/source_tester.dart';
 import 'package:dhara/features/sources/starter_sources.dart';
+import 'package:dhara/features/update/update_checker.dart';
+import 'package:dhara/features/update/update_controller.dart';
+import 'package:dhara/features/update/update_notice.dart';
+import 'package:dhara/features/update/update_signature.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -149,6 +154,9 @@ Future<void> main() async {
               ? File(_besideProgram('data', 'library.snapshot.gz'))
               : null,
         );
+  // Only a production build asks whether a newer version exists, and only
+  // if it was built with the address to ask and the key to check with.
+  final updates = _devTools ? null : _updateController(store);
   final myList = MyListController(library: library);
   unawaited(myList.load());
   // Posters are kept next to the settings; without a data folder they are
@@ -189,6 +197,7 @@ Future<void> main() async {
         ),
         filmDetails: filmDetails,
         firstStart: firstStart,
+        updates: updates,
         // The page that writes the library out, and reads one in for a
         // try, is a development build's.
         snapshots: _devTools
@@ -215,6 +224,8 @@ Future<void> main() async {
     ),
   );
   final madeReady = firstStart?.start();
+  // Once a day at most, and not before the app has settled.
+  updates?.start();
   // Notice enabled servers that died since they were last tested.
   unawaited(sourceTests.retestEnabledIfStale());
   unawaited(_keepIndexFresh(index, madeReady));
@@ -245,6 +256,24 @@ String _besideProgram(String folder, String name) {
   final separator = Platform.pathSeparator;
   final program = File(Platform.resolvedExecutable).parent.path;
   return '$program$separator$folder$separator$name';
+}
+
+/// What asks whether a newer version of the app exists; `null` unless this
+/// build was given both an address to ask (`DHARA_UPDATE_URL`) and the
+/// public half of the key the answer has to be signed with
+/// (`DHARA_UPDATE_KEY`). The check is Windows' own, so it is only made
+/// there.
+UpdateController? _updateController(KeyValueStore settings) {
+  if (!Platform.isWindows) return null;
+  final url = updateUrlFrom(_updateUrl);
+  final key = UpdateKey.from(_updateKey);
+  final current = AppVersion.parse(dharaVersion);
+  if (url == null || key == null || current == null) return null;
+  return UpdateController(
+    checker: UpdateChecker(url, signed: key.signed),
+    settings: settings,
+    current: current,
+  );
 }
 
 /// Reads the size of the index, then, once the app has settled, brings an
@@ -377,6 +406,17 @@ const _snapshotUrl = String.fromEnvironment('DHARA_SNAPSHOT_URL');
 /// development build, which keeps the user's own key in the secure storage
 /// of the system.
 const _builtInTmdbKey = String.fromEnvironment('DHARA_TMDB_KEY');
+
+/// Where a production build asks whether a newer version exists: an https
+/// address, given when building with `tool/package.ps1 -UpdateUrl`
+/// (`DHARA_UPDATE_URL`). A build made without it never asks.
+const _updateUrl = String.fromEnvironment('DHARA_UPDATE_URL');
+
+/// The public half of the key updates are signed with, given when building
+/// with `tool/package.ps1 -UpdateKeyFile` (`DHARA_UPDATE_KEY`). It is no
+/// secret: it can say whether a signature fits, not make one. A build made
+/// without it believes no update notice, and so asks for none.
+const _updateKey = String.fromEnvironment('DHARA_UPDATE_KEY');
 
 /// Whether this is a development build, which has the tools for working on
 /// the library (Titles and matching, Library index, the TMDB key): every

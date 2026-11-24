@@ -18,6 +18,7 @@ import 'package:dhara/features/player/resume_store.dart';
 import 'package:dhara/features/snapshot/first_start_controller.dart';
 import 'package:dhara/features/snapshot/snapshot_controller.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
+import 'package:dhara/features/update/update_controller.dart';
 import 'package:dhara/shell/app_shell.dart';
 import 'package:dhara/shell/page_keys.dart';
 import 'package:dhara/theme/scale.dart';
@@ -46,6 +47,7 @@ class DharaApp extends StatelessWidget {
     this.filmDetails,
     this.snapshots,
     this.firstStart,
+    this.updates,
     this.images,
     this.newCopyProber,
     this.mediaSessions,
@@ -80,6 +82,10 @@ class DharaApp extends StatelessWidget {
   /// it, nothing does.
   final FirstStartController? firstStart;
 
+  /// Asks whether a newer version exists: a production build that was
+  /// given the means has one; without it, nothing asks.
+  final UpdateController? updates;
+
   /// Where posters are kept; without it, placeholders are shown.
   final RemoteImageStore? images;
 
@@ -96,6 +102,7 @@ class DharaApp extends StatelessWidget {
     final filmDetails = this.filmDetails;
     final snapshots = this.snapshots;
     final firstStart = this.firstStart;
+    final updates = this.updates;
     Widget app = MaterialApp(
       title: 'Dhara',
       debugShowCheckedModeBanner: false,
@@ -142,6 +149,8 @@ class DharaApp extends StatelessWidget {
         (child) => LibrarySnapshotScope(controller: snapshots, child: child),
       if (firstStart != null)
         (child) => FirstStartScope(controller: firstStart, child: child),
+      if (updates != null)
+        (child) => UpdateScope(controller: updates, child: child),
     ]) {
       app = scope(app);
     }

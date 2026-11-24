@@ -142,6 +142,10 @@ AniList (when the Anime page is opened; nothing about your library is
 sent). The installed app also asks, on its first start, the servers of its
 list whether they answer, and fetches its library from the one address it
 was built with: a plain download that sends nothing about you or your PC.
+If it was built with an address for updates, it asks there once a day
+whether a newer version exists (the same kind of plain request, which does
+not even say which version you have) and tells you in Settings; it
+installs nothing by itself.
 It contacts nothing else and writes no log.
 
 ## Removing it

@@ -24,7 +24,7 @@ The full project brief lives in [BRIEF.md](../BRIEF.md) (mirrored in
 | 8. Packaging, security review and docs | Done: the app was gone through against section 7 of the brief ([security-review.md](security-review.md)), there is a per-user installer with a checksum (see [Installer](#installer)), and the README is there in English and Bangla, with how to keep the player up to date and a list of what to try by hand ([manual-test.bn.md](manual-test.bn.md)). On 2026-11-18 the libmpv of 2023 was replaced by a current build (see [Player hardening](#player-hardening)). **Not yet tried:** the installer on a PC without the Visual C++ runtime, an update over an older version, and the newer libmpv on real BDIX servers. The installer is to be made again after the PC it was built on is reset |
 | 9 | Not started |
 | Production build (version 1.1.0, 2026-11-24) | Done: one code, two builds. The installer holds the production build, which fills its library by itself on its first start (a snapshot fetched from the address it was built with, or one that came in the installer), finds the servers that answer, carries a TMDB key if it was built with one, looks titles up and reads the servers again by itself. Tried with real builds, with test installers the script made and with the user's snapshot on Google Drive; see [The first start of a production build](#the-first-start-of-a-production-build). **Not yet tried:** an installer run on a second PC, a build with a real TMDB key (none was used: the PC is to be set up anew first), and matching in a production build against TMDB itself |
-| Updates from inside the app | Under way since 2026-11-25: the signature check, the update notice and the script that signs one are in; see [Updates from inside the app](#updates-from-inside-the-app). The app does not ask for updates yet |
+| Updates from inside the app | Under way since 2026-11-25: a production build that was given an address and a key asks once a day whether a newer version exists, and Settings says what it found; see [Updates from inside the app](#updates-from-inside-the-app). Nothing is fetched or installed yet. **Not yet tried:** a build asking a real address |
 
 ## Prerequisites (Windows)
 
@@ -180,6 +180,23 @@ staged program was then started off-screen on its empty data folder:
 **Not yet tried:** running one of these installers (the staged program
 was started, not the installer), a second PC, and a real TMDB key (see
 [TMDB key](#tmdb-key)).
+
+`-UpdateUrl <address>` and `-UpdateKeyFile <file>` go together and let
+the production build ask whether a newer version exists
+(see [Updates from inside the app](#updates-from-inside-the-app)):
+
+```powershell
+pwsh tool/package.ps1 -UpdateUrl "<link of the update notice>" -UpdateKeyFile D:\keys\dhara-update.public.txt
+```
+
+The address is an https address or a Google Drive share link, like
+`-SnapshotUrl`; the file is the public half of the signing key, as
+`tool/sign-update.ps1 -NewKey` wrote it. The script refuses one option
+without the other, a development build, and a file that holds a private
+key or anything else. Both values go to the build in the same temp file
+as the snapshot's address. Neither is a secret, but the address is the
+user's own and so not in the repository. Without the two the build never
+asks for updates, and the script says so.
 
 `-Logo <name>` makes another drawing the logo the installed app starts
 with, and `-LogoFromSettings` takes the one chosen in Settings on the PC
@@ -605,7 +622,10 @@ Every control does something and is saved as it is changed
   Back leads from them to Settings. They also stand at the foot of the
   rail. See [Development and production builds](#development-and-production-builds).
 - **Sources:** the way to Server Discovery.
-- **Privacy and security:** what the app never does, and "Clear history".
+- **Privacy and security:** what the app never does, "Clear history",
+  and, in a production build that can ask for updates, what it knows
+  about them with **Check now**
+  (see [Updates from inside the app](#updates-from-inside-the-app)).
 
 ## Subtitles and audio tracks
 
@@ -1381,8 +1401,9 @@ Dhara never was.
 ## Updates from inside the app
 
 Under way since 2026-11-25; the plan and what is done are in
-[ROADMAP.md](ROADMAP.md), point 2. **The app does not ask for updates
-yet**: what is there so far is listed here, piece by piece.
+[ROADMAP.md](ROADMAP.md), point 2. So far a production build **asks and
+says** whether a newer version exists; it fetches and installs nothing
+yet. What is there is listed here, piece by piece.
 
 ### Checking a signature
 
@@ -1505,6 +1526,49 @@ folder: the notice it writes is taken by `readUpdateNotice` with the
 public half it wrote, and not with another key; it refuses a key inside
 the repository, a second key under the same name, a link that is not
 https, a version that is none, and the public half as a signing key.
+
+### Asking whether a newer version exists
+
+Only a production build does, and only one that was built with both an
+address to ask and the public half of the key (`_updateController` in
+`lib/main.dart`; see [Installer](#installer) for `-UpdateUrl` and
+`-UpdateKeyFile`). A development build, a build without the two, and a
+build on another system than Windows have nothing that asks.
+
+- `UpdateChecker` (`lib/features/update/update_checker.dart`) fetches
+  the update notice from that one address: https only, its client knows
+  that host and no other (a redirect elsewhere is refused), 64 KB and 20
+  seconds at most. The request is a plain GET without a cookie, a
+  parameter or a header of its own: it says nothing about the user, the
+  library or the version that is installed. Anything but a "200 OK" with
+  a notice that passes `readUpdateNotice` is no notice.
+- `UpdateController` (`update_controller.dart`) asks by itself once a
+  day at most: 30 seconds after the app started, if the last asking is a
+  day old, and it looks every hour whether it is. The time of an asking
+  is noted before the answer comes (`update.askedAt` in the settings),
+  so an asking that failed counts too and is not made again and again.
+  **Check now** in Settings asks at once.
+- A notice that names a version newer than this copy is kept as it came
+  (`update.notice` in the settings), so the app knows of it again at its
+  next start without asking. It is read back through the same check as
+  a fresh one, and dropped once this copy is that version.
+
+Settings, Privacy and security, **Updates** says what is known
+(`updateStatus` in `update_words.dart`): that it asks once a day; that
+this copy is the newest, and when that was asked; that a version is
+available; or why the last asking gave nothing (no answer, no notice
+there, an answer that is not signed, a notice this version cannot use).
+In a build that cannot ask, the row says what it always did: the app
+never updates itself.
+
+Tested: the checker against a web server on this PC (the headers a
+request really carries, a page in place of the file, a redirect to
+another host, an answer that is too large, no answer), the controller
+with a stand-in for it (once a day, what is kept and dropped), and the
+row in Settings. A test copy made by `tool/package.ps1` with the two
+options held the address and the key in its program. **Not yet tried:**
+a real build asking a real address; that needs a notice put somewhere,
+which is the user's to do.
 
 ## Titles and metadata
 
@@ -1662,6 +1726,12 @@ fetched again ("Ask again").
 
 All over https, each through its own client that knows no other host. Only
 titles and years are sent.
+
+A production build also contacts the address it fetches its snapshot
+from, and the one it asks for updates, if it was built with them (see
+[The first start of a production build](#the-first-start-of-a-production-build)
+and [Updates from inside the app](#updates-from-inside-the-app)). Neither
+is named in the code.
 
 ### Measured
 

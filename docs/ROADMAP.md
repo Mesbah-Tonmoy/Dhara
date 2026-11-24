@@ -232,6 +232,14 @@ Done:
   (`lib/features/update/update_notice.dart`), and `tool/sign-update.ps1`,
   which makes the key pair and signs a release. The script was run by the
   tests with keys of their own; no real key exists.
+- **(3), 2026-11-25.** A production build asks once a day whether a newer
+  version exists, and Settings says what it found and has **Check now**.
+  `tool/package.ps1 -UpdateUrl` and `-UpdateKeyFile` give a build the
+  address and the key; without them it never asks. The brief has its
+  lines on the network, on untrusted input and on secrets. Nothing is
+  fetched or installed yet. A test copy was made with the two options and
+  the values were found in its program; **not tried:** a build asking a
+  real address (there is no notice anywhere yet).
 
 Not yet tried: whether Google Drive hands an `.exe` file to a program the
 way it hands out the snapshot.

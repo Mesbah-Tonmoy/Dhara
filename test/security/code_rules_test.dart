@@ -315,6 +315,52 @@ void main() {
       expect(main, contains('!_devTools && tmdbKeyKindOf(_builtInTmdbKey)'));
     });
 
+    test('only a production build asks for updates, at the one address and '
+        'with the one key it was given', () {
+      for (final given in const ['DHARA_UPDATE_URL', 'DHARA_UPDATE_KEY']) {
+        expect(_hits(lib, RegExp(given)).map((hit) => hit.file).toSet(), {
+          'lib/main.dart',
+        });
+      }
+      final main = File('lib/main.dart').readAsStringSync();
+      for (final value in const ['_updateUrl', '_updateKey']) {
+        expect(
+          RegExp('\\b$value\\b').allMatches(main),
+          hasLength(2),
+          reason: 'its definition, and the one place that reads it',
+        );
+      }
+      // A development build has nothing that asks.
+      expect(
+        main,
+        contains('final updates = _devTools ? null : _updateController('),
+      );
+      // What asks is made in one place, and what it asks is that address.
+      expect(
+        _hits(lib, RegExp(r'\bUpdateChecker\(')).map((hit) => hit.file).toSet(),
+        {'lib/main.dart', 'lib/features/update/update_checker.dart'},
+      );
+      expect(main, contains('UpdateChecker(url, signed: key.signed)'));
+      expect(
+        _hits(
+          lib,
+          RegExp(r'\bUpdateController\('),
+        ).map((hit) => hit.file).toSet(),
+        {'lib/features/update/update_controller.dart', 'lib/main.dart'},
+      );
+      // The app holds the public half only: nothing in it can sign.
+      expect(
+        _hits(
+          lib,
+          RegExp(
+            r'BCryptSignHash|BCryptGenerateKeyPair|BCryptExportKey|'
+            r'ECCPRIVATEBLOB|PRIVATE KEY',
+          ),
+        ),
+        isEmpty,
+      );
+    });
+
     test('no key or token is written into a file of the repository', () {
       final texts = [
         for (final folder in const ['lib', 'tool', 'installer', 'docs'])

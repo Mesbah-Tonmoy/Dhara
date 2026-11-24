@@ -23,6 +23,7 @@ import 'package:dhara/features/sources/source.dart';
 import 'package:dhara/features/sources/source_store.dart';
 import 'package:dhara/features/sources/source_test_controller.dart';
 import 'package:dhara/features/sources/source_tester.dart';
+import 'package:dhara/features/update/update_controller.dart';
 import 'package:flutter/widgets.dart';
 
 /// The whole app on an empty library kept in memory: no files, no network,
@@ -35,7 +36,7 @@ import 'package:flutter/widgets.dart';
 /// look; [newCopyProber] makes what copies are pinged with, if they are to
 /// be. It is a development build, which has every page; without [devTools]
 /// it is a production build, whose first start is [firstStart] if it is to
-/// have one.
+/// have one, and which asks for updates with [updates] if it is to.
 ({Widget app, SourceStore sources}) testApp({
   List<Source> sources = const [],
   WindowController? window,
@@ -45,6 +46,7 @@ import 'package:flutter/widgets.dart';
   CopyProber Function()? newCopyProber,
   bool devTools = true,
   FirstStartController? firstStart,
+  UpdateController? updates,
 }) {
   final store = SourceStore(starter: sources);
   final library = LocalLibrary(db ?? LibraryDb.inMemory());
@@ -94,6 +96,7 @@ import 'package:flutter/widgets.dart';
     newCopyProber: newCopyProber,
     devTools: devTools,
     firstStart: firstStart,
+    updates: updates,
   );
   return (
     app: window == null ? app : WindowScope(controller: window, child: app),

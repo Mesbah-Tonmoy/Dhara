@@ -304,6 +304,18 @@ void main() {
     });
   });
 
+  group('a check that cannot be made', () {
+    test('counts as a signature that does not fit', () {
+      final read = readUpdateNotice(
+        _notice(_told()),
+        signed: (message, signature) => throw const CngException(0xC0000001),
+        askedAt: _askedAt,
+      );
+      expect(read.notice, isNull);
+      expect(read.problem, UpdateNoticeProblem.notSigned);
+    });
+  });
+
   group('with a real key (Windows)', () {
     late TestSigner signer;
     setUp(() => signer = TestSigner());

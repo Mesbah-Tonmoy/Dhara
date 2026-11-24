@@ -187,6 +187,7 @@ Each phase is split into small increments, each with its own commit message (sec
 
 - The app only contacts enabled sources, plus TMDB and AniList over HTTPS.
 - A production build also fetches the library snapshot from the one https address built into it, without cookies, with a size limit, and sends nothing about the user or the library. On its first start it tests the servers of the starter list (their listed URLs only) and enables the ones it can read.
+- A production build that was given an update address also asks that one https address, at most once a day and when the user asks, whether a newer version exists, and on the user's click fetches the installer from the same host: without cookies, with a size limit, and sending nothing about the user, the library or the installed version.
 - Only `http`/`https` schemes are allowed. Never use `file://` or other schemes coming from server responses.
 - Redirects are allowed only to the same host or another configured source, and are capped.
 - Every request has a timeout and a size limit.
@@ -197,6 +198,7 @@ Each phase is split into small increments, each with its own commit message (sec
 - Use a real HTML parser (no regex), never render server HTML, and no WebView or JS execution.
 - Escape all server strings in the UI, and use parameterised SQL only.
 - A snapshot is untrusted input like a server's answer: it is parsed strictly, and a video's or folder's address is taken only if it lies on a server of the source list.
+- An update notice is untrusted input like a server's answer: it is parsed strictly and believed only if its signature fits the public key built into the app. The installer's address is taken only if it is https and on the host of the update address.
 
 **Files**
 
@@ -206,6 +208,7 @@ Each phase is split into small increments, each with its own commit message (sec
 
 - Store the TMDB key in OS secure storage. Never commit it or log it.
 - Exception: a production build carries a TMDB key given at build time from outside the repository; it is never committed, logged or shown. The development build keeps the key in OS secure storage.
+- The key that signs updates: its private half never enters the repository, a build or the app; the public half is given at build time.
 
 **Privacy**
 

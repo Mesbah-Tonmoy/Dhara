@@ -147,7 +147,14 @@ UpdateNoticeRead readUpdateNotice(
   }
   if (message.isEmpty) return notANotice;
 
-  if (!signed(message, signature)) {
+  bool fits;
+  try {
+    fits = signed(message, signature);
+  } on Exception {
+    // A check that could not be made says nothing in the notice's favour.
+    fits = false;
+  }
+  if (!fits) {
     return const UpdateNoticeRead.refused(UpdateNoticeProblem.notSigned);
   }
 

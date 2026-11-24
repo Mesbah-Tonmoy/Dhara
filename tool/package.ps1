@@ -40,6 +40,14 @@
 # settings); it stays in dist\, in the folder and the installer made for
 # handing out.
 #
+# -UpdateUrl <address> and -UpdateKeyFile <file> go together and let the
+# production build ask, once a day, whether a newer version exists.
+# -UpdateUrl is where its update notice lies (the file tool/sign-update.ps1
+# writes): an https address or a Google Drive share link, as for
+# -SnapshotUrl. -UpdateKeyFile is the public half of the key updates are
+# signed with (the .public.txt file tool/sign-update.ps1 -NewKey wrote; it
+# is no secret). Without the two the build never asks for updates.
+#
 # -TestDataDir <folder> makes a copy for trying the installer without
 # touching the real library: that build keeps its data in <folder>, is called
 # "Dhara Test" and installs beside the real app, never over it.
@@ -56,6 +64,8 @@ param(
   [string]$SnapshotUrl,
   [string]$SnapshotFile,
   [string]$TmdbKeyFile,
+  [string]$UpdateUrl,
+  [string]$UpdateKeyFile,
   [string]$TestDataDir,
   [string]$Logo,
   [switch]$LogoFromSettings
@@ -130,6 +140,21 @@ if ($TmdbKeyFile) {
   $tmdbKeyKind = TmdbKeyKind $tmdbKey
   if (-not $tmdbKeyKind) { Fail 'the file does not hold a TMDB key (32 letters and digits) or a TMDB read access token, alone.' }
 }
+# Where the build asks for updates, and the key it checks the answer with.
+$updateAddress = $null
+$updateKey = $null
+if ($UpdateUrl -or $UpdateKeyFile) {
+  if ($Dev) { Fail '-UpdateUrl and -UpdateKeyFile are for the production build; a development build asks for no updates.' }
+  if (-not ($UpdateUrl -and $UpdateKeyFile)) { Fail '-UpdateUrl and -UpdateKeyFile go together: an address to ask, and the key its answer must be signed with.' }
+  $updateAddress = DownloadAddress $UpdateUrl
+  if (-not $updateAddress) { Fail '-UpdateUrl must be an https address or a Google Drive share link.' }
+  if (-not (Test-Path $UpdateKeyFile -PathType Leaf)) { Fail '-UpdateKeyFile names no file.' }
+  $updateKey = (Get-Content $UpdateKeyFile -Raw).Trim()
+  if ($updateKey -match 'PRIVATE KEY') { Fail '-UpdateKeyFile is the private half of the key, which no build may hold. Give the .public.txt file.' }
+  $isKey = $updateKey -cmatch '^[A-Za-z0-9+/]{86}[A-Za-z0-9+/=]{2}$'
+  if ($isKey) { try { $isKey = [Convert]::FromBase64String($updateKey).Length -eq 64 } catch { $isKey = $false } }
+  if (-not $isKey) { Fail '-UpdateKeyFile does not hold the public half of an update key (the .public.txt file tool/sign-update.ps1 -NewKey wrote).' }
+}
 $stage = Join-Path $root "dist\$name-$version"
 
 if (-not $Flutter) {
@@ -176,6 +201,14 @@ if ($tmdbKey) {
   Write-Host "  TMDB key: built in (a TMDB $tmdbKeyKind, from a file outside the repository)"
 } elseif (-not $Dev) {
   Write-Host '  No -TmdbKeyFile: this build looks nothing up on TMDB unless a key is saved on the PC it runs on.' -ForegroundColor Yellow
+}
+if ($updateAddress) {
+  $given.DHARA_UPDATE_URL = $updateAddress
+  $given.DHARA_UPDATE_KEY = $updateKey
+  Write-Host "  updates from: $updateAddress"
+  Write-Host "  signed for:   $updateKey"
+} elseif (-not $Dev) {
+  Write-Host '  No -UpdateUrl and -UpdateKeyFile: this build never asks whether a newer version exists.' -ForegroundColor Yellow
 }
 $defines = $null
 if ($given.Count -gt 0) {
