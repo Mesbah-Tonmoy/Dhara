@@ -104,6 +104,69 @@ installer ("Dhara Dev") দিয়ে।
 2. `%APPDATA%\com.dhara\dhara` folder থেকে যাবে। আবার install করলে library
    আগের মতোই ফিরে আসবে।
 
+## ৬. App-এর ভেতর থেকে update
+
+এটা test copy ("Dhara Test") দিয়ে দেখুন, যাতে আসল app আর আসল library-তে হাত
+না পড়ে। Test-এর জন্য আলাদা একটা key বানান; আসল key দিয়ে test installer sign
+করবেন না।
+
+প্রস্তুতি (একবার):
+
+1. Test key বানান:
+
+   ```powershell
+   pwsh tool/sign-update.ps1 -NewKey D:\keys\dhara-update-test
+   ```
+
+2. Google Drive-এ `dhara-update.json` নামে যেকোনো ছোট একটা file তুলুন,
+   "anyone with the link" share করুন, link copy করুন। এটা notice-এর link।
+3. Test installer বানান:
+
+   ```powershell
+   pwsh tool/package.ps1 -TestDataDir D:\tmp\dhara-update -UpdateUrl "<notice-এর link>" -UpdateKeyFile D:\keys\dhara-update-test.public.txt
+   ```
+
+4. `dist\Dhara-Test-Setup-<version>.exe` Drive-এ তুলুন, share করুন, link copy
+   করুন। তারপর সেটাকে একটা উঁচু version বলে sign করুন (হলুদ একটা লাইন বলবে
+   installer-এর নিজের version আলাদা; test-এ সেটাই চাই):
+
+   ```powershell
+   pwsh tool/sign-update.ps1 -Installer dist\Dhara-Test-Setup-<version>.exe -InstallerLink "<installer-এর link>" -KeyFile D:\keys\dhara-update-test.private.pem -Version 9.9.9 -Notes "Test update."
+   ```
+
+5. Drive-এ notice file-এ right-click, "File information", "Manage versions",
+   "Upload new version" দিয়ে `dist\dhara-update.json` তুলুন।
+
+পরীক্ষা:
+
+1. `dist\Dhara-Test-Setup-<version>.exe` চালিয়ে "Dhara Test" খুলুন। আধা
+   মিনিট পরে title bar-এ নামের পাশে **Update** আসবে। (না এলে Settings,
+   Privacy and security, Updates-এ **Check now** চাপুন; সেখানে লেখা থাকবে
+   "Version 9.9.9 is available"।)
+2. এ পর্যন্ত কিছু নামেনি: `D:\tmp\dhara-update\update` folder নেই বা খালি।
+3. **Update** চাপুন। Dialog-এ version, installer-এর আকার, "Test update." আর
+   কী ঘটবে তা লেখা থাকবে। **Later** চাপলে কিছুই হবে না।
+4. আবার খুলে **Download and install** চাপুন: bar ভরবে ("… of … MB"), তারপর
+   "Checking…", তারপর installer-এর window খুলবে আর Dhara Test নিজে বন্ধ হবে।
+   Admin prompt আসার কথা নয়।
+5. Installer শেষ করুন, শেষ পাতা থেকে Dhara Test আবার খুলুন: library আর
+   settings আগের মতোই আছে। (এটা একই version আবার বসাল, তাই **Update** আবার
+   দেখাবে; আসল release-এ নতুন version বসার পরে আর দেখায় না।)
+6. ভুল file ধরা পড়ে কি না: Drive-এ installer file-এ "Manage versions" দিয়ে
+   অন্য যেকোনো file তুলুন। **Download and install** চাপুন: dialog বলবে "What
+   came is not the installer its maker signed…", কোনো installer খুলবে না, আর
+   `D:\tmp\dhara-update\update` খালি থাকবে।
+7. নামানোর মাঝখানে **Stop** চাপুন: dialog আগের অবস্থায় ফিরবে, folder খালি।
+8. Internet বন্ধ করে **Check now** চাপুন: "did not answer" লেখা আসবে, আর
+   আগে জানা version-এর কথা থেকে যাবে।
+9. Development build-এ (`flutter run -d windows`) Settings-এর Updates সারিতে
+   "MANUAL" লেখা, **Check now** নেই, title bar-এ **Update** নেই।
+10. শেষে "Dhara Test" uninstall করুন, `D:\tmp\dhara-update` folder আর
+    Drive-এর test file দুটো মুছে দিন। Test key আর কোথাও ব্যবহার করবেন না।
+
+আসল release-এ একই ধাপ, শুধু `-TestDataDir` আর `-Version` ছাড়া, আসল key
+দিয়ে: README-র "নিজে build করা" অংশে লেখা আছে।
+
 ## কিছু না মিললে
 
 কোন ধাপে কী দেখলেন লিখে রাখুন, আর player-এর সমস্যা হলে **I** panel-এ যা

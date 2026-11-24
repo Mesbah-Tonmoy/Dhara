@@ -306,6 +306,51 @@ Discovery, Library index, Titles and matching, TMDB key)। `-Dev` ছাড়�
 Snapshot-কে অবিশ্বাস করে পড়া হয়: app-এর নিজের তালিকার server-এ থাকা video
 ছাড়া তা থেকে কিছু নেওয়া হয় না।
 
+Install করা app যেন নিজেই পরের version-এর কথা জানাতে পারে, তার জন্য তাকে
+দুটো জিনিস দিতে হয়: জিজ্ঞেস করার একটা ঠিকানা, আর উত্তর যাচাই করার একটা key।
+একবারের কাজ:
+
+1. বিশ্বাস করা যায় এমন PC-তে, এই repository-র বাইরে, key জোড়া বানান:
+
+   ```powershell
+   pwsh tool/sign-update.ps1 -NewKey D:\keys\dhara-update
+   ```
+
+   `dhara-update.private.pem` দিয়ে update sign করা হয়: এটা যার হাতে থাকে সে
+   এমন installer বানাতে পারে যা install করা সব copy মেনে নেবে। তাই এটা
+   কখনো repository, installer বা কোনো message-এ যাবে না, আর এর একটা copy
+   নিরাপদ জায়গায় রাখুন (এটা হারালে ভেতর থেকে আর কোনো copy update করা যাবে
+   না)। `dhara-update.public.txt` গোপন কিছু নয়।
+2. `dhara-update.json` নামে একটা file (আপাতত ভেতরে যা-ই থাকুক) এমন জায়গায়
+   রাখুন যেখান থেকে app নামাতে পারে, আর installer-গুলো যে host-এ থাকবে সেই
+   host-এই। Google Drive-এ: upload করে "anyone with the link" share করুন
+   আর link copy করুন।
+3. দুটো দিয়েই installer বানান:
+
+   ```powershell
+   pwsh tool/package.ps1 -SnapshotUrl "<link>" -TmdbKeyFile D:\keys\dhara-tmdb.txt -UpdateUrl "<dhara-update.json-এর link>" -UpdateKeyFile D:\keys\dhara-update.public.txt
+   ```
+
+এরপর প্রতিটা নতুন version-এ (আগে `pubspec.yaml`-এর `version` আর
+`lib/core/app_info.dart`-এর `dharaVersion` বাড়িয়ে নিন):
+
+1. একই option দিয়ে তার installer বানান, আর একই host-এ আলাদা file হিসেবে
+   রাখুন (Drive-এ: upload, share, link copy)।
+2. Sign করুন। এতে `dist\dhara-update.json` লেখা হয়, সেটাই update notice:
+
+   ```powershell
+   pwsh tool/sign-update.ps1 -Installer dist\Dhara-Setup-<version>.exe -InstallerLink "<installer-এর link>" -KeyFile D:\keys\dhara-update.private.pem -Notes "কী নতুন।"
+   ```
+
+3. সেই notice-টা পুরোনোটার জায়গায়, একই link-এর নিচে রাখুন (Drive-এ:
+   "Manage versions", "Upload new version")।
+
+এক দিনের মধ্যে install করা প্রতিটা copy **Update** দেখাবে। একটা copy notice
+মানে শুধু তখনই, যখন সেটা তার নিজের key দিয়ে sign করা; আর installer নেয় শুধু
+তখনই, যখন সেটা হুবহু notice-এ বলা file। 1.2.0-এর আগের copy, বা এই দুটো
+option ছাড়া বানানো copy কখনো জিজ্ঞেস করে না: তাদের নতুন version বসাতে
+installer চালাতে হয়।
+
 ## মাপা সংখ্যা
 
 যে PC-র জন্য app বানানো (Ryzen 5 5500U, integrated graphics, Windows 11),

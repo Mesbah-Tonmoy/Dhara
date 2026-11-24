@@ -24,7 +24,7 @@ The full project brief lives in [BRIEF.md](../BRIEF.md) (mirrored in
 | 8. Packaging, security review and docs | Done: the app was gone through against section 7 of the brief ([security-review.md](security-review.md)), there is a per-user installer with a checksum (see [Installer](#installer)), and the README is there in English and Bangla, with how to keep the player up to date and a list of what to try by hand ([manual-test.bn.md](manual-test.bn.md)). On 2026-11-18 the libmpv of 2023 was replaced by a current build (see [Player hardening](#player-hardening)). **Not yet tried:** the installer on a PC without the Visual C++ runtime, an update over an older version, and the newer libmpv on real BDIX servers. The installer is to be made again after the PC it was built on is reset |
 | 9 | Not started |
 | Production build (version 1.1.0, 2026-11-24) | Done: one code, two builds. The installer holds the production build, which fills its library by itself on its first start (a snapshot fetched from the address it was built with, or one that came in the installer), finds the servers that answer, carries a TMDB key if it was built with one, looks titles up and reads the servers again by itself. Tried with real builds, with test installers the script made and with the user's snapshot on Google Drive; see [The first start of a production build](#the-first-start-of-a-production-build). **Not yet tried:** an installer run on a second PC, a build with a real TMDB key (none was used: the PC is to be set up anew first), and matching in a production build against TMDB itself |
-| Updates from inside the app | Built in code and automated tests since 2026-11-25: a production build that was given an address and a key asks once a day whether a newer version exists and says so; on a click it fetches the installer, checks it against the signed notice, starts it and closes; see [Updates from inside the app](#updates-from-inside-the-app). **Not yet tried:** any of it in a real build against a real address (it needs a notice and an installer put on a host, and a key, which are the user's to make), and an update over an older version. Still to come: the manual test list, and version 1.2.0 |
+| Updates from inside the app (version 1.2.0, 2026-11-25) | Done in code and in automated tests: a production build that was given an address and a key asks once a day whether a newer version exists and says so; on a click it fetches the installer, checks it against the signed notice, starts it and closes; see [Updates from inside the app](#updates-from-inside-the-app). How to make such a release is in the [README](../README.md#building-it), and what to try by hand in [manual-test.bn.md](manual-test.bn.md). **Not yet tried:** any of it in a real build against a real address (it needs a notice and an installer put on a host, and a key, which are the user's to make), an update over an older version, and whether Google Drive hands an `.exe` to a program as it does the snapshot |
 
 ## Prerequisites (Windows)
 
@@ -1407,7 +1407,10 @@ Under way since 2026-11-25; the plan and what is done are in
 newer version exists, and on the user's click fetches its installer,
 checks it, starts it and closes. All of it is tested piece by piece; the
 whole way with a real installer from a real address has **not been
-tried** yet.
+tried** yet. The steps for making a release that updates are in the
+[README](../README.md#building-it); the list for trying it by hand, with
+a test copy and a key made for the test, is section 6 of
+[manual-test.bn.md](manual-test.bn.md).
 
 ### Checking a signature
 
@@ -1661,6 +1664,32 @@ after a failed one, nor by asking or by starting the app); the dialog,
 the pill and the Settings button in widget tests, with the window's
 close noted. **Not yet tried:** a real installer started this way, an
 update over an older version, and what SmartScreen does.
+
+### Tried with a real installer
+
+On 2026-11-25, with a key pair made for the try and removed after it:
+
+- `tool/package.ps1 -TestDataDir … -UpdateUrl … -UpdateKeyFile …` made
+  a test installer of version 1.2.0 (48.4 MB); the address and the
+  public key were in its program.
+- `tool/sign-update.ps1` signed that installer: it read the version
+  (1.2.0) out of the installer itself, and said so when told to call
+  it 9.9.9.
+- The notice it wrote was taken by `readUpdateNotice` with that key.
+- `InstallerFetcher` fetched the 48.4 MB installer from a web server
+  on this PC and checked it against the signed notice: 0.6 s to fetch,
+  0.15 s to read it back and work out its SHA-256. The same installer
+  with one byte changed in its middle was refused and removed.
+- `UpdateChecker`, asked for a file that does not exist on the host
+  Google Drive hands files out at, said "not there" within half a
+  second: the https request to the real host works, and what comes
+  back in place of a notice is not taken for one.
+
+**Still not tried**, because it needs files put on a host, which is
+the user's to do: an installed copy that asks, is answered with a real
+notice, fetches the installer from there and starts it; whether Google
+Drive hands an `.exe` to a program as it hands out the snapshot; an
+update over an older version; and what Windows SmartScreen does.
 
 ## Titles and metadata
 

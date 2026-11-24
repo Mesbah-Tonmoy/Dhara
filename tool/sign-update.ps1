@@ -100,11 +100,15 @@ if (IsInside (FullPath $KeyFile) $root) { Fail 'the private key must lie outside
 $address = DownloadAddress $InstallerLink
 if (-not $address) { Fail '-InstallerLink must be an https address or a Google Drive share link of the installer.' }
 
+# Inno Setup writes the version it was given into the installer.
+$inFile = $null
+if ($installerFile.VersionInfo.FileVersion -match '^\s*(\d+\.\d+\.\d+)(\.\d+)?\s*$') { $inFile = $Matches[1] }
 if (-not $Version) {
-  # Inno Setup writes the version it was given into the installer.
-  $inFile = $installerFile.VersionInfo.FileVersion
-  if ($inFile -match '^\s*(\d+\.\d+\.\d+)(\.\d+)?\s*$') { $Version = $Matches[1] }
-  else { Fail 'the installer does not say its version; pass -Version <x.y.z>.' }
+  if (-not $inFile) { Fail 'the installer does not say its version; pass -Version <x.y.z>.' }
+  $Version = $inFile
+} elseif ($inFile -and $inFile -ne $Version) {
+  # Allowed, for trying things; a real release names the installer's own.
+  Write-Host "  The installer says it is $inFile; the notice will say $Version." -ForegroundColor Yellow
 }
 if ($Version -notmatch '^\d{1,5}\.\d{1,5}\.\d{1,5}$') { Fail '-Version must look like 1.2.3.' }
 if ($Notes -and $Notes.Length -gt 4000) { Fail '-Notes may be 4000 characters at most.' }

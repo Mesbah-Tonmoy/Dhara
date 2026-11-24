@@ -174,6 +174,10 @@ fixes. It ships a current one in its place (mpv 0.42 of November 2026).
 That holds only as long as newer builds are taken: see
 [Keeping the player up to date](#keeping-the-player-up-to-date).
 
+The app starts one program only, and only when you ask: the installer of
+a newer version, after it checked that the file is the one its maker
+signed (see [Building it](#building-it)). It never updates by itself.
+
 ## Keeping the player up to date
 
 The player library is the dependency to watch. This is how it gets into
@@ -310,6 +314,50 @@ one that fills itself:
 
 A snapshot is read as untrusted input: only videos on a server of the
 app's own list are taken from it.
+
+To let installed copies offer the next version themselves, they need an
+address to ask and a key to check the answer with. Once:
+
+1. Make the key pair, on a PC you trust, outside this repository:
+
+   ```powershell
+   pwsh tool/sign-update.ps1 -NewKey D:\keys\dhara-update
+   ```
+
+   `dhara-update.private.pem` signs updates: whoever has it can make
+   installers every installed copy takes, so it never goes into the
+   repository, an installer or a message, and a copy of it belongs
+   somewhere safe (without it no copy can be updated from inside again).
+   `dhara-update.public.txt` is no secret.
+2. Put a file called `dhara-update.json` (anything will do for now) where
+   the app can fetch it, on the same host the installers will lie on. On
+   Google Drive: upload it, share it with "anyone with the link" and copy
+   the link.
+3. Make the installer with both:
+
+   ```powershell
+   pwsh tool/package.ps1 -SnapshotUrl "<the link>" -TmdbKeyFile D:\keys\dhara-tmdb.txt -UpdateUrl "<link of dhara-update.json>" -UpdateKeyFile D:\keys\dhara-update.public.txt
+   ```
+
+Then, for every later version (raise `version` in `pubspec.yaml` and
+`dharaVersion` in `lib/core/app_info.dart` first):
+
+1. Make its installer with the same options, and put it on the same host
+   as a file of its own (on Drive: upload, share, copy the link).
+2. Sign it. This writes `dist\dhara-update.json`, the update notice:
+
+   ```powershell
+   pwsh tool/sign-update.ps1 -Installer dist\Dhara-Setup-<version>.exe -InstallerLink "<link of the installer>" -KeyFile D:\keys\dhara-update.private.pem -Notes "What is new."
+   ```
+
+3. Put that notice in the place of the old one, under the same link (on
+   Drive: "Manage versions", "Upload new version").
+
+Within a day every installed copy shows **Update**. A copy takes a notice
+only if it is signed with the key it was built with, and an installer only
+if it is the very file the notice names. Copies made before version 1.2.0,
+or without the two options, never ask: they get the newer version by
+running its installer.
 
 ## Measured
 

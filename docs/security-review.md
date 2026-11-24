@@ -18,7 +18,9 @@ untrusted input and believed only if it is signed, and the key that signs
 has no private half anywhere in the app; and, on the user's click only, the
 app fetches the installer of a newer version, checks it against the signed
 notice and starts it. That last one is the exception to "nothing is ever
-executed".
+executed". With version 1.2.0, 1,743 tests pass. None of it has run in a
+real build against a real address yet, and no real signing key exists: both
+wait for the PC to be set up anew (finding 8).
 
 Verdicts: **ok** (done and checked), **gap** (known and accepted, with the
 reason), **fixed** (found in this review and put right), **later** (belongs

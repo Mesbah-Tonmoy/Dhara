@@ -254,9 +254,35 @@ Done:
   small program of Windows standing in for an installer. **Not tried:**
   the whole way with a real installer and a real notice, which needs
   files put on a host by the user; that is part of (6).
+- **(6), 2026-11-25.** Version 1.2.0. The README (English and Bangla)
+  says how to make the key, a release that updates, and the notice for
+  each later version; the manual test list has a section for trying it
+  with a test copy and a key made for the test. A test installer of
+  1.2.0 was made with the script and signed with a key made for that
+  and thrown away: the script read the version out of the installer, the
+  app's reader took the notice, and the fetcher took the 48 MB installer
+  from a web server on this PC and refused it with one byte changed (see
+  "Tried with a real installer" in DEVELOPMENT.md).
 
-Not yet tried: whether Google Drive hands an `.exe` file to a program the
-way it hands out the snapshot.
+All six increments are done. What is left, and is the user's: the whole
+way once with a test copy (section 6 of `docs/manual-test.bn.md`; it
+needs two files on a host); and, after the PC is set up anew, the real
+key pair and the first real installer with `-UpdateUrl` and
+`-UpdateKeyFile`. Copies of 1.1.0 and older have nothing that asks: the
+first installer with an updater in it is installed by hand.
+
+Seen while this was built, and left as it is:
+
+- A fetch that breaks off starts from the beginning the next time.
+- The app asks once a day, also after an asking that failed: a PC that
+  was offline at that moment hears of an update a day later, or with
+  **Check now**.
+- The private key is kept as a plain file; the script has no passphrase
+  for it (its prompt could not be tried from here).
+- Whoever can change what the address answers can keep a copy from
+  seeing a newer version (by answering with an old notice or none), but
+  cannot make it take anything unsigned.
+
 
 ### 3. A longer server list
 
