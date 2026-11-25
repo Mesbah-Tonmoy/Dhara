@@ -1517,9 +1517,14 @@ writes `dist\dhara-update.json`. The link is an https address or a Google
 Drive share link, turned into the address Drive hands the file out at, as
 for `-SnapshotUrl` (both scripts share `tool/download-address.ps1`). The
 version is read from the installer (Inno Setup writes it in) unless
-`-Version` says it. The script checks its own signature before it writes
-anything, prints the public half the notice is signed for, never prints
-the private one, and uploads nothing.
+`-Version` says it. Before it signs, the script fetches what lies at the
+link once, the way the app will (no cookie, no redirect followed), and
+holds its length and SHA-256 against the installer; if another file lies
+there (the notice's own link given by mistake, an installer built anew
+after the upload, a file that is not shared) it says what it found and
+signs nothing. `-NoCheck` leaves that out. The script checks its own
+signature before it writes anything, prints the public half the notice is
+signed for, never prints the private one, and uploads nothing.
 
 **No real key exists yet.** The PC is to be set up anew first (see
 [Installer](#installer), "How far to trust it"); until then every key is
@@ -1532,7 +1537,8 @@ is refused; and the script itself, run by the test in a temporary
 folder: the notice it writes is taken by `readUpdateNotice` with the
 public half it wrote, and not with another key; it refuses a key inside
 the repository, a second key under the same name, a link that is not
-https, a version that is none, and the public half as a signing key.
+https, a version that is none, the public half as a signing key, and a
+link at which nothing answers.
 
 ### Asking whether a newer version exists
 
@@ -1685,11 +1691,27 @@ On 2026-11-25, with a key pair made for the try and removed after it:
   second: the https request to the real host works, and what comes
   back in place of a notice is not taken for one.
 
-**Still not tried**, because it needs files put on a host, which is
-the user's to do: an installed copy that asks, is answered with a real
-notice, fetches the installer from there and starts it; whether Google
-Drive hands an `.exe` to a program as it hands out the snapshot; an
-update over an older version; and what Windows SmartScreen does.
+On 2026-11-26 the user went through section 6 of the manual test list
+with a test copy, a key made for it and two files on Google Drive:
+
+- The installed test copy asked its address, took the signed notice
+  and showed **Update** and the dialog ("Dhara 9.9.9 is available").
+- **Download and install** then said "What came is not the installer
+  its maker signed", started nothing and left `update` empty. That was
+  right: the notice had been signed with the link of the notice file
+  in place of the installer's, so what the app fetched was the notice
+  (495 bytes). The script could not have known then; it checks the
+  link since (see [Signing an update](#signing-an-update)), and with
+  that same wrong link it now stops with "there it is
+  'dhara-update.json', 495 bytes; the installer is 50718928 bytes".
+- Google Drive does hand an `.exe` to a program: the uploaded
+  installer came back whole from the address the script makes of a
+  share link, with the length and SHA-256 of the file that was built.
+
+**Still not tried:** the fetch and the start of a real installer by
+an installed copy (the notice was signed anew with the right link; it
+has to be put on Drive by the user); an update over an older version;
+and what Windows SmartScreen does.
 
 ## Titles and metadata
 

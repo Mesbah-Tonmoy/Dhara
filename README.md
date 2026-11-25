@@ -344,7 +344,10 @@ Then, for every later version (raise `version` in `pubspec.yaml` and
 
 1. Make its installer with the same options, and put it on the same host
    as a file of its own (on Drive: upload, share, copy the link).
-2. Sign it. This writes `dist\dhara-update.json`, the update notice:
+2. Sign it, with the link of **the installer** (not of the notice). The
+   script first fetches what lies at that link and signs nothing unless
+   it is this installer. It writes `dist\dhara-update.json`, the update
+   notice:
 
    ```powershell
    pwsh tool/sign-update.ps1 -Installer dist\Dhara-Setup-<version>.exe -InstallerLink "<link of the installer>" -KeyFile D:\keys\dhara-update.private.pem -Notes "What is new."

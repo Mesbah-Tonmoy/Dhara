@@ -336,7 +336,9 @@ Install করা app যেন নিজেই পরের version-এর ক�
 
 1. একই option দিয়ে তার installer বানান, আর একই host-এ আলাদা file হিসেবে
    রাখুন (Drive-এ: upload, share, link copy)।
-2. Sign করুন। এতে `dist\dhara-update.json` লেখা হয়, সেটাই update notice:
+2. Sign করুন, **installer-এর** link দিয়ে (notice-এর link নয়)। Script আগে
+   ওই link-এ যা আছে তা নামিয়ে মিলিয়ে দেখে; সেটা এই installer না হলে কিছুই
+   sign করে না। এতে `dist\dhara-update.json` লেখা হয়, সেটাই update notice:
 
    ```powershell
    pwsh tool/sign-update.ps1 -Installer dist\Dhara-Setup-<version>.exe -InstallerLink "<installer-এর link>" -KeyFile D:\keys\dhara-update.private.pem -Notes "কী নতুন।"

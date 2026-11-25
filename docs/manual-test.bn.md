@@ -127,15 +127,22 @@ installer ("Dhara Dev") দিয়ে।
    ```
 
 4. `dist\Dhara-Test-Setup-<version>.exe` Drive-এ তুলুন, share করুন, link copy
-   করুন। তারপর সেটাকে একটা উঁচু version বলে sign করুন (হলুদ একটা লাইন বলবে
-   installer-এর নিজের version আলাদা; test-এ সেটাই চাই):
+   করুন। এখন আপনার হাতে দুটো link: ২ নম্বর ধাপের notice-এর link আর এই
+   installer-এর link। Sign করার সময় `-InstallerLink`-এ **installer-এর**
+   link দিন, notice-এর নয়। সেটাকে একটা উঁচু version বলে sign করুন (হলুদ
+   একটা লাইন বলবে installer-এর নিজের version আলাদা; test-এ সেটাই চাই):
 
    ```powershell
    pwsh tool/sign-update.ps1 -Installer dist\Dhara-Test-Setup-<version>.exe -InstallerLink "<installer-এর link>" -KeyFile D:\keys\dhara-update-test.private.pem -Version 9.9.9 -Notes "Test update."
    ```
 
+   Script আগে link-এ যা আছে তা নামিয়ে installer-এর সাথে মিলিয়ে দেখে, আর
+   "It is this installer." বলে তবেই sign করে। ভুল link দিলে বলে সেখানে কী
+   পেয়েছে, আর কিছু লেখে না।
+
 5. Drive-এ notice file-এ right-click, "File information", "Manage versions",
-   "Upload new version" দিয়ে `dist\dhara-update.json` তুলুন।
+   "Upload new version" দিয়ে `dist\dhara-update.json` তুলুন। আগে জানা
+   notice app মনে রাখে, তাই নতুনটা পেতে Settings-এ **Check now** চাপুন।
 
 পরীক্ষা:
 

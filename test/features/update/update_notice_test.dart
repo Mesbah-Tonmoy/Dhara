@@ -424,6 +424,8 @@ void main() {
         'Faster start.',
         '-Out',
         inFolder('dhara-update.json'),
+        // Nothing lies at that link; the check of it has its own test.
+        '-NoCheck',
       ]);
       expect(signed.exitCode, 0, reason: '${signed.stdout}${signed.stderr}');
       expect('${signed.stdout}${signed.stderr}', isNot(contains(privateBody)));
@@ -485,6 +487,7 @@ void main() {
         String link = 'https://files.example/setup.exe',
         String? keyFile,
         String version = '1.2.3',
+        bool check = false,
       }) => script([
         '-Installer',
         installer.path,
@@ -496,6 +499,7 @@ void main() {
         version,
         '-Out',
         inFolder('out.json'),
+        if (!check) '-NoCheck',
       ]);
 
       for (final refused in [
@@ -508,6 +512,19 @@ void main() {
         expect(refused.exitCode, 1, reason: '${refused.stdout}');
       }
       expect(File(inFolder('out.json')).existsSync(), isFalse);
+
+      // Unless told not to, it first fetches what lies at the link, and
+      // signs nothing if that is not the installer: here nothing answers
+      // there at all (an address of this PC that nothing listens at).
+      final unchecked = await sign(
+        link: 'https://127.0.0.1:1/setup.exe',
+        check: true,
+      );
+      expect(unchecked.exitCode, 1, reason: '${unchecked.stdout}');
+      expect(unchecked.stdout, contains('could not be fetched'));
+      expect(unchecked.stdout, contains('Nothing was signed'));
+      expect(File(inFolder('out.json')).existsSync(), isFalse);
+
       expect((await sign()).exitCode, 0);
     });
   }, skip: _hasPwsh ? false : 'needs Windows with PowerShell 7');

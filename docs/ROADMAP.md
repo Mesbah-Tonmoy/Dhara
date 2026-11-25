@@ -264,6 +264,14 @@ Done:
   from a web server on this PC and refused it with one byte changed (see
   "Tried with a real installer" in DEVELOPMENT.md).
 
+- **2026-11-26.** The user tried it with a test copy (section 6 of the
+  manual test list). Asking, the notice, the pill and the dialog worked
+  in the installed copy; the installer was refused, rightly, because
+  the notice had been signed with the notice's own link in place of
+  the installer's. `tool/sign-update.ps1` now fetches what lies at the
+  link and signs nothing unless it is the installer. Google Drive does
+  hand an `.exe` to a program.
+
 All six increments are done. What is left, and is the user's: the whole
 way once with a test copy (section 6 of `docs/manual-test.bn.md`; it
 needs two files on a host); and, after the PC is set up anew, the real

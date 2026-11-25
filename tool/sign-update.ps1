@@ -32,6 +32,11 @@
 # -SnapshotUrl; the installer has to lie on the same host as the notice.
 # The version is read from the installer; -Version says it if that fails.
 #
+# Before it signs, the script fetches what lies at -InstallerLink once and
+# holds it against the installer (length and SHA-256), so that a wrong link
+# or an upload of another build is found here and not by every installed
+# copy. -NoCheck leaves that out, for a PC without a connection.
+#
 # Nothing is uploaded and nothing but the files named above is written. The
 # private key is never printed.
 [CmdletBinding(DefaultParameterSetName = 'Sign')]
@@ -42,7 +47,8 @@ param(
   [Parameter(ParameterSetName = 'Sign', Mandatory)][string]$KeyFile,
   [Parameter(ParameterSetName = 'Sign')][string]$Version,
   [Parameter(ParameterSetName = 'Sign')][string]$Notes,
-  [Parameter(ParameterSetName = 'Sign')][string]$Out
+  [Parameter(ParameterSetName = 'Sign')][string]$Out,
+  [Parameter(ParameterSetName = 'Sign')][switch]$NoCheck
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -122,7 +128,57 @@ $told = [ordered]@{
   sha256    = (Get-FileHash $installerFile.FullName -Algorithm SHA256).Hash.ToLower()
 }
 if ($Notes) { $told.notes = $Notes }
-$signed = [Text.UTF8Encoding]::new($false).GetBytes(($told | ConvertTo-Json -Compress))
+
+# What lies at the link has to be this very installer: a notice that names
+# another file (the link of the notice itself, an installer that was built
+# anew after the upload) is one every copy refuses. So the file is fetched
+# once, the way the app will fetch it (no cookie, no redirect followed),
+# and hashed as it comes. Nothing is saved, and nothing is signed if it is
+# not the installer.
+if (-not $NoCheck) {
+  Write-Host '  Checking what lies at the link ...'
+  $found = @{ Length = 0L; Sha256 = $null; Name = $null; Problem = $null }
+  $handler = [Net.Http.HttpClientHandler]::new()
+  $handler.AllowAutoRedirect = $false
+  $handler.UseCookies = $false
+  $client = [Net.Http.HttpClient]::new($handler)
+  $client.Timeout = [TimeSpan]::FromMinutes(20)
+  try {
+    $response = $client.GetAsync($address, [Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
+    $status = [int]$response.StatusCode
+    $type = [string]$response.Content.Headers.ContentType
+    if ($status -ge 300 -and $status -lt 400) { $found.Problem = 'it answers by sending on to another address, which the app does not follow' }
+    elseif ($status -ne 200) { $found.Problem = "the place answers $status" }
+    elseif ($type -like 'text/*') { $found.Problem = 'a page comes in place of the file: is it shared with "anyone with the link"?' }
+    else {
+      $disposition = $response.Content.Headers.ContentDisposition
+      if ($disposition) { $found.Name = ([string]$disposition.FileName).Trim('"') }
+      $hash = [Security.Cryptography.IncrementalHash]::CreateHash($sha256)
+      $stream = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+      $buffer = [byte[]]::new(1MB)
+      # Not a byte more than it takes to know that it is another file.
+      while ($found.Length -le $told.size -and ($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+        $hash.AppendData($buffer, 0, $read)
+        $found.Length += $read
+      }
+      $found.Sha256 = [Convert]::ToHexString($hash.GetHashAndReset()).ToLower()
+      $hash.Dispose()
+    }
+  } catch {
+    $found.Problem = 'the place did not answer'
+  } finally { $client.Dispose() }
+  if ($found.Problem) {
+    Fail "the installer could not be fetched from -InstallerLink ($($found.Problem)). Nothing was signed. (-NoCheck signs without looking.)"
+  }
+  if ($found.Length -ne $told.size -or $found.Sha256 -ne $told.sha256) {
+    $what = if ($found.Length -gt $told.size) { "more than $($told.size) bytes" } else { "$($found.Length) bytes" }
+    if ($found.Name) { $what = "'$($found.Name)', $what" }
+    Fail ("what lies at -InstallerLink is not this installer: there it is $what; the installer is $($told.size) bytes. " +
+      'Give the link of the uploaded installer (not the link of the notice), and upload the installer again if it was built anew. Nothing was signed.')
+  }
+  Write-Host '  It is this installer.' -ForegroundColor Green
+}
+$signed =[Text.UTF8Encoding]::new($false).GetBytes(($told | ConvertTo-Json -Compress))
 
 $pem = (Get-Content $KeyFile -Raw)
 $key = [Security.Cryptography.ECDsa]::Create()
